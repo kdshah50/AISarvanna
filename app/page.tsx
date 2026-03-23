@@ -5,29 +5,15 @@ import TrustBar from "@/components/TrustBar";
 
 export const dynamic = 'force-dynamic';
 
-<<<<<<< HEAD
 const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
-=======
-// Hardcoded so it always works regardless of env var availability
-const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
->>>>>>> bdf917f13121f8b0fedc6769b97f2cc5ab019852
 
 export default async function HomePage() {
   let cards: any[] = [];
   try {
-<<<<<<< HEAD
     const res = await fetch(
       `${SUPA_URL}/rest/v1/listings?select=id,title_es,price_mxn,category_id,condition,location_city,shipping_available,negotiable,photo_urls,users(display_name,trust_badge,ine_verified)&status=eq.active&order=created_at.desc&limit=24`,
       { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
-=======
-    const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-             ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-             ?? "";
-    const res = await fetch(
-      `${SUPA_URL}/rest/v1/listings?select=id,title_es,price_mxn,category_id,condition,location_city,shipping_available,negotiable,photo_urls,users(display_name,trust_badge,ine_verified)&status=eq.active&order=created_at.desc&limit=24`,
-      { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }, cache: "no-store" }
->>>>>>> bdf917f13121f8b0fedc6769b97f2cc5ab019852
     );
     if (res.ok) {
       const data = await res.json();
@@ -41,11 +27,7 @@ export default async function HomePage() {
         seller_verified: row.users?.ine_verified ?? false,
       })) : [];
     }
-<<<<<<< HEAD
   } catch (e) { console.error("Fetch error:", e); }
-=======
-  } catch (e) { console.error("Listings fetch error:", e); }
->>>>>>> bdf917f13121f8b0fedc6769b97f2cc5ab019852
 
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
