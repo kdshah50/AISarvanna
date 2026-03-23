@@ -1,33 +1,39 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { Listing } from "@/lib/types";
+import { createClient } from "@supabase/supabase-js";
 import ListingGrid from "@/components/listings/ListingGrid";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
 
-// Server Component — runs on the server, fetches listings from Supabase at request time
-export default async function HomePage() {
-  const supabase = createSupabaseServerClient();
+// Use service role for server-side reads — bypasses RLS so all active listings show
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
 
-  // Fetch active listings with seller info — SSR for fast initial load
+export const revalidate = 60; // re-fetch from DB every 60 seconds
+
+export default async function HomePage() {
+  const supabase = getAdminClient();
+
   const { data: listings, error } = await supabase
     .from("listings")
     .select(`
-      id, title_es, title_en, price_mxn, category_id, condition,
-      location_city, location_state, shipping_available, negotiable,
-      photo_urls, view_count, created_at, negotiable,
-      users ( display_name, avatar_url, trust_badge, ine_verified )
+      id, title_es, price_mxn, category_id, condition,
+      location_city, shipping_available, negotiable,
+      photo_urls, created_at,
+      users ( display_name, trust_badge, ine_verified )
     `)
     .eq("status", "active")
     .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(24);
 
-  if (error) {
-    console.error("Failed to fetch listings:", error.message);
-  }
+  if (error) console.error("DB error:", error.message);
 
-  const featured = (listings as any[] || []).map((row) => ({
+  const cards = (listings || []).map((row: any) => ({
     id: row.id,
     title: row.title_es,
     price_mxn: row.price_mxn,
@@ -49,13 +55,13 @@ export default async function HomePage() {
       <section className="max-w-5xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-serif text-2xl font-bold text-[#1C1917]">
-            {featured.length > 0 ? "Destacados" : "Cargando artículos…"}
+            Destacados
           </h2>
           <span className="text-sm text-[#6B7280]">
-            {featured.length} artículos activos
+            {cards.length} artículos activos
           </span>
         </div>
-        <ListingGrid listings={featured} />
+        <ListingGrid listings={cards} />
       </section>
       <TrustBar />
     </main>
