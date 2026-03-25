@@ -62,4 +62,3 @@ async def score_listing(listing_id: str):
 
     return {"listing_id": listing_id, "score": score, "signals": signals, "flagged": score >= 0.6}
 
-cat > /home/claude/nextapp/fastapi/app/__init__.py << 'EOF'
