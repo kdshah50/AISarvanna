@@ -3,8 +3,22 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const T = {
-  es: { badge: "BETA • CIUDAD DE MÉXICO", title: "Compra y vende\ncon confianza", sub: "El mercado digital más seguro de México. Sin estafas, sin spam.", placeholder: "¿Qué estás buscando?", btn: "Buscar" },
-  en: { badge: "BETA • MEXICO CITY", title: "Buy & sell\nwith confidence", sub: "Mexico's safest digital marketplace. No scams, no spam.", placeholder: "What are you looking for?", btn: "Search" },
+  es: {
+    badge: "BETA • CIUDAD DE MÉXICO",
+    line1: "Compra y vende",
+    line2: "con confianza",
+    sub: "El mercado digital más seguro de México. Sin estafas, sin spam.",
+    placeholder: "¿Qué estás buscando?",
+    btn: "Buscar",
+  },
+  en: {
+    badge: "BETA • MEXICO CITY",
+    line1: "Buy & sell",
+    line2: "with confidence",
+    sub: "Mexico's safest digital marketplace. No scams, no spam.",
+    placeholder: "What are you looking for?",
+    btn: "Search",
+  },
 };
 
 export default function Hero({ initialQuery = "" }: { initialQuery?: string }) {
@@ -28,8 +42,8 @@ export default function Hero({ initialQuery = "" }: { initialQuery?: string }) {
         <div className="inline-block bg-[#D4A017]/20 rounded-full px-4 py-1.5 mb-4">
           <span className="text-[#F0C040] text-xs font-bold tracking-widest">✦ {t.badge}</span>
         </div>
-        <h1 className="font-serif text-4xl md:text-5xl font-bold text-white leading-tight mb-3 whitespace-pre-line">
-          {t.title}
+        <h1 className="font-serif text-4xl md:text-5xl font-bold text-white leading-tight mb-3">
+          {t.line1}<br />{t.line2}
         </h1>
         <p className="text-white/70 text-base mb-8">{t.sub}</p>
         <div className="bg-white rounded-2xl p-1.5 flex items-center gap-2 shadow-2xl">
