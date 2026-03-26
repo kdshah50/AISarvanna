@@ -2,11 +2,41 @@
 import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 const SellModal = dynamic(() => import("./SellModal"), { ssr: false });
 
+function LangToggle() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const lang = params.get("lang") || "es";
+
+  const toggle = (l: string) => {
+    const p = new URLSearchParams(params.toString());
+    p.set("lang", l);
+    router.push(`${pathname}?${p.toString()}`);
+  };
+
+  return (
+    <div className="flex bg-[#F4F0EB] rounded-lg p-0.5 gap-0.5">
+      {["es", "en"].map((l) => (
+        <button key={l} onClick={() => toggle(l)}
+          className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+            lang === l ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280] hover:text-[#1B4332]"
+          }`}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Header() {
   const [showSell, setShowSell] = useState(false);
+  const params = useSearchParams();
+  const lang = params.get("lang") || "es";
 
   return (
     <>
@@ -18,17 +48,17 @@ export default function Header() {
             <span className="text-[#D4A017] text-xs font-bold ml-0.5">✦</span>
           </Link>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-3 ml-auto">
+            <LangToggle />
             <button
               onClick={() => setShowSell(true)}
               className="bg-[#D4A017] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#C4900D] transition-colors"
             >
-              + Vender
+              + {lang === "en" ? "Sell" : "Vender"}
             </button>
           </div>
         </div>
       </header>
-
       {showSell && <SellModal onClose={() => setShowSell(false)} />}
     </>
   );
