@@ -4,6 +4,18 @@ const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 const DEMO_SELLER = "a1000000-0000-0000-0000-000000000001";
 
+// Category price floors (MXN centavos) — anything below = auto-reject
+const PRICE_FLOORS: Record<string, number> = {
+  electronics:  50000,   // $500 MXN min
+  vehicles:    500000,   // $5,000 MXN min
+  fashion:      10000,   // $100 MXN min
+  home:         10000,   // $100 MXN min
+  realestate: 1000000,  // $10,000 MXN min
+  sports:       10000,
+  services:     10000,
+  default:       5000,   // $50 MXN min for anything else
+};
+
 export async function GET() {
   const res = await fetch(
     `${SUPA_URL}/rest/v1/listings?select=*,users(display_name,trust_badge)&status=eq.active&order=created_at.desc&limit=24`,
@@ -16,14 +28,46 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Accept both field name formats (from SellModal and direct API calls)
+    const price_mxn = body.price_mxn ?? Math.round((parseFloat(body.price) || 0) * 100);
+    const category  = body.category_id ?? body.category ?? "default";
+
+    // ── Fraud: price manipulation detection ─────────────────────────────────
+    const floor = PRICE_FLOORS[category] ?? PRICE_FLOORS.default;
+
+    if (price_mxn <= 0) {
+      return NextResponse.json(
+        { error: "El precio debe ser mayor a $0." },
+        { status: 400 }
+      );
+    }
+    if (price_mxn === 100) { // exactly $1 peso (stored as centavos)
+      return NextResponse.json(
+        { error: "Precio inválido. El precio mínimo para esta categoría es mayor." },
+        { status: 400 }
+      );
+    }
+    if (price_mxn < floor) {
+      return NextResponse.json(
+        { error: `Precio muy bajo para esta categoría. Mínimo: $${Math.round(floor / 100).toLocaleString("es-MX")} MXN.` },
+        { status: 400 }
+      );
+    }
+    // Price > $5M MXN — likely a test/spam listing
+    if (price_mxn > 500_000_000) {
+      return NextResponse.json(
+        { error: "Precio inválido. Verifica el monto." },
+        { status: 400 }
+      );
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const listing = {
       seller_id:          body.seller_id ?? DEMO_SELLER,
       title_es:           body.title_es ?? body.title ?? "Sin título",
       title_en:           body.title_es ?? body.title ?? "Untitled",
       description_es:     body.description_es ?? body.description ?? "",
-      price_mxn:          body.price_mxn ?? Math.round((parseFloat(body.price) || 0) * 100),
-      category_id:        body.category_id ?? body.category ?? "electronics",
+      price_mxn,
+      category_id:        category,
       condition:          body.condition ?? "good",
       status:             "active",
       location_city:      body.location_city ?? body.city ?? "CDMX",
@@ -47,7 +91,18 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
     if (!res.ok) return NextResponse.json({ error: data }, { status: res.status });
-    return NextResponse.json(data[0] ?? data, { status: 201 });
+
+    // Fire fraud score to FastAPI (non-blocking)
+    const fastapiUrl = process.env.FASTAPI_INTERNAL_URL;
+    if (fastapiUrl && data[0]?.id) {
+      fetch(`${fastapiUrl}/fraud/score/${data[0].id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
+        body: JSON.stringify({ price_mxn, category_id: category, seller_id: listing.seller_id }),
+      }).catch(() => {});
+    }
+
+    return NextResponse.json(data[0]);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

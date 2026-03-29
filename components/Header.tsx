@@ -1,5 +1,5 @@
 "use client";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -31,8 +31,34 @@ function LangToggle() {
 
 function HeaderInner() {
   const [showSell, setShowSell] = useState(false);
+  const [user, setUser] = useState<{ phone: string; badge: string } | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
   const params = useSearchParams();
   const lang = params.get("lang") || "es";
+  const router = useRouter();
+
+  // Read JWT from cookie on mount
+  useEffect(() => {
+    const token = document.cookie.split("; ").find(r => r.startsWith("tianguis_token="))?.split("=")[1];
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.exp * 1000 > Date.now()) {
+          setUser({ phone: payload.phone, badge: payload.badge });
+        }
+      } catch {}
+    }
+  }, []);
+
+  const handleLogout = () => {
+    document.cookie = "tianguis_token=; path=/; max-age=0";
+    setUser(null);
+    setShowMenu(false);
+    router.push("/");
+  };
+
+  const badgeIcon = (b: string) => b === "diamond" ? "💎" : b === "gold" ? "🥇" : "🥉";
+
   return (
     <>
       <header className="bg-white border-b border-[#E5E0D8] sticky top-0 z-50">
@@ -42,10 +68,48 @@ function HeaderInner() {
             <span className="font-serif text-lg text-[#1C1917]">ianguis</span>
             <span className="text-[#D4A017] text-xs font-bold ml-0.5">✦</span>
           </Link>
+
           <div className="flex items-center gap-3 ml-auto">
             <Suspense fallback={<div className="w-16 h-7 bg-[#F4F0EB] rounded-lg" />}>
               <LangToggle />
             </Suspense>
+
+            {user ? (
+              /* Logged-in user avatar + menu */
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F4F0EB] hover:bg-[#E5E0D8] transition-colors"
+                >
+                  <div className="w-6 h-6 rounded-full bg-[#1B4332] flex items-center justify-center text-white text-[10px] font-bold">
+                    {user.phone.slice(-4, -2)}
+                  </div>
+                  <span className="text-xs font-semibold text-[#1B4332]">
+                    {badgeIcon(user.badge)}
+                  </span>
+                </button>
+                {showMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-[#E5E0D8] rounded-xl shadow-lg overflow-hidden z-50">
+                    <Link href="/profile"
+                      className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-[#F4F0EB] transition-colors"
+                      onClick={() => setShowMenu(false)}>
+                      👤 {lang === "en" ? "My profile" : "Mi perfil"}
+                    </Link>
+                    <button onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                      🚪 {lang === "en" ? "Log out" : "Cerrar sesión"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Not logged in — show Login link */
+              <Link href="/auth/login"
+                className="text-sm font-semibold text-[#1B4332] hover:underline px-2">
+                {lang === "en" ? "Log in" : "Entrar"}
+              </Link>
+            )}
+
             <button onClick={() => setShowSell(true)}
               className="bg-[#D4A017] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#C4900D] transition-colors">
               + {lang === "en" ? "Sell" : "Vender"}
