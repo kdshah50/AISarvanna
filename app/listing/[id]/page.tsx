@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -95,6 +96,7 @@ export default async function ListingPage({ params }: { params: { id: string } }
 
         {/* Seller card — with trust badge */}
         {seller && (
+          <Link href={`/seller/${seller.id}`} className="block hover:opacity-90 transition-opacity">
           <div className="bg-[#F4F0EB] rounded-xl p-4 mb-6 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-[#1B4332] flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
               {seller.display_name?.[0] ?? "V"}
@@ -109,6 +111,7 @@ export default async function ListingPage({ params }: { params: { id: string } }
               </span>
             </div>
           </div>
+          </Link>
         )}
 
         {/* Buyer protection */}
