@@ -1,13 +1,3 @@
-cd ~/naranjogo3
-git pull origin main --rebase
-
-cp ~/Downloads/Hero.tsx components/Hero.tsx
-cp ~/Downloads/page.tsx app/page.tsx
-cp ~/Downloads/listing_page.tsx app/listing/page.tsx
-
-git add components/Hero.tsx app/page.tsx app/listing/page.tsx
-git commit -m "fix: zip code 37750 → 37745 everywhere"
-git push origin mainimport ListingGrid from "@/components/listings/ListingGrid";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
