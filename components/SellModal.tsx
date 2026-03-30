@@ -236,7 +236,7 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
               </div>
               <div>
                 <label className="text-xs font-semibold text-[#6B7280] block mb-1">
-                  PRECIO (MXN)
+                  PRECIO — MXN $
                   {aiSuggestedPrice && (
                     <span className="ml-2 text-[#059669] font-normal">
                       · sugerido: {fmtMXN(aiSuggestedPrice)}
