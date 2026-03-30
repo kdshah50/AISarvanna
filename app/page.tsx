@@ -91,7 +91,7 @@ export default async function HomePage({ searchParams }: Props) {
               </span>
             )}
             <span className="text-xs px-3 py-1 rounded-full bg-[#FEF3C7] text-[#92400E] font-semibold">
-              CP 37750
+              CP 37745
             </span>
             <span className="text-sm text-[#6B7280]">{cards.length} {lang === "en" ? "services" : "servicios"}</span>
           </div>

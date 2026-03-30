@@ -4,24 +4,24 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 const T = {
   es: {
-    badge: "CP 37750 • SERVICIOS",
+    badge: "CP 37745 • SERVICIOS",
     line1: "eCommerce",
     line2: "con Confianza",
-    sub: "Servicios locales verificados en código postal 37750.",
+    sub: "Servicios locales verificados en código postal 37745.",
     placeholder: "Busca un servicio... ej. plomero, dentista",
     btn: "Buscar",
     near: "Cerca de mí",
-    zipNote: "Búsqueda limitada a CP 37750",
+    zipNote: "Búsqueda limitada a CP 37745",
   },
   en: {
-    badge: "ZIP 37750 • SERVICES",
+    badge: "ZIP 37745 • SERVICES",
     line1: "eCommerce",
     line2: "with Confidence",
-    sub: "Verified local services in ZIP code 37750.",
+    sub: "Verified local services in ZIP code 37745.",
     placeholder: "Search a service... e.g. plumber, dentist",
     btn: "Search",
     near: "Near me",
-    zipNote: "Search limited to ZIP 37750",
+    zipNote: "Search limited to ZIP 37745",
   },
 };
 
