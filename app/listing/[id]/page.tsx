@@ -73,7 +73,10 @@ export default async function ListingPage({ params }: { params: { id: string } }
 
         {/* Price + title */}
         <div className="flex items-start justify-between mb-3">
-          <span className="text-3xl font-bold text-[#1B4332]">{price}</span>
+          <span className="text-3xl font-bold text-[#1B4332]">
+            {price}
+            <span className="text-base font-semibold text-[#6B7280] ml-2">MXN</span>
+          </span>
           {listing.negotiable && <span className="text-sm text-[#6B7280] italic">Negociable</span>}
         </div>
         <h1 className="text-xl font-semibold text-[#1C1917] mb-4">{listing.title_es}</h1>
