@@ -7,6 +7,15 @@ function fmtMXN(centavos: number) {
     style: "currency", currency: "MXN", maximumFractionDigits: 0,
   }).format(centavos / 100);
 }
+function PriceMXN({ centavos, negotiable }: { centavos: number; negotiable?: boolean }) {
+  return (
+    <p className="text-base font-bold text-[#1C1917] mb-0.5">
+      {fmtMXN(centavos)}
+      <span className="text-xs font-semibold text-[#6B7280] ml-1">MXN</span>
+      {negotiable && <span className="text-xs font-normal text-[#6B7280] ml-1">· neg.</span>}
+    </p>
+  );
+}
 
 function TrustBadge({ badge, verified }: { badge: string; verified: boolean }) {
   if (badge === "gold" || badge === "diamond")
