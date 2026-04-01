@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SUPA_URL  = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
-  ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
+// Use anon key directly — works for reading public listings
+const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
-const SMA_ZIP    = "37745";
+const SMA_ZIP = "37745";
 
-// ── Call OpenAI directly from Vercel — no FastAPI middleman ─────────────────
 async function embedQuery(text: string): Promise<number[] | null> {
   if (!OPENAI_KEY) return null;
   try {
@@ -16,10 +15,7 @@ async function embedQuery(text: string): Promise<number[] | null> {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_KEY}`,
       },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: text.slice(0, 2000),
-      }),
+      body: JSON.stringify({ model: "text-embedding-3-small", input: text.slice(0, 2000) }),
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -29,19 +25,17 @@ async function embedQuery(text: string): Promise<number[] | null> {
 }
 
 function geoBoost(km: number) {
-  if (km < 2)  return 2.0;
-  if (km < 5)  return 1.5;
+  if (km < 2) return 2.0;
+  if (km < 5) return 1.5;
   if (km < 10) return 1.2;
   return 1.0;
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371, d2r = Math.PI / 180;
-  const dLat = (lat2 - lat1) * d2r;
-  const dLng = (lng2 - lng1) * d2r;
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(lat1 * d2r) * Math.cos(lat2 * d2r) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const dLat = (lat2 - lat1) * d2r, dLng = (lng2 - lng1) * d2r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
@@ -64,60 +58,57 @@ export async function GET(req: NextRequest) {
     "Content-Type": "application/json",
   };
 
-  // ── Layer 1: Sparse BM25 keyword search ────────────────────────────────────
   let sparseRows: any[] = [];
+  let denseRows:  any[] = [];
+
   if (query) {
-    const url = `${SUPA_URL}/rest/v1/listings?status=eq.active`
+    // ── Layer 1: Sparse keyword search ──────────────────────────────────────
+    const sparseUrl = `${SUPA_URL}/rest/v1/listings`
+      + `?status=eq.active`
       + `&category_id=eq.${category}`
       + `&zip_code=eq.${SMA_ZIP}`
       + `&title_es=ilike.*${encodeURIComponent(query)}*`
       + `&select=${SELECT}&limit=20`;
-    const r = await fetch(url, { headers, cache: "no-store" });
-    if (r.ok) sparseRows = await r.json();
-  }
 
-  // ── Layer 2: Dense semantic search via pgvector ────────────────────────────
-  let denseRows: any[] = [];
-  if (query) {
-    const vec = await embedQuery(query);
-    if (vec) {
-      const r = await fetch(`${SUPA_URL}/rest/v1/rpc/search_listings_dense`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          query_embedding: vec,
-          category_filter: category,
-          match_count: 20,
-        }),
-        cache: "no-store",
-      });
-      if (r.ok) {
-        const all = await r.json();
-        // Filter to SMA zip only
-        denseRows = Array.isArray(all)
-          ? all.filter((l: any) => !l.zip_code || l.zip_code === SMA_ZIP)
-          : [];
+    try {
+      const r = await fetch(sparseUrl, { headers, cache: "no-store" });
+      if (r.ok) sparseRows = await r.json();
+    } catch {}
+
+    // ── Layer 2: Dense semantic search ──────────────────────────────────────
+    try {
+      const vec = await embedQuery(query);
+      if (vec) {
+        const r = await fetch(`${SUPA_URL}/rest/v1/rpc/search_listings_dense`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 20 }),
+          cache: "no-store",
+        });
+        if (r.ok) {
+          const all = await r.json();
+          denseRows = Array.isArray(all) ? all : [];
+        }
       }
-    }
+    } catch {}
+
+  } else {
+    // No query — return all SMA services
+    try {
+      const r = await fetch(
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.${category}`
+        + `&zip_code=eq.${SMA_ZIP}&select=${SELECT}&order=created_at.desc&limit=24`,
+        { headers, cache: "no-store" }
+      );
+      if (r.ok) sparseRows = await r.json();
+    } catch {}
   }
 
-  // Fallback — no query, just return all services in zip
-  if (!query) {
-    const r = await fetch(
-      `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.${category}`
-      + `&zip_code=eq.${SMA_ZIP}&select=${SELECT}&order=created_at.desc&limit=24`,
-      { headers, cache: "no-store" }
-    );
-    if (r.ok) sparseRows = await r.json();
-  }
-
-  // ── RRF Fusion + Geo boost ─────────────────────────────────────────────────
+  // ── RRF Fusion + Geo ────────────────────────────────────────────────────────
   type Entry = { listing: any; sparse: number; dense: number; geo: number };
   const map = new Map<string, Entry>();
 
-  sparseRows.forEach((l, i) =>
-    map.set(l.id, { listing: l, sparse: rrf(i), dense: 0, geo: 1 })
-  );
+  sparseRows.forEach((l, i) => map.set(l.id, { listing: l, sparse: rrf(i), dense: 0, geo: 1 }));
   denseRows.forEach((l, i) => {
     const e = map.get(l.id);
     if (e) e.dense = rrf(i);
@@ -139,11 +130,19 @@ export async function GET(req: NextRequest) {
     .map(({ listing, sparse, dense, geo }) => ({
       ...listing,
       _score: Math.round((sparse * 0.4 + dense * 0.4) * geo * 10000) / 10000,
-      _mode:  dense > 0 && sparse > 0 ? "hybrid" : dense > 0 ? "dense" : "sparse",
+      _mode: dense > 0 && sparse > 0 ? "hybrid" : dense > 0 ? "dense" : "sparse",
     }))
     .sort((a, b) => b._score - a._score)
     .slice(0, 24);
 
   const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
-  return NextResponse.json({ results, mode, query, total: results.length });
+
+  // Debug info to help diagnose
+  const debug = {
+    hasOpenAIKey: !!OPENAI_KEY,
+    sparseCount: sparseRows.length,
+    denseCount: denseRows.length,
+  };
+
+  return NextResponse.json({ results, mode, query, total: results.length, debug });
 }
