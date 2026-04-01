@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-from app.routers import listings, ml, fraud
+from app.routers import listings, ml, fraud, embed
 
 app = FastAPI(
     title="Tianguis API",
@@ -28,6 +28,7 @@ def verify_internal(x_internal_secret: str = Header(...)):
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(listings.router, prefix="/listings", dependencies=[Depends(verify_internal)])
 app.include_router(ml.router,       prefix="/ml",       dependencies=[Depends(verify_internal)])
+app.include_router(embed.router,    dependencies=[Depends(verify_internal)])
 app.include_router(fraud.router,    prefix="/fraud",    dependencies=[Depends(verify_internal)])
 
 @app.get("/health")
