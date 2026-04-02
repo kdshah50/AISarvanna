@@ -87,7 +87,11 @@ export async function GET(req: NextRequest) {
         });
         if (r.ok) {
           const all = await r.json();
-          denseRows = Array.isArray(all) ? all : [];
+          // Only keep results above similarity threshold — removes irrelevant noise
+          const SIMILARITY_THRESHOLD = 0.15;
+          denseRows = Array.isArray(all)
+            ? all.filter((l: any) => (l.similarity ?? 0) >= SIMILARITY_THRESHOLD)
+            : [];
         }
       }
     } catch {}
@@ -135,6 +139,11 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b._score - a._score)
     .slice(0, 24);
 
+  // If pure dense with no keyword match, cap at top 5 to avoid noise
+  const finalResults = (denseRows.length > 0 && sparseRows.length === 0)
+    ? results.slice(0, 5)
+    : results;
+
   const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
 
   // Debug info to help diagnose
@@ -144,5 +153,5 @@ export async function GET(req: NextRequest) {
     denseCount: denseRows.length,
   };
 
-  return NextResponse.json({ results, mode, query, total: results.length, debug });
+  return NextResponse.json({ results: finalResults, mode, query, total: finalResults.length, debug });
 }
