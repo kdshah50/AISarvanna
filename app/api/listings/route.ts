@@ -100,6 +100,16 @@ export async function POST(req: NextRequest) {
         headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
         body: JSON.stringify({ price_mxn, category_id: category, seller_id: listing.seller_id }),
       }).catch(() => {});
+
+      // Auto-embed new listing for hybrid search (non-blocking, fire-and-forget)
+      fetch(`${fastapiUrl}/ml/embed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
+        body: JSON.stringify({
+          listing_id: data[0].id,
+          text: `${listing.title_es} ${listing.description_es}`.trim(),
+        }),
+      }).catch(() => {});
     }
 
     return NextResponse.json(data[0]);
