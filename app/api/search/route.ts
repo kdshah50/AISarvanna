@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Use anon key directly — works for reading public listings
 const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const SMA_ZIP = "37745";
+
+// Absolute floor — anything below this is noise regardless of query
+const ABS_THRESHOLD = 0.20;
+// Relative floor — must be at least 60% of the best score
+const REL_FACTOR = 0.60;
 
 async function embedQuery(text: string): Promise<number[] | null> {
   if (!OPENAI_KEY) return null;
   try {
     const res = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_KEY}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_KEY}` },
       body: JSON.stringify({ model: "text-embedding-3-small", input: text.slice(0, 2000) }),
       cache: "no-store",
     });
@@ -25,10 +26,7 @@ async function embedQuery(text: string): Promise<number[] | null> {
 }
 
 function geoBoost(km: number) {
-  if (km < 2) return 2.0;
-  if (km < 5) return 1.5;
-  if (km < 10) return 1.2;
-  return 1.0;
+  if (km < 2) return 2.0; if (km < 5) return 1.5; if (km < 10) return 1.2; return 1.0;
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -63,15 +61,13 @@ export async function GET(req: NextRequest) {
 
   if (query) {
     // ── Layer 1: Sparse keyword search ──────────────────────────────────────
-    const sparseUrl = `${SUPA_URL}/rest/v1/listings`
-      + `?status=eq.active`
-      + `&category_id=eq.${category}`
-      + `&zip_code=eq.${SMA_ZIP}`
-      + `&title_es=ilike.*${encodeURIComponent(query)}*`
-      + `&select=${SELECT}&limit=20`;
-
     try {
-      const r = await fetch(sparseUrl, { headers, cache: "no-store" });
+      const r = await fetch(
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.${category}`
+        + `&zip_code=eq.${SMA_ZIP}&title_es=ilike.*${encodeURIComponent(query)}*`
+        + `&select=${SELECT}&limit=20`,
+        { headers, cache: "no-store" }
+      );
       if (r.ok) sparseRows = await r.json();
     } catch {}
 
@@ -80,18 +76,20 @@ export async function GET(req: NextRequest) {
       const vec = await embedQuery(query);
       if (vec) {
         const r = await fetch(`${SUPA_URL}/rest/v1/rpc/search_listings_dense`, {
-          method: "POST",
-          headers,
+          method: "POST", headers,
           body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 20 }),
           cache: "no-store",
         });
         if (r.ok) {
-          const all = await r.json();
-          // Only keep results above similarity threshold — removes irrelevant noise
-          const SIMILARITY_THRESHOLD = 0.15;
-          denseRows = Array.isArray(all)
-            ? all.filter((l: any) => (l.similarity ?? 0) >= SIMILARITY_THRESHOLD)
-            : [];
+          const all: any[] = await r.json();
+          if (Array.isArray(all) && all.length > 0) {
+            // Find the best score in this result set
+            const bestScore = Math.max(...all.map(l => l.similarity ?? 0));
+            // Relative threshold: must be >= 60% of best score AND >= absolute floor
+            const relThreshold = bestScore * REL_FACTOR;
+            const threshold = Math.max(ABS_THRESHOLD, relThreshold);
+            denseRows = all.filter(l => (l.similarity ?? 0) >= threshold);
+          }
         }
       }
     } catch {}
@@ -108,7 +106,7 @@ export async function GET(req: NextRequest) {
     } catch {}
   }
 
-  // ── RRF Fusion + Geo ────────────────────────────────────────────────────────
+  // ── RRF fusion + geo boost ─────────────────────────────────────────────────
   type Entry = { listing: any; sparse: number; dense: number; geo: number };
   const map = new Map<string, Entry>();
 
@@ -120,7 +118,7 @@ export async function GET(req: NextRequest) {
   });
 
   if (hasGeo) {
-    map.forEach((e) => {
+    map.forEach(e => {
       const { location_lat: lt, location_lng: ln } = e.listing;
       if (lt && ln) {
         const km = haversineKm(lat, lng, lt, ln);
@@ -139,19 +137,8 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b._score - a._score)
     .slice(0, 24);
 
-  // If pure dense with no keyword match, cap at top 5 to avoid noise
-  const finalResults = (denseRows.length > 0 && sparseRows.length === 0)
-    ? results.slice(0, 5)
-    : results;
-
   const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
+  const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length };
 
-  // Debug info to help diagnose
-  const debug = {
-    hasOpenAIKey: !!OPENAI_KEY,
-    sparseCount: sparseRows.length,
-    denseCount: denseRows.length,
-  };
-
-  return NextResponse.json({ results: finalResults, mode, query, total: finalResults.length, debug });
+  return NextResponse.json({ results, mode, query, total: results.length, debug });
 }
