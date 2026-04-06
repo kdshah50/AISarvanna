@@ -6,7 +6,7 @@ import TrustBar from "@/components/TrustBar";
 export const dynamic = "force-dynamic";
 
 const SUPA_URL  = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
+const SUPA_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const SMA_ZIP   = "37745";
 const SMA_LAT   = 20.91528;
 const SMA_LNG   = -100.74389;
