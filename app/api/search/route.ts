@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseAdminClient } from "@/lib/supabase-server";
 
+const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
+const SUPA_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20");
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const SMA_ZIP = "37745";
 
+// Absolute floor — anything below this is noise regardless of query
 const ABS_THRESHOLD = 0.20;
-const REL_FACTOR    = 0.60;
+// Relative floor — must be at least 60% of the best score
+const REL_FACTOR = 0.60;
 
 async function embedQuery(text: string): Promise<number[] | null> {
   if (!OPENAI_KEY) return null;
@@ -35,12 +38,11 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
 
-const SELECT_COLS = "id,title_es,price_mxn,category_id,condition,location_city"
+const SELECT = "id,title_es,price_mxn,category_id,condition,location_city"
   + ",location_lat,location_lng,shipping_available,negotiable"
   + ",photo_urls,users(display_name,trust_badge,ine_verified)";
 
 export async function GET(req: NextRequest) {
-  const supabase = createSupabaseAdminClient();
   const { searchParams } = new URL(req.url);
   const query    = (searchParams.get("q") ?? "").trim();
   const category = searchParams.get("category") ?? "services";
@@ -48,50 +50,59 @@ export async function GET(req: NextRequest) {
   const lng      = parseFloat(searchParams.get("lng") ?? "NaN");
   const hasGeo   = !isNaN(lat) && !isNaN(lng);
 
+  const headers = {
+    apikey: SUPA_KEY,
+    Authorization: `Bearer ${SUPA_KEY}`,
+    "Content-Type": "application/json",
+  };
+
   let sparseRows: any[] = [];
   let denseRows:  any[] = [];
 
   if (query) {
     // ── Layer 1: Sparse keyword search ──────────────────────────────────────
     try {
-      const { data } = await supabase
-        .from("listings")
-        .select(SELECT_COLS)
-        .eq("status", "active")
-        .eq("category_id", category)
-        .ilike("title_es", `%${query}%`)
-        .limit(20);
-      if (data) sparseRows = data;
+      const r = await fetch(
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.${category}`
+        + `&zip_code=eq.${SMA_ZIP}&title_es=ilike.*${encodeURIComponent(query)}*`
+        + `&select=${SELECT}&limit=20`,
+        { headers, cache: "no-store" }
+      );
+      if (r.ok) sparseRows = await r.json();
     } catch {}
 
     // ── Layer 2: Dense semantic search ──────────────────────────────────────
     try {
       const vec = await embedQuery(query);
       if (vec) {
-        const { data } = await supabase.rpc("search_listings_dense", {
-          query_embedding: vec,
-          category_filter: category,
-          match_count: 20,
+        const r = await fetch(`${SUPA_URL}/rest/v1/rpc/search_listings_dense`, {
+          method: "POST", headers,
+          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 20 }),
+          cache: "no-store",
         });
-        if (Array.isArray(data) && data.length > 0) {
-          const bestScore = Math.max(...data.map((l: any) => l.similarity ?? 0));
-          const threshold = Math.max(ABS_THRESHOLD, bestScore * REL_FACTOR);
-          denseRows = data.filter((l: any) => (l.similarity ?? 0) >= threshold);
+        if (r.ok) {
+          const all: any[] = await r.json();
+          if (Array.isArray(all) && all.length > 0) {
+            // Find the best score in this result set
+            const bestScore = Math.max(...all.map(l => l.similarity ?? 0));
+            // Relative threshold: must be >= 60% of best score AND >= absolute floor
+            const relThreshold = bestScore * REL_FACTOR;
+            const threshold = Math.max(ABS_THRESHOLD, relThreshold);
+            denseRows = all.filter(l => (l.similarity ?? 0) >= threshold);
+          }
         }
       }
     } catch {}
 
   } else {
-    // No query — return all active services
+    // No query — return all SMA services
     try {
-      const { data } = await supabase
-        .from("listings")
-        .select(SELECT_COLS)
-        .eq("status", "active")
-        .eq("category_id", category)
-        .order("created_at", { ascending: false })
-        .limit(24);
-      if (data) sparseRows = data;
+      const r = await fetch(
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.${category}`
+        + `&zip_code=eq.${SMA_ZIP}&select=${SELECT}&order=created_at.desc&limit=24`,
+        { headers, cache: "no-store" }
+      );
+      if (r.ok) sparseRows = await r.json();
     } catch {}
   }
 
@@ -127,7 +138,7 @@ export async function GET(req: NextRequest) {
     .slice(0, 24);
 
   const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
-  const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length, keyRole: "service_role" };
+  const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length };
 
   return NextResponse.json({ results, mode, query, total: results.length, debug });
 }

@@ -1,46 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseAdminClient } from "@/lib/supabase-server";
 
+const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
+const SUPA_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20");
 const DEMO_SELLER = "a1000000-0000-0000-0000-000000000001";
 
+// Category price floors (MXN centavos) — anything below = auto-reject
 const PRICE_FLOORS: Record<string, number> = {
-  electronics:  50000,
-  vehicles:    500000,
-  fashion:      10000,
-  home:         10000,
-  realestate: 1000000,
+  electronics:  50000,   // $500 MXN min
+  vehicles:    500000,   // $5,000 MXN min
+  fashion:      10000,   // $100 MXN min
+  home:         10000,   // $100 MXN min
+  realestate: 1000000,  // $10,000 MXN min
   sports:       10000,
   services:     10000,
-  default:       5000,
+  default:       5000,   // $50 MXN min for anything else
 };
 
 export async function GET() {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("listings")
-    .select("*,users(display_name,trust_badge)")
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(24);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const res = await fetch(
+    `${SUPA_URL}/rest/v1/listings?select=*,users(display_name,trust_badge)&status=eq.active&order=created_at.desc&limit=24`,
+    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+  );
+  return NextResponse.json(await res.json());
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createSupabaseAdminClient();
   try {
     const body = await req.json();
 
     const price_mxn = body.price_mxn ?? Math.round((parseFloat(body.price) || 0) * 100);
     const category  = body.category_id ?? body.category ?? "default";
 
+    // ── Fraud: price manipulation detection ─────────────────────────────────
     const floor = PRICE_FLOORS[category] ?? PRICE_FLOORS.default;
 
     if (price_mxn <= 0) {
-      return NextResponse.json({ error: "El precio debe ser mayor a $0." }, { status: 400 });
+      return NextResponse.json(
+        { error: "El precio debe ser mayor a $0." },
+        { status: 400 }
+      );
     }
-    if (price_mxn === 100) {
-      return NextResponse.json({ error: "Precio inválido. El precio mínimo para esta categoría es mayor." }, { status: 400 });
+    if (price_mxn === 100) { // exactly $1 peso (stored as centavos)
+      return NextResponse.json(
+        { error: "Precio inválido. El precio mínimo para esta categoría es mayor." },
+        { status: 400 }
+      );
     }
     if (price_mxn < floor) {
       return NextResponse.json(
@@ -48,9 +52,14 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    // Price > $5M MXN — likely a test/spam listing
     if (price_mxn > 500_000_000) {
-      return NextResponse.json({ error: "Precio inválido. Verifica el monto." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Precio inválido. Verifica el monto." },
+        { status: 400 }
+      );
     }
+    // ────────────────────────────────────────────────────────────────────────
 
     const listing = {
       seller_id:          body.seller_id ?? DEMO_SELLER,
@@ -72,33 +81,41 @@ export async function POST(req: NextRequest) {
       expires_at:         new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
-    const { data, error } = await supabase
-      .from("listings")
-      .insert(listing)
-      .select()
-      .single();
+    const res = await fetch(`${SUPA_URL}/rest/v1/listings`, {
+      method: "POST",
+      headers: {
+        apikey: SUPA_KEY,
+        Authorization: `Bearer ${SUPA_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(listing),
+    });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const data = await res.json();
+    if (!res.ok) return NextResponse.json({ error: data }, { status: res.status });
 
+    // Fire fraud score to FastAPI (non-blocking)
     const fastapiUrl = process.env.FASTAPI_INTERNAL_URL;
-    if (fastapiUrl && data?.id) {
-      fetch(`${fastapiUrl}/fraud/score/${data.id}`, {
+    if (fastapiUrl && data[0]?.id) {
+      fetch(`${fastapiUrl}/fraud/score/${data[0].id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
         body: JSON.stringify({ price_mxn, category_id: category, seller_id: listing.seller_id }),
       }).catch(() => {});
 
+      // Auto-embed new listing for hybrid search (non-blocking, fire-and-forget)
       fetch(`${fastapiUrl}/ml/embed`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
         body: JSON.stringify({
-          listing_id: data.id,
+          listing_id: data[0].id,
           text: `${listing.title_es} ${listing.description_es}`.trim(),
         }),
       }).catch(() => {});
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data[0]);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
