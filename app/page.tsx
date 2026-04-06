@@ -6,7 +6,6 @@ import TrustBar from "@/components/TrustBar";
 export const dynamic = "force-dynamic";
 
 const SUPA_URL  = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const SMA_ZIP   = "37745";
 const SMA_LAT   = 20.91528;
 const SMA_LNG   = -100.74389;
@@ -35,6 +34,7 @@ export default async function HomePage({ searchParams }: Props) {
   const refLat  = hasGeo ? userLat : SMA_LAT;
   const refLng  = hasGeo ? userLng : SMA_LNG;
 
+  const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
   let cards: any[] = [];
   let searchMode = "sparse";
 
@@ -64,7 +64,7 @@ export default async function HomePage({ searchParams }: Props) {
     } else {
       // ── No query: show all CP 37745 services sorted by distance ───────────
       const res = await fetch(
-        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.services&zip_code=eq.${SMA_ZIP}`
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.services`
         + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users(display_name,trust_badge,ine_verified)`
         + `&order=created_at.desc&limit=24`,
         { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
