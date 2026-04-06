@@ -1,11 +1,9 @@
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseAdminClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 
-const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20");
 
 function fmtMXN(centavos: number) {
   return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(centavos / 100);
@@ -39,11 +37,13 @@ function StatCard({ value, label }: { value: string | number; label: string }) {
 }
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const res = await fetch(
-    `${SUPA_URL}/rest/v1/users?id=eq.${params.id}&select=display_name,trust_badge`,
-    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
-  );
-  const [user] = await res.json();
+  const supabase = createSupabaseAdminClient();
+  const { data } = await supabase
+    .from("users")
+    .select("display_name,trust_badge")
+    .eq("id", params.id)
+    .single();
+  const user = data;
   if (!user) return { title: "Vendedor — Tianguis" };
   return {
     title: `${user.display_name ?? "Vendedor"} — Tianguis`,
@@ -52,28 +52,33 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 export default async function SellerPage({ params }: { params: { id: string } }) {
+  const supabase = createSupabaseAdminClient();
+
   // Fetch seller info
-  const userRes = await fetch(
-    `${SUPA_URL}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,ine_verified,phone_verified,created_at`,
-    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
-  );
-  const [seller] = await userRes.json();
+  const { data: seller } = await supabase
+    .from("users")
+    .select("id,display_name,avatar_url,trust_badge,ine_verified,phone_verified,created_at")
+    .eq("id", params.id)
+    .single();
   if (!seller) notFound();
 
   // Fetch seller's active listings
-  const listingsRes = await fetch(
-    `${SUPA_URL}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.active&order=created_at.desc&select=id,title_es,price_mxn,category_id,condition,location_city,photo_urls,shipping_available,negotiable`,
-    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
-  );
-  const listings = await listingsRes.json();
+  const { data: listings } = await supabase
+    .from("listings")
+    .select("id,title_es,price_mxn,category_id,condition,location_city,photo_urls,shipping_available,negotiable")
+    .eq("seller_id", params.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
 
   // Fetch sold listings count
-  const soldRes = await fetch(
-    `${SUPA_URL}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.sold&select=id`,
-    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
-  );
-  const sold = await soldRes.json();
+  const { data: sold } = await supabase
+    .from("listings")
+    .select("id")
+    .eq("seller_id", params.id)
+    .eq("status", "sold");
 
+  const safeListings = listings ?? [];
+  const safeSold = sold ?? [];
   const memberSince = new Date(seller.created_at).getFullYear();
   const initials = (seller.display_name ?? "V").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
@@ -116,8 +121,8 @@ export default async function SellerPage({ params }: { params: { id: string } })
 
             {/* Stats row */}
             <div className="flex gap-3 w-full mt-2">
-              <StatCard value={listings.length} label="Artículos activos" />
-              <StatCard value={sold.length ?? 0} label="Vendidos" />
+              <StatCard value={safeListings.length} label="Artículos activos" />
+              <StatCard value={safeSold.length} label="Vendidos" />
               <StatCard value={memberSince} label="Miembro desde" />
             </div>
           </div>
@@ -136,17 +141,17 @@ export default async function SellerPage({ params }: { params: { id: string } })
         <div>
           <h2 className="font-serif text-xl font-bold text-[#1C1917] mb-4">
             Artículos activos
-            <span className="ml-2 text-sm font-normal text-[#6B7280]">({listings.length})</span>
+            <span className="ml-2 text-sm font-normal text-[#6B7280]">({safeListings.length})</span>
           </h2>
 
-          {listings.length === 0 ? (
+          {safeListings.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-[#E5E0D8]">
               <div className="text-5xl mb-3">📦</div>
               <p className="text-[#6B7280]">Este vendedor no tiene artículos activos.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {listings.map((listing: any) => (
+              {safeListings.map((listing: any) => (
                 <Link key={listing.id} href={`/listing/${listing.id}`} className="group">
                   <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E0D8] hover:shadow-lg hover:-translate-y-1 transition-all duration-200">
                     {/* Image */}

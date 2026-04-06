@@ -1,12 +1,11 @@
 import ListingGrid from "@/components/listings/ListingGrid";
+import { createSupabaseAdminClient } from "@/lib/supabase-server";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
 
 export const dynamic = "force-dynamic";
 
-const SUPA_URL  = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY  = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20");
 const SMA_ZIP   = "37745";
 const SMA_LAT   = 20.91528;
 const SMA_LNG   = -100.74389;
@@ -34,6 +33,7 @@ export default async function HomePage({ searchParams }: Props) {
   const hasGeo  = !isNaN(userLat) && !isNaN(userLng);
   const refLat  = hasGeo ? userLat : SMA_LAT;
   const refLng  = hasGeo ? userLng : SMA_LNG;
+
 
   let cards: any[] = [];
   let searchMode = "sparse";
@@ -63,14 +63,15 @@ export default async function HomePage({ searchParams }: Props) {
       }
     } else {
       // ── No query: show all CP 37745 services sorted by distance ───────────
-      const res = await fetch(
-        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.services&zip_code=eq.${SMA_ZIP}`
-        + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users(display_name,trust_badge,ine_verified)`
-        + `&order=created_at.desc&limit=24`,
-        { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
-      );
-      if (res.ok) {
-        const data = await res.json();
+      const supabase = createSupabaseAdminClient();
+      const { data } = await supabase
+        .from("listings")
+        .select("id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users(display_name,trust_badge,ine_verified)")
+        .eq("status", "active")
+        .eq("category_id", "services")
+        .order("created_at", { ascending: false })
+        .limit(24);
+      if (data) {
         cards = Array.isArray(data) ? data.map((row: any) => {
           const km = distKm(refLat, refLng, row.location_lat ?? SMA_LAT, row.location_lng ?? SMA_LNG);
           return {
