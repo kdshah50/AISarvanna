@@ -13,3 +13,5 @@ listings-api/.venv/
 listings-api/listings.db
 listings-api/*.db
 .env
+.DS_Store
+**/.DS_Store
