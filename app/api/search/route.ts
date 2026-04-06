@@ -1,123 +1,150 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
-const DEMO_SELLER = "a1000000-0000-0000-0000-000000000001";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
+const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
+const SMA_ZIP = "37745";
 
-// Category price floors (MXN centavos) — anything below = auto-reject
-const PRICE_FLOORS: Record<string, number> = {
-  electronics:  50000,   // $500 MXN min
-  vehicles:    500000,   // $5,000 MXN min
-  fashion:      10000,   // $100 MXN min
-  home:         10000,   // $100 MXN min
-  realestate: 1000000,  // $10,000 MXN min
-  sports:       10000,
-  services:     10000,
-  default:       5000,   // $50 MXN min for anything else
-};
+// Absolute floor — anything below this is noise regardless of query
+const ABS_THRESHOLD = 0.20;
+// Relative floor — must be at least 60% of the best score
+const REL_FACTOR = 0.60;
 
-export async function GET() {
-  const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  const res = await fetch(
-    `${SUPA_URL}/rest/v1/listings?select=*,users(display_name,trust_badge)&status=eq.active&order=created_at.desc&limit=24`,
-    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
-  );
-  return NextResponse.json(await res.json());
+async function embedQuery(text: string): Promise<number[] | null> {
+  if (!OPENAI_KEY) return null;
+  try {
+    const res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: text.slice(0, 2000) }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.data?.[0]?.embedding ?? null;
+  } catch { return null; }
 }
 
-export async function POST(req: NextRequest) {
-  const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  try {
-    const body = await req.json();
+function geoBoost(km: number) {
+  if (km < 2) return 2.0; if (km < 5) return 1.5; if (km < 10) return 1.2; return 1.0;
+}
 
-    const price_mxn = body.price_mxn ?? Math.round((parseFloat(body.price) || 0) * 100);
-    const category  = body.category_id ?? body.category ?? "default";
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371, d2r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * d2r, dLng = (lng2 - lng1) * d2r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
-    // ── Fraud: price manipulation detection ─────────────────────────────────
-    const floor = PRICE_FLOORS[category] ?? PRICE_FLOORS.default;
+function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
 
-    if (price_mxn <= 0) {
-      return NextResponse.json(
-        { error: "El precio debe ser mayor a $0." },
-        { status: 400 }
+const SELECT = "id,title_es,price_mxn,category_id,condition,location_city"
+  + ",location_lat,location_lng,shipping_available,negotiable"
+  + ",photo_urls,users(display_name,trust_badge,ine_verified)";
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const query    = (searchParams.get("q") ?? "").trim();
+  const category = searchParams.get("category") ?? "services";
+  const lat      = parseFloat(searchParams.get("lat") ?? "NaN");
+  const lng      = parseFloat(searchParams.get("lng") ?? "NaN");
+  const hasGeo   = !isNaN(lat) && !isNaN(lng);
+
+  const headers = {
+    apikey: SUPA_KEY,
+    Authorization: `Bearer ${SUPA_KEY}`,
+    "Content-Type": "application/json",
+  };
+
+  let sparseRows: any[] = [];
+  let denseRows:  any[] = [];
+
+  if (query) {
+    // ── Layer 1: Sparse keyword search ──────────────────────────────────────
+    try {
+      const r = await fetch(
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.${category}`
+        + `&title_es=ilike.*${encodeURIComponent(query)}*`
+        + `&select=${SELECT}&limit=20`,
+        { headers, cache: "no-store" }
       );
-    }
-    if (price_mxn === 100) { // exactly $1 peso (stored as centavos)
-      return NextResponse.json(
-        { error: "Precio inválido. El precio mínimo para esta categoría es mayor." },
-        { status: 400 }
+      if (r.ok) sparseRows = await r.json();
+    } catch {}
+
+    // ── Layer 2: Dense semantic search ──────────────────────────────────────
+    try {
+      const vec = await embedQuery(query);
+      if (vec) {
+        const r = await fetch(`${SUPA_URL}/rest/v1/rpc/search_listings_dense`, {
+          method: "POST", headers,
+          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 20 }),
+          cache: "no-store",
+        });
+        if (r.ok) {
+          const all: any[] = await r.json();
+          if (Array.isArray(all) && all.length > 0) {
+            // Find the best score in this result set
+            const bestScore = Math.max(...all.map(l => l.similarity ?? 0));
+            // Relative threshold: must be >= 60% of best score AND >= absolute floor
+            const relThreshold = bestScore * REL_FACTOR;
+            const threshold = Math.max(ABS_THRESHOLD, relThreshold);
+            denseRows = all.filter(l => (l.similarity ?? 0) >= threshold);
+          }
+        }
+      }
+    } catch {}
+
+  } else {
+    // No query — return all SMA services
+    try {
+      const r = await fetch(
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&category_id=eq.${category}`
+        + `&select=${SELECT}&order=created_at.desc&limit=24`,
+        { headers, cache: "no-store" }
       );
-    }
-    if (price_mxn < floor) {
-      return NextResponse.json(
-        { error: `Precio muy bajo para esta categoría. Mínimo: $${Math.round(floor / 100).toLocaleString("es-MX")} MXN.` },
-        { status: 400 }
-      );
-    }
-    // Price > $5M MXN — likely a test/spam listing
-    if (price_mxn > 500_000_000) {
-      return NextResponse.json(
-        { error: "Precio inválido. Verifica el monto." },
-        { status: 400 }
-      );
-    }
-    // ────────────────────────────────────────────────────────────────────────
-
-    const listing = {
-      seller_id:          body.seller_id ?? DEMO_SELLER,
-      title_es:           body.title_es ?? body.title ?? "Sin título",
-      title_en:           body.title_es ?? body.title ?? "Untitled",
-      description_es:     body.description_es ?? body.description ?? "",
-      price_mxn,
-      category_id:        category,
-      condition:          body.condition ?? "good",
-      status:             "active",
-      location_city:      body.location_city ?? body.city ?? "San Miguel de Allende",
-      location_state:     body.location_state ?? "Guanajuato",
-      zip_code:           body.zip_code ?? "37745",
-      location_lat:       body.location_lat ?? 20.91528,
-      location_lng:       body.location_lng ?? -100.74389,
-      shipping_available: body.shipping_available ?? body.shipping ?? false,
-      negotiable:         body.negotiable ?? false,
-      photo_urls:         body.photo_urls ?? [],
-      expires_at:         new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-    };
-
-    const res = await fetch(`${SUPA_URL}/rest/v1/listings`, {
-      method: "POST",
-      headers: {
-        apikey: SUPA_KEY,
-        Authorization: `Bearer ${SUPA_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(listing),
-    });
-
-    const data = await res.json();
-    if (!res.ok) return NextResponse.json({ error: data }, { status: res.status });
-
-    // Fire fraud score to FastAPI (non-blocking)
-    const fastapiUrl = process.env.FASTAPI_INTERNAL_URL;
-    if (fastapiUrl && data[0]?.id) {
-      fetch(`${fastapiUrl}/fraud/score/${data[0].id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
-        body: JSON.stringify({ price_mxn, category_id: category, seller_id: listing.seller_id }),
-      }).catch(() => {});
-
-      // Auto-embed new listing for hybrid search (non-blocking, fire-and-forget)
-      fetch(`${fastapiUrl}/ml/embed`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
-        body: JSON.stringify({
-          listing_id: data[0].id,
-          text: `${listing.title_es} ${listing.description_es}`.trim(),
-        }),
-      }).catch(() => {});
-    }
-
-    return NextResponse.json(data[0]);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+      if (r.ok) sparseRows = await r.json();
+    } catch {}
   }
+
+  // ── RRF fusion + geo boost ─────────────────────────────────────────────────
+  type Entry = { listing: any; sparse: number; dense: number; geo: number };
+  const map = new Map<string, Entry>();
+
+  sparseRows.forEach((l, i) => map.set(l.id, { listing: l, sparse: rrf(i), dense: 0, geo: 1 }));
+  denseRows.forEach((l, i) => {
+    const e = map.get(l.id);
+    if (e) e.dense = rrf(i);
+    else map.set(l.id, { listing: l, sparse: 0, dense: rrf(i), geo: 1 });
+  });
+
+  if (hasGeo) {
+    map.forEach(e => {
+      const { location_lat: lt, location_lng: ln } = e.listing;
+      if (lt && ln) {
+        const km = haversineKm(lat, lng, lt, ln);
+        e.listing._dist_km = Math.round(km * 10) / 10;
+        e.geo = geoBoost(km);
+      }
+    });
+  }
+
+  const results = Array.from(map.values())
+    .map(({ listing, sparse, dense, geo }) => ({
+      ...listing,
+      _score: Math.round((sparse * 0.4 + dense * 0.4) * geo * 10000) / 10000,
+      _mode: dense > 0 && sparse > 0 ? "hybrid" : dense > 0 ? "dense" : "sparse",
+    }))
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 24);
+
+  const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
+  // Decode JWT payload to show which Supabase role is active
+  let keyRole = "unknown";
+  try {
+    const payload = JSON.parse(Buffer.from(SUPA_KEY.split(".")[1], "base64").toString());
+    keyRole = payload.role ?? "unknown";
+  } catch {}
+  const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length, keyRole };
+
+  return NextResponse.json({ results, mode, query, total: results.length, debug });
 }
