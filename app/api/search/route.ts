@@ -37,9 +37,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
 
-const SELECT_COLS = "id,title_es,price_mxn,category_id,condition,location_city"
-  + ",location_lat,location_lng,shipping_available,negotiable"
-  + ",photo_urls,users(display_name,trust_badge,ine_verified)";
+const SELECT_COLS = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users(display_name,trust_badge,ine_verified)";
 
 export async function GET(req: NextRequest) {
   const headers = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
@@ -124,7 +122,7 @@ export async function GET(req: NextRequest) {
     .slice(0, 24);
 
   const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
-  const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length, keyRole: "service_role" };
+  const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length };
 
   return NextResponse.json({ results, mode, query, total: results.length, debug });
 }

@@ -1,0 +1,455 @@
+"use client";
+import { useState } from "react";
+
+const SERVICES = [
+  { value: "plomero",         es: "Plomero",                    en: "Plumber" },
+  { value: "electricista",    es: "Electricista",               en: "Electrician" },
+  { value: "mecanico",        es: "Mecánico",                   en: "Mechanic" },
+  { value: "pintor",          es: "Pintor",                     en: "Painter" },
+  { value: "jardinero",       es: "Jardinero",                  en: "Gardener" },
+  { value: "limpieza",        es: "Limpieza del hogar",         en: "House Cleaning" },
+  { value: "ac",              es: "Técnico AC",                 en: "AC Technician" },
+  { value: "dentista",        es: "Dentista",                   en: "Dentist" },
+  { value: "niera",           es: "Niñera / Nanny",             en: "Babysitter / Nanny" },
+  { value: "cuidado_mayores", es: "Cuidado adultos mayores",    en: "Senior Care" },
+  { value: "paseador",        es: "Paseador de perros",         en: "Dog Walker" },
+  { value: "pet_sitting",     es: "Pet sitting / Hospedaje",    en: "Pet Sitting / Boarding" },
+  { value: "estetica_canina", es: "Estética canina",            en: "Dog Grooming" },
+  { value: "mandados",        es: "Mandados bilingüe",          en: "Bilingual Errands" },
+  { value: "chofer",          es: "Chofer privado",             en: "Private Driver" },
+  { value: "tramites",        es: "Trámites para expatriados",  en: "Expat Paperwork Help" },
+  { value: "compras",         es: "Compras a domicilio",        en: "Grocery Delivery" },
+  { value: "house_sitting",   es: "Cuidado de casa",            en: "House Sitting" },
+  { value: "yoga",            es: "Yoga / Bienestar",           en: "Yoga / Wellness" },
+  { value: "diseno",          es: "Diseño de interiores",       en: "Interior Design" },
+  { value: "espanol",         es: "Clases de español",          en: "Spanish Lessons" },
+  { value: "chef",            es: "Chef a domicilio",           en: "Private Chef" },
+  { value: "otro",            es: "Otro servicio",              en: "Other service" },
+];
+
+const COLONIAS = [
+  { value: "centro",        es: "Centro Histórico",          en: "Centro Histórico",          lat: 20.9146, lng: -100.7439 },
+  { value: "guadalupe",     es: "Colonia Guadalupe",         en: "Colonia Guadalupe",         lat: 20.9168, lng: -100.7465 },
+  { value: "san_antonio",   es: "San Antonio",               en: "San Antonio",               lat: 20.9120, lng: -100.7468 },
+  { value: "aurora",        es: "Colonia Aurora",            en: "Colonia Aurora",            lat: 20.9188, lng: -100.7442 },
+  { value: "olimpo",        es: "El Olimpo",                 en: "El Olimpo",                 lat: 20.9158, lng: -100.7420 },
+  { value: "ojo_agua",      es: "Ojo de Agua",               en: "Ojo de Agua",               lat: 20.9200, lng: -100.7480 },
+  { value: "balcones",      es: "Los Balcones",              en: "Los Balcones",              lat: 20.9080, lng: -100.7510 },
+  { value: "lindavista",    es: "Linda Vista",               en: "Linda Vista",               lat: 20.9050, lng: -100.7490 },
+  { value: "insurgentes",   es: "Insurgentes",               en: "Insurgentes",               lat: 20.9130, lng: -100.7500 },
+  { value: "atascadero",    es: "Atascadero",                en: "Atascadero",                lat: 20.9240, lng: -100.7430 },
+  { value: "la_lejona",     es: "La Lejona",                 en: "La Lejona",                 lat: 20.8980, lng: -100.7450 },
+  { value: "fracc_paloma",  es: "Fracc. La Paloma",          en: "Fracc. La Paloma",          lat: 20.9100, lng: -100.7420 },
+  { value: "pedregal",      es: "Pedregal de Lindavista",    en: "Pedregal de Lindavista",    lat: 20.9060, lng: -100.7470 },
+  { value: "guadiana",      es: "Guadiana",                  en: "Guadiana",                  lat: 20.9170, lng: -100.7500 },
+  { value: "colinas_san_j", es: "Colinas de San Javier",     en: "Colinas de San Javier",     lat: 20.9220, lng: -100.7510 },
+  { value: "la_canada",     es: "La Cañada",                 en: "La Cañada",                 lat: 20.9000, lng: -100.7480 },
+  { value: "otro",          es: "Otra colonia / Otro lugar", en: "Other area",                lat: 20.9153, lng: -100.7439 },
+];
+
+const T = {
+  es: {
+    title:        "Ofrece tu servicio en Naranjogo",
+    sub:          "Llega a cientos de familias y expatriados en San Miguel de Allende.",
+    step1:        "Tu información",
+    step2:        "Tu servicio",
+    step3:        "Términos y condiciones",
+    step4:        "Confirmar",
+    name:         "Nombre completo",
+    whatsapp:     "WhatsApp (con código de país)",
+    whatsappPh:   "+52 415 000 0000",
+    service:      "¿Qué servicio ofreces?",
+    desc:         "Describe tu servicio",
+    descPh:       "Experiencia, zona de cobertura, horarios, especialidades...",
+    price:        "Precio aproximado (MXN)",
+    pricePh:      "Ej. $500 por visita",
+    city:         "Ciudad / Colonia",
+    colonia:      "Colonia / Barrio",
+    address:      "Dirección de referencia (opcional)",
+    addressPh:    "Ej. Cerca del jardín principal, frente al parque...",
+    next:         "Continuar →",
+    back:         "← Atrás",
+    submit:       "Enviar solicitud",
+    submitting:   "Enviando...",
+    doneTitle:    "¡Solicitud recibida!",
+    doneSub:      "Revisaremos tu perfil en las próximas 24 horas y te contactaremos por WhatsApp para confirmar tu registro.",
+    doneNote:     "Una vez aprobado, tu servicio aparecerá automáticamente en las búsquedas de Naranjogo.",
+    free:         "Registro gratuito",
+    verified:     "Perfil verificado",
+    reach:        "Clientes reales en SMA",
+    termsTitle:   "Términos y condiciones para proveedores",
+    term1Title:   "Publicación gratuita",
+    term1:        "Registrar tu servicio en Naranjogo es completamente gratuito. No cobramos por aparecer en el directorio.",
+    term2Title:   "Modelo de negocio",
+    term2:        "Naranjogo puede establecer una comisión o cuota de servicio en el futuro. Los términos comerciales específicos se acordarán contigo directamente antes de cualquier cobro.",
+    term3Title:   "Calidad y veracidad",
+    term3:        "Debes ser el proveedor real del servicio. La información que proporciones debe ser veraz. Naranjogo puede retirar tu perfil si recibe reportes negativos verificados.",
+    term4Title:   "Proceso de aprobación",
+    term4:        "Todos los proveedores son revisados manualmente por el equipo de Naranjogo antes de aparecer en el directorio. Nos reservamos el derecho de aprobar o rechazar cualquier solicitud.",
+    term5Title:   "Privacidad",
+    term5:        "Tu número de WhatsApp no se muestra públicamente. Solo los clientes que hagan clic en 'Contactar' pueden iniciar una conversación contigo.",
+    acceptAll:    "He leído y acepto los términos y condiciones",
+    acceptPricing:"Entiendo que Naranjogo puede establecer términos comerciales en el futuro, los cuales me serán comunicados antes de cualquier cobro.",
+    mustAccept:   "Debes aceptar los términos para continuar",
+  },
+  en: {
+    title:        "List your service on Naranjogo",
+    sub:          "Reach hundreds of families and expats in San Miguel de Allende.",
+    step1:        "Your info",
+    step2:        "Your service",
+    step3:        "Terms & conditions",
+    step4:        "Confirm",
+    name:         "Full name",
+    whatsapp:     "WhatsApp (with country code)",
+    whatsappPh:   "+52 415 000 0000",
+    service:      "What service do you offer?",
+    desc:         "Describe your service",
+    descPh:       "Experience, coverage area, hours, specialties...",
+    price:        "Approximate price (MXN)",
+    pricePh:      "e.g. $500 per visit",
+    city:         "City / Neighborhood",
+    colonia:      "Neighborhood / Colonia",
+    address:      "Reference address (optional)",
+    addressPh:    "e.g. Near the main garden, by the park...",
+    next:         "Continue →",
+    back:         "← Back",
+    submit:       "Submit application",
+    submitting:   "Submitting...",
+    doneTitle:    "Application received!",
+    doneSub:      "We'll review your profile within 24 hours and contact you via WhatsApp to confirm your registration.",
+    doneNote:     "Once approved, your service will automatically appear in Naranjogo searches.",
+    free:         "Free to register",
+    verified:     "Verified profile",
+    reach:        "Real clients in SMA",
+    termsTitle:   "Provider terms & conditions",
+    term1Title:   "Free listing",
+    term1:        "Registering your service on Naranjogo is completely free. We do not charge for appearing in the directory.",
+    term2Title:   "Business model",
+    term2:        "Naranjogo may establish a commission or service fee in the future. Specific commercial terms will be agreed with you directly before any charges apply.",
+    term3Title:   "Quality & accuracy",
+    term3:        "You must be the actual service provider. All information you provide must be accurate. Naranjogo may remove your profile if verified negative reports are received.",
+    term4Title:   "Approval process",
+    term4:        "All providers are manually reviewed by the Naranjogo team before appearing in the directory. We reserve the right to approve or reject any application.",
+    term5Title:   "Privacy",
+    term5:        "Your WhatsApp number is not shown publicly. Only clients who click 'Contact' can start a conversation with you.",
+    acceptAll:    "I have read and agree to the terms and conditions",
+    acceptPricing:"I understand that Naranjogo may establish commercial terms in the future, which will be communicated to me before any charges apply.",
+    mustAccept:   "You must accept the terms to continue",
+  },
+};
+
+export default function UnetePage() {
+  const [lang, setLang] = useState<"es"|"en">("es");
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
+  const [termsError, setTermsError] = useState(false);
+
+  const [form, setForm] = useState({
+    name: "", whatsapp: "", service: "",
+    description: "", price: "",
+    city: "San Miguel de Allende",
+    acceptTerms: false,
+    acceptPricing: false,
+  });
+
+  const t = T[lang];
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!form.acceptTerms || !form.acceptPricing) {
+      setTermsError(true);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const selectedService = SERVICES.find(s => s.value === form.service);
+      const res = await fetch("/api/provider-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          service_label: selectedService?.[lang] ?? form.service,
+          lang,
+          accepted_terms: true,
+          accepted_pricing: true,
+          accepted_at: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setDone(true);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── DONE screen ──────────────────────────────────────────────────────────────
+  if (done) return (
+    <main className="min-h-screen bg-[#FDF8F1] flex items-center justify-center px-4">
+      <div className="bg-white rounded-3xl border border-[#E5E0D8] p-10 max-w-md w-full text-center shadow-sm">
+        <div className="text-6xl mb-4">🎉</div>
+        <h1 className="font-serif text-2xl font-bold text-[#1B4332] mb-3">{t.doneTitle}</h1>
+        <p className="text-sm text-[#6B7280] leading-relaxed mb-3">{t.doneSub}</p>
+        <p className="text-xs text-[#059669] font-medium leading-relaxed">{t.doneNote}</p>
+        <div className="mt-6">
+          <a href="/" className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl bg-[#1B4332] text-white hover:bg-[#2D6A4F] transition-colors">
+            ← {lang === "es" ? "Volver al inicio" : "Back to home"}
+          </a>
+        </div>
+      </div>
+    </main>
+  );
+
+  return (
+    <main className="min-h-screen bg-[#FDF8F1] px-4 py-10">
+      <div className="max-w-lg mx-auto">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <a href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">← Naranjogo</a>
+          <div className="flex bg-[#F4F0EB] rounded-lg p-1 gap-1">
+            {(["es","en"] as const).map(l => (
+              <button key={l} onClick={() => setLang(l)}
+                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${lang===l ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280]"}`}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Hero */}
+        <div className="text-center mb-8">
+          <h1 className="font-serif text-3xl font-bold text-[#1B4332] mb-3">{t.title}</h1>
+          <p className="text-sm text-[#6B7280] leading-relaxed mb-5">{t.sub}</p>
+          <div className="flex justify-center gap-3 flex-wrap">
+            {[t.free, t.verified, t.reach].map(label => (
+              <span key={label} className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]">
+                ✓ {label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Progress — 4 steps */}
+        <div className="flex gap-2 mb-8">
+          {[1,2,3,4].map(s => (
+            <div key={s} className="flex-1 flex flex-col items-center gap-1">
+              <div className={`w-full h-1.5 rounded-full transition-all duration-300 ${step >= s ? "bg-[#1B4332]" : "bg-[#E5E0D8]"}`} />
+              <span className={`text-[10px] font-medium text-center ${step >= s ? "text-[#1B4332]" : "text-[#A8A095]"}`}>
+                {s === 1 ? t.step1 : s === 2 ? t.step2 : s === 3 ? t.step3 : t.step4}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Form card */}
+        <div className="bg-white rounded-3xl border border-[#E5E0D8] p-8 shadow-sm">
+
+          {/* ── STEP 1: Your info ── */}
+          {step === 1 && (
+            <div className="flex flex-col gap-5">
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.name}</label>
+                <input value={form.name} onChange={e => set("name", e.target.value)}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors"
+                  placeholder="María García" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.whatsapp}</label>
+                <input value={form.whatsapp} onChange={e => set("whatsapp", e.target.value)}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors"
+                  placeholder={t.whatsappPh} type="tel" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.colonia}</label>
+                <select value={form.colonia} onChange={e => set("colonia", e.target.value)}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors bg-white">
+                  <option value="">— {lang === "es" ? "Selecciona tu colonia" : "Select your neighborhood"} —</option>
+                  {COLONIAS.map(c => (
+                    <option key={c.value} value={c.value}>{c[lang]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.address}</label>
+                <input value={form.address} onChange={e => set("address", e.target.value)}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors"
+                  placeholder={t.addressPh} />
+                <p className="text-xs text-[#A8A095] mt-1">
+                  {lang === "es" ? "No se mostrará públicamente — solo para coordenadas de búsqueda." : "Not shown publicly — used only for search location."}
+                </p>
+              </div>
+              <button onClick={() => setStep(2)}
+                disabled={!form.name || !form.whatsapp || !form.colonia}
+                className="w-full bg-[#1B4332] text-white font-semibold py-3 rounded-xl text-sm disabled:opacity-40 hover:bg-[#2D6A4F] transition-colors">
+                {t.next}
+              </button>
+            </div>
+          )}
+
+          {/* ── STEP 2: Your service ── */}
+          {step === 2 && (
+            <div className="flex flex-col gap-5">
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.service}</label>
+                <select value={form.service} onChange={e => set("service", e.target.value)}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors bg-white">
+                  <option value="">— {lang === "es" ? "Selecciona" : "Select"} —</option>
+                  {SERVICES.map(s => (
+                    <option key={s.value} value={s.value}>{s[lang]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.desc}</label>
+                <textarea value={form.description} onChange={e => set("description", e.target.value)}
+                  rows={4} placeholder={t.descPh}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors resize-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.price}</label>
+                <input value={form.price} onChange={e => set("price", e.target.value)}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors"
+                  placeholder={t.pricePh} />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setStep(1)}
+                  className="flex-none border border-[#E5E0D8] text-[#6B7280] font-medium py-3 px-5 rounded-xl text-sm hover:border-[#1B4332] transition-colors">
+                  {t.back}
+                </button>
+                <button onClick={() => setStep(3)}
+                  disabled={!form.service || !form.description || !form.price}
+                  className="flex-1 bg-[#1B4332] text-white font-semibold py-3 rounded-xl text-sm disabled:opacity-40 hover:bg-[#2D6A4F] transition-colors">
+                  {t.next}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3: Terms & conditions ── */}
+          {step === 3 && (
+            <div className="flex flex-col gap-5">
+              <h2 className="font-serif text-lg font-bold text-[#1B4332]">{t.termsTitle}</h2>
+
+              {/* Terms list */}
+              <div className="flex flex-col gap-4 max-h-72 overflow-y-auto pr-1">
+                {[
+                  [t.term1Title, t.term1],
+                  [t.term2Title, t.term2],
+                  [t.term3Title, t.term3],
+                  [t.term4Title, t.term4],
+                  [t.term5Title, t.term5],
+                ].map(([title, body]) => (
+                  <div key={title} className="bg-[#F4F0EB] rounded-xl p-4">
+                    <p className="text-xs font-bold text-[#1B4332] mb-1">{title}</p>
+                    <p className="text-xs text-[#6B7280] leading-relaxed">{body}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Checkboxes */}
+              <div className="flex flex-col gap-3">
+                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${form.acceptTerms ? "border-[#1B4332] bg-[#ECFDF5]" : "border-[#E5E0D8]"}`}>
+                  <input type="checkbox" checked={form.acceptTerms}
+                    onChange={e => { set("acceptTerms", e.target.checked); setTermsError(false); }}
+                    className="mt-0.5 accent-[#1B4332] w-4 h-4 flex-shrink-0" />
+                  <span className="text-xs text-[#374151] leading-relaxed">{t.acceptAll}</span>
+                </label>
+                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${form.acceptPricing ? "border-[#D4A017] bg-[#FFFBEB]" : "border-[#E5E0D8]"}`}>
+                  <input type="checkbox" checked={form.acceptPricing}
+                    onChange={e => { set("acceptPricing", e.target.checked); setTermsError(false); }}
+                    className="mt-0.5 accent-[#D4A017] w-4 h-4 flex-shrink-0" />
+                  <span className="text-xs text-[#374151] leading-relaxed">{t.acceptPricing}</span>
+                </label>
+              </div>
+
+              {termsError && (
+                <p className="text-xs text-red-600 bg-red-50 rounded-xl px-4 py-2">{t.mustAccept}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button onClick={() => setStep(2)}
+                  className="flex-none border border-[#E5E0D8] text-[#6B7280] font-medium py-3 px-5 rounded-xl text-sm hover:border-[#1B4332] transition-colors">
+                  {t.back}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!form.acceptTerms || !form.acceptPricing) { setTermsError(true); return; }
+                    setTermsError(false);
+                    setStep(4);
+                  }}
+                  className="flex-1 bg-[#1B4332] text-white font-semibold py-3 rounded-xl text-sm hover:bg-[#2D6A4F] transition-colors">
+                  {t.next}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 4: Confirm & submit ── */}
+          {step === 4 && (
+            <div className="flex flex-col gap-4">
+              {/* Summary */}
+              <div className="bg-[#F4F0EB] rounded-2xl p-5 flex flex-col gap-3">
+                {[
+                  [t.name,     form.name],
+                  ["WhatsApp", form.whatsapp],
+                  [t.service,  SERVICES.find(s => s.value === form.service)?.[lang] ?? form.service],
+                  [t.price,    `$${form.price} MXN`],
+                  [t.colonia,  COLONIAS.find(c => c.value === form.colonia)?.[lang] ?? form.colonia],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between text-sm">
+                    <span className="text-[#6B7280] font-medium">{label}</span>
+                    <span className="text-[#1C1917] font-semibold text-right max-w-[60%]">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Terms accepted badges */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs text-[#065F46] bg-[#ECFDF5] rounded-lg px-3 py-2">
+                  <span>✓</span>
+                  <span>{lang === "es" ? "Términos y condiciones aceptados" : "Terms and conditions accepted"}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-[#92400E] bg-[#FFFBEB] rounded-lg px-3 py-2">
+                  <span>✓</span>
+                  <span>{lang === "es" ? "Términos comerciales futuros reconocidos" : "Future commercial terms acknowledged"}</span>
+                </div>
+              </div>
+
+              <div className="bg-[#F4F0EB] rounded-xl p-4 text-xs text-[#6B7280] leading-relaxed">
+                🛡️ {lang === "es"
+                  ? "Tu número de WhatsApp nunca se muestra públicamente. Solo clientes verificados pueden contactarte."
+                  : "Your WhatsApp number is never shown publicly. Only verified clients can contact you."}
+              </div>
+
+              {error && <p className="text-xs text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
+
+              <div className="flex gap-3">
+                <button onClick={() => setStep(3)}
+                  className="flex-none border border-[#E5E0D8] text-[#6B7280] font-medium py-3 px-5 rounded-xl text-sm hover:border-[#1B4332] transition-colors">
+                  {t.back}
+                </button>
+                <button onClick={handleSubmit} disabled={loading}
+                  className="flex-1 bg-[#D4A017] text-white font-semibold py-3 rounded-xl text-sm disabled:opacity-40 hover:bg-[#C4900D] transition-colors">
+                  {loading ? t.submitting : `✓ ${t.submit}`}
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer note */}
+        <p className="text-center text-xs text-[#A8A095] mt-6">
+          {lang === "es"
+            ? "¿Preguntas? Escríbenos a naranjogo.com.mx"
+            : "Questions? Contact us at naranjogo.com.mx"}
+        </p>
+      </div>
+    </main>
+  );
+}
