@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseAdminClient } from "@/lib/supabase-server";
 
+const SUPA_URL  = "https://erfsvaddrspmlavvulne.supabase.co";
+const SUPA_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 const DEMO_SELLER = "a1000000-0000-0000-0000-000000000001";
 
 const PRICE_FLOORS: Record<string, number> = {
@@ -15,19 +16,14 @@ const PRICE_FLOORS: Record<string, number> = {
 };
 
 export async function GET() {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("listings")
-    .select("*,users(display_name,trust_badge)")
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(24);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const res = await fetch(
+    `${SUPA_URL}/rest/v1/listings?select=*,users(display_name,trust_badge)&status=eq.active&is_verified=eq.true&order=created_at.desc&limit=24`,
+    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+  );
+  return NextResponse.json(await res.json());
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createSupabaseAdminClient();
   try {
     const body = await req.json();
 
@@ -72,17 +68,23 @@ export async function POST(req: NextRequest) {
       expires_at:         new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
-    const { data, error } = await supabase
-      .from("listings")
-      .insert(listing)
-      .select()
-      .single();
+    const res = await fetch(`${SUPA_URL}/rest/v1/listings`, {
+      method: "POST",
+      headers: {
+        apikey: SUPA_KEY,
+        Authorization: `Bearer ${SUPA_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(listing),
+    });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const data = await res.json();
+    if (!res.ok) return NextResponse.json({ error: data }, { status: res.status });
 
     const fastapiUrl = process.env.FASTAPI_INTERNAL_URL;
-    if (fastapiUrl && data?.id) {
-      fetch(`${fastapiUrl}/fraud/score/${data.id}`, {
+    if (fastapiUrl && data[0]?.id) {
+      fetch(`${fastapiUrl}/fraud/score/${data[0].id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
         body: JSON.stringify({ price_mxn, category_id: category, seller_id: listing.seller_id }),
@@ -92,13 +94,13 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
         body: JSON.stringify({
-          listing_id: data.id,
+          listing_id: data[0].id,
           text: `${listing.title_es} ${listing.description_es}`.trim(),
         }),
       }).catch(() => {});
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data[0]);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseAdminClient } from "@/lib/supabase-server";
+
+const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const SMA_ZIP = "37745";
@@ -40,7 +42,7 @@ const SELECT_COLS = "id,title_es,price_mxn,category_id,condition,location_city"
   + ",photo_urls,users(display_name,trust_badge,ine_verified)";
 
 export async function GET(req: NextRequest) {
-  const supabase = createSupabaseAdminClient();
+  const headers = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
   const { searchParams } = new URL(req.url);
   const query    = (searchParams.get("q") ?? "").trim();
   const category = searchParams.get("category") ?? "services";
@@ -54,25 +56,23 @@ export async function GET(req: NextRequest) {
   if (query) {
     // ── Layer 1: Sparse keyword search ──────────────────────────────────────
     try {
-      const { data } = await supabase
-        .from("listings")
-        .select(SELECT_COLS)
-        .eq("status", "active")
-        .eq("category_id", category)
-        .ilike("title_es", `%${query}%`)
-        .limit(20);
-      if (data) sparseRows = data;
+      const sr = await fetch(
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(query)}*&select=${SELECT_COLS}&limit=20`,
+        { headers, cache: "no-store" }
+      );
+      if (sr.ok) sparseRows = await sr.json();
     } catch {}
 
     // ── Layer 2: Dense semantic search ──────────────────────────────────────
     try {
       const vec = await embedQuery(query);
       if (vec) {
-        const { data } = await supabase.rpc("search_listings_dense", {
-          query_embedding: vec,
-          category_filter: category,
-          match_count: 20,
+        const dr = await fetch(`${SUPA_URL}/rest/v1/rpc/search_listings_dense`, {
+          method: "POST", headers,
+          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 20 }),
+          cache: "no-store",
         });
+        const data = dr.ok ? await dr.json() : [];
         if (Array.isArray(data) && data.length > 0) {
           const bestScore = Math.max(...data.map((l: any) => l.similarity ?? 0));
           const threshold = Math.max(ABS_THRESHOLD, bestScore * REL_FACTOR);
@@ -84,14 +84,11 @@ export async function GET(req: NextRequest) {
   } else {
     // No query — return all active services
     try {
-      const { data } = await supabase
-        .from("listings")
-        .select(SELECT_COLS)
-        .eq("status", "active")
-        .eq("category_id", category)
-        .order("created_at", { ascending: false })
-        .limit(24);
-      if (data) sparseRows = data;
+      const fr = await fetch(
+        `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS}&order=created_at.desc&limit=24`,
+        { headers, cache: "no-store" }
+      );
+      if (fr.ok) sparseRows = await fr.json();
     } catch {}
   }
 
