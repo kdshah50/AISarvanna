@@ -109,7 +109,10 @@ function HeaderInner() {
                 {lang === "en" ? "Log in" : "Entrar"}
               </Link>
             )}
-
+            <Link href="/unete"
+              className="text-sm font-semibold px-4 py-2 rounded-xl border border-[#1B4332] text-[#1B4332] hover:bg-[#1B4332] hover:text-white transition-colors hidden sm:inline-flex">
+              {lang === "en" ? "List your service" : "Únete"}
+            </Link>
             <button onClick={() => setShowSell(true)}
               className="bg-[#D4A017] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#C4900D] transition-colors">
               + {lang === "en" ? "Sell" : "Vender"}
