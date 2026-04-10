@@ -1,11 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
+const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-// Simple admin PIN — change this to something secret
-const ADMIN_PIN = "naranjogo2026";
+// Admin PIN loaded from environment variable — set NEXT_PUBLIC_ADMIN_PIN in Vercel
+const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN ?? "naranjogo2026";
 
 type Listing = {
   id: string;

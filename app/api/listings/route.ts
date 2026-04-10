@@ -86,13 +86,13 @@ export async function POST(req: NextRequest) {
     if (fastapiUrl && data[0]?.id) {
       fetch(`${fastapiUrl}/fraud/score/${data[0].id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
+        headers: { "Content-Type": "application/json", "x-internal-secret": process.env.INTERNAL_API_SECRET ?? "tianguis_secret_2026" },
         body: JSON.stringify({ price_mxn, category_id: category, seller_id: listing.seller_id }),
       }).catch(() => {});
 
       fetch(`${fastapiUrl}/ml/embed`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-internal-secret": "tianguis_secret_2026" },
+        headers: { "Content-Type": "application/json", "x-internal-secret": process.env.INTERNAL_API_SECRET ?? "tianguis_secret_2026" },
         body: JSON.stringify({
           listing_id: data[0].id,
           text: `${listing.title_es} ${listing.description_es}`.trim(),
