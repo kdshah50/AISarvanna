@@ -41,7 +41,7 @@ export default function VerifyForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Código incorrecto");
       document.cookie = `tianguis_token=${data.token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Lax`;
-      router.push("/");
+      router.push("/profile");
     } catch (e: any) {
       setError(e.message);
       setCode(["", "", "", "", "", ""]);
