@@ -21,7 +21,7 @@ function TrustBadge({ badge }: { badge: string }) {
   return (
     <div className="inline-flex flex-col items-center gap-1">
       <span className="text-sm font-bold px-3 py-1 rounded-full" style={{ color: b.color, background: b.bg }}>{b.label}</span>
-      <span text-xs" style={{ color: b.color }}>{b.desc}</span>
+      <span className="text-xs" style={{ color: b.color }}>{b.desc}</span>
     </div>
   );
 }
