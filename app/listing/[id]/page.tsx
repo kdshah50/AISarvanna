@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   return {
     title: `${data.title_es} — ${price} | Naranjogo`,
     description: data.description_es?.slice(0, 160) ?? `${data.title_es} en venta en Naranjogo`,
-    openGr{ title: data.title_es, description: data.description_es ?? "", images: data.photo_urls?.[0] ? [{ url: data.photo_urls[0], width: 800, height: 600 }] : [] },
+    openGraph: { title: data.title_es, description: data.description_es ?? "", images: data.photo_urls?.[0] ? [{ url: data.photo_urls[0], width: 800, height: 600 }] : [] },
   };
 }
 
