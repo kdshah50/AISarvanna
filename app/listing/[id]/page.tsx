@@ -27,7 +27,7 @@ function TrustBadge({ badge }: { badge: string }) {
     bronze:  { label: "🥉 Bronze",  color: "#92400E", bg: "#FEF9EE" },
     none:    { label: "✓ Verificado", color: "#065F46", bg: "#ECFDF5" },
   };
-  const b = map[badgp.none;
+  const b = map[badge] ?? map.none;
   return <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ color: b.color, background: b.bg }}>{b.label}</span>;
 }
 
