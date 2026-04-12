@@ -3,31 +3,40 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-function formatPhone(val: string) {
-  const digits = val.replace(/\D/g, "").slice(0, 10);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 6) return `${digits.slice(0,2)} ${digits.slice(2)}`;
-  return `${digits.slice(0,2)} ${digits.slice(2,6)} ${digits.slice(6)}`;
+const COUNTRIES = [
+  { code: "52", flag: "🇲🇽", name: "México",        digits: 10 },
+  { code: "1",  flag: "🇺🇸", name: "USA / Canada",  digits: 10 },
+  { code: "34", flag: "🇪🇸", name: "España",        digits: 9  },
+  { code: "44", flag: "🇬🇧", name: "UK",            digits: 10 },
+  { code: "49", flag: "🇩🇪", name: "Deutschland",   digits: 10 },
+  { code: "33", flag: "🇫🇷", name: "France",        digits: 9  },
+  { code: "55", flag: "🇧🇷", name: "Brasil",        digits: 11 },
+];
+
+function formatPhone(val: string, digits: number) {
+  return val.replace(/\D/g, "").slice(0, digits);
 }
 
 export default function LoginForm() {
   const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState("52");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const country = COUNTRIES.find(c => c.code === countryCode) ?? COUNTRIES[0];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(""); setLoading(true);
     const clean = phone.replace(/\D/g, "");
-    if (clean.length < 10) { setError("Ingresa un número válido de 10 dígitos"); setLoading(false); return; }
+    if (clean.length < country.digits) { setError(`Ingresa un número válido de ${country.digits} dígitos`); setLoading(false); return; }
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: `52${clean}` }),
+        body: JSON.stringify({ phone: `${countryCode}${clean}` }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al enviar código");
-      router.push(`/auth/verify?phone=52${clean}`);
+      router.push(`/auth/verify?phone=${countryCode}${clean}`);
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
   };
 
@@ -46,11 +55,13 @@ export default function LoginForm() {
             <div>
               <label className="text-xs font-semibold text-[#6B7280] block mb-2 tracking-wide">NÚMERO DE WHATSAPP</label>
               <div className="flex items-center border border-[#E5E0D8] rounded-xl overflow-hidden focus-within:border-[#1B4332] transition-colors">
-                <div className="px-4 py-3 bg-[#F4F0EB] border-r border-[#E5E0D8] flex items-center gap-1.5 flex-shrink-0">
-                  <span className="text-base">🇲🇽</span>
-                  <span className="text-sm font-semibold text-[#374151]">+52</span>
-                </div>
-                <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
+                <select value={countryCode} onChange={e => { setCountryCode(e.target.value); setPhone(""); }}
+                  className="px-3 py-3 bg-[#F4F0EB] border-r border-[#E5E0D8] text-sm font-semibold text-[#374151] outline-none cursor-pointer">
+                  {COUNTRIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.flag} +{c.code}</option>
+                  ))}
+                </select>
+                <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value, country.digits))}
                   placeholder="55 1234 5678" className="flex-1 px-4 py-3 text-base outline-none bg-transparent" autoComplete="tel" />
               </div>
             </div>

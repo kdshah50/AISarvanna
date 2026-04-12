@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     const { phone } = await req.json();
-    if (!phone || !/^52\d{10}$/.test(phone)) {
+    if (!phone || !/^\d{8,15}$/.test(phone)) {
       return NextResponse.json({ error: "Número inválido" }, { status: 400 });
     }
 
