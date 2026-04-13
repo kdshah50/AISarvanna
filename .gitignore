@@ -16,3 +16,4 @@ listings-api/*.db
 .DS_Store
 **/.DS_Store
 .next/
+.next
