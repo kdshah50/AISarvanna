@@ -11,7 +11,7 @@ export default function VerifyForm() {
   const router = useRouter();
   const params = useSearchParams();
   const phone = params.get("phone") ?? "";
-  const displayPhone = phone.replace("52", "").replace(/(\d{2})(\d{4})(\d{4})/, "$1 $2 $3");
+  const displayPhone = "+" + phone;
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
