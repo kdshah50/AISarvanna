@@ -17,18 +17,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Datos de verificación inválidos" }, { status: 400 });
     }
 
-    const { data: otp, error: otpError } = await supabase
-      .from("otp_codes")
-      .select("*")
-      .eq("phone", phone)
-      .eq("code", code)
-      .eq("used", false)
-      .gte("expires_at", new Date().toISOString())
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    const baseOtpQuery = () =>
+      supabase
+        .from("otp_codes")
+        .select("*")
+        .eq("phone", phone)
+        .eq("used", false)
+        .gte("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-    if (otpError && otpError.code !== "PGRST116") {
+    let { data: otp, error: otpError } = await baseOtpQuery().eq("code", code).maybeSingle();
+
+    // Some DBs store OTP as integer; retry with numeric code to avoid type mismatch failures.
+    if (otpError) {
+      const numericCode = Number(code);
+      if (Number.isInteger(numericCode)) {
+        const retry = await baseOtpQuery().eq("code", numericCode).maybeSingle();
+        otp = retry.data;
+        otpError = retry.error;
+      }
+    }
+
+    if (otpError) {
+      console.error("[verify-otp] lookup error", otpError);
       throw new Error("No se pudo validar el código OTP");
     }
     if (!otp) {
