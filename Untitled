@@ -1,0 +1,8 @@
+cd ~/naranjogo3
+
+# Replace Dockerfile in fastapi folder
+# Replace railway.toml in root
+
+git add fastapi/Dockerfile railway.toml
+git commit -m "fix: Dockerfile copies from fastapi/ subfolder — Railway build fix"
+git push origin main

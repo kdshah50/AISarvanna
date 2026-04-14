@@ -10,9 +10,14 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&select=title_es,description_es,photo_urls,price_mxn`,
     { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
   );
+<<<<<<< HEAD
   const rows = res.ok ? await res.json() : [];
   const data = rows[0];
   if (!data) return { title: "Articulo no encontrado - Naranjogo" };
+=======
+  const [data] = res.ok ? await res.json() : [];
+  if (!data) return { title: "Artículo no encontrado — Tianguis" };
+>>>>>>> 7ea8605 (Fix OTP send/verify reliability and phone normalization)
   const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(data.price_mxn / 100);
   return {
     title: `${data.title_es} - ${price} | Naranjogo`,
@@ -32,9 +37,14 @@ function TrustBadge({ badge }: { badge: string }) {
     bronze:  { label: "Bronze",     color: "#92400E", bg: "#FEF9EE" },
     none:    { label: "Verificado", color: "#065F46", bg: "#ECFDF5" },
   };
+
   const b = map[badge] ?? map.none;
+
   return (
-    <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ color: b.color, background: b.bg }}>
+    <span 
+      className="text-xs font-semibold px-2 py-0.5 rounded" 
+      style={{ color: b.color, background: b.bg }}
+    >
       {b.label}
     </span>
   );
@@ -46,6 +56,7 @@ export default async function ListingPage({ params }: { params: { id: string } }
     `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users(id,display_name,avatar_url,trust_badge,ine_verified,phone,whatsapp_optin,created_at)`,
     { headers: h, cache: "no-store" }
   );
+<<<<<<< HEAD
   const rows = res.ok ? await res.json() : [];
   const listing = rows[0];
   if (!listing) notFound();
@@ -53,6 +64,14 @@ export default async function ListingPage({ params }: { params: { id: string } }
   fetch(`${SUPA_URL}/rest/v1/rpc/increment_view_count`, {
     method: "POST",
     headers: { ...h, "Content-Type": "application/json" },
+=======
+  const [listing] = res.ok ? await res.json() : [];
+  if (!listing) notFound();
+
+  // Fire-and-forget view count increment
+  fetch(`${SUPA_URL}/rest/v1/rpc/increment_view_count`, {
+    method: "POST", headers: { ...h, "Content-Type": "application/json" },
+>>>>>>> 7ea8605 (Fix OTP send/verify reliability and phone normalization)
     body: JSON.stringify({ listing_id: params.id }),
   }).catch(() => {});
 

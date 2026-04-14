@@ -1,6 +1,7 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { nationalDigitsForDisplay } from "@/lib/phone";
 
 export default function VerifyForm() {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -11,7 +12,14 @@ export default function VerifyForm() {
   const router = useRouter();
   const params = useSearchParams();
   const phone = params.get("phone") ?? "";
+<<<<<<< HEAD
   const displayPhone = "+" + phone;
+=======
+  const { prefix: phonePrefix, formatted: displayNational } = useMemo(
+    () => nationalDigitsForDisplay(phone),
+    [phone]
+  );
+>>>>>>> 7ea8605 (Fix OTP send/verify reliability and phone normalization)
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
@@ -66,7 +74,9 @@ export default function VerifyForm() {
           <h1 className="font-serif text-2xl font-bold text-[#1C1917] mb-2">Código enviado</h1>
           <p className="text-sm text-[#6B7280]">
             Enviamos un código de 6 dígitos por WhatsApp a<br />
-            <span className="font-semibold text-[#1C1917]">+52 {displayPhone}</span>
+            <span className="font-semibold text-[#1C1917]">
+              {phonePrefix} {displayNational}
+            </span>
           </p>
         </div>
         <div className="bg-white rounded-2xl border border-[#E5E0D8] p-8 shadow-sm">
