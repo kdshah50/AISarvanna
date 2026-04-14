@@ -4,37 +4,19 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatMxLocalInput, formatUsLocalInput } from "@/lib/phone";
 
-<<<<<<< HEAD
-const COUNTRIES = [
-  { code: "52", flag: "🇲🇽", name: "México",        digits: 10 },
-  { code: "1",  flag: "🇺🇸", name: "USA / Canada",  digits: 10 },
-  { code: "34", flag: "🇪🇸", name: "España",        digits: 9  },
-  { code: "44", flag: "🇬🇧", name: "UK",            digits: 10 },
-  { code: "49", flag: "🇩🇪", name: "Deutschland",   digits: 10 },
-  { code: "33", flag: "🇫🇷", name: "France",        digits: 9  },
-  { code: "55", flag: "🇧🇷", name: "Brasil",        digits: 11 },
-];
-
-function formatPhone(val: string, digits: number) {
-  return val.replace(/\D/g, "").slice(0, digits);
-}
-=======
 type Country = "MX" | "US";
 
 const COUNTRIES: { id: Country; flag: string; dial: string; label: string; placeholder: string }[] = [
   { id: "MX", flag: "🇲🇽", dial: "+52", label: "México", placeholder: "55 1234 5678" },
   { id: "US", flag: "🇺🇸", dial: "+1", label: "United States", placeholder: "(555) 123-4567" },
 ];
->>>>>>> 7ea8605 (Fix OTP send/verify reliability and phone normalization)
 
 export default function LoginForm() {
   const [country, setCountry] = useState<Country>("MX");
   const [phone, setPhone] = useState("");
-  const [countryCode, setCountryCode] = useState("52");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const country = COUNTRIES.find(c => c.code === countryCode) ?? COUNTRIES[0];
 
   const selected = COUNTRIES.find((c) => c.id === country)!;
 
@@ -43,18 +25,6 @@ export default function LoginForm() {
     setError("");
     setLoading(true);
     const clean = phone.replace(/\D/g, "");
-<<<<<<< HEAD
-    if (clean.length < country.digits) { setError(`Ingresa un número válido de ${country.digits} dígitos`); setLoading(false); return; }
-    try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: `${countryCode}${clean}` }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error al enviar código");
-      router.push(`/auth/verify?phone=${countryCode}${clean}`);
-    } catch (e: any) { setError(e.message); } finally { setLoading(false); }
-=======
     if (clean.length < 10) {
       setError("Ingresa un número válido de 10 dígitos");
       setLoading(false);
@@ -75,7 +45,6 @@ export default function LoginForm() {
     } finally {
       setLoading(false);
     }
->>>>>>> 7ea8605 (Fix OTP send/verify reliability and phone normalization)
   };
 
   return (
@@ -110,16 +79,6 @@ export default function LoginForm() {
             <div>
               <label className="text-xs font-semibold text-[#6B7280] block mb-2 tracking-wide">NÚMERO DE WHATSAPP</label>
               <div className="flex items-center border border-[#E5E0D8] rounded-xl overflow-hidden focus-within:border-[#1B4332] transition-colors">
-<<<<<<< HEAD
-                <select value={countryCode} onChange={e => { setCountryCode(e.target.value); setPhone(""); }}
-                  className="px-3 py-3 bg-[#F4F0EB] border-r border-[#E5E0D8] text-sm font-semibold text-[#374151] outline-none cursor-pointer">
-                  {COUNTRIES.map(c => (
-                    <option key={c.code} value={c.code}>{c.flag} +{c.code}</option>
-                  ))}
-                </select>
-                <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value, country.digits))}
-                  placeholder="55 1234 5678" className="flex-1 px-4 py-3 text-base outline-none bg-transparent" autoComplete="tel" />
-=======
                 <div className="px-4 py-3 bg-[#F4F0EB] border-r border-[#E5E0D8] flex items-center gap-1.5 flex-shrink-0 min-w-[5.5rem]">
                   <span className="text-base">{selected.flag}</span>
                   <span className="text-sm font-semibold text-[#374151]">{selected.dial}</span>
@@ -134,7 +93,6 @@ export default function LoginForm() {
                   className="flex-1 px-4 py-3 text-base outline-none bg-transparent min-w-0"
                   autoComplete="tel-national"
                 />
->>>>>>> 7ea8605 (Fix OTP send/verify reliability and phone normalization)
               </div>
             </div>
             {error && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{error}</div>}

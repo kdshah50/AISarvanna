@@ -3,21 +3,18 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
+const SUPA_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const res = await fetch(
-    `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&select=title_es,description_es,photo_urls,price_mxn`,
-    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
-  );
-<<<<<<< HEAD
-  const rows = res.ok ? await res.json() : [];
-  const data = rows[0];
-  if (!data) return { title: "Articulo no encontrado - Naranjogo" };
-=======
+  const res = await fetch(`${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&select=title_es,description_es,photo_urls,price_mxn`, {
+    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
+    cache: "no-store",
+  });
   const [data] = res.ok ? await res.json() : [];
-  if (!data) return { title: "Artículo no encontrado — Tianguis" };
->>>>>>> 7ea8605 (Fix OTP send/verify reliability and phone normalization)
+  if (!data) return { title: "Artículo no encontrado - Naranjogo" };
+
   const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(data.price_mxn / 100);
   return {
     title: `${data.title_es} - ${price} | Naranjogo`,
@@ -32,19 +29,15 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 function TrustBadge({ badge }: { badge: string }) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
-    diamond: { label: "Diamond",    color: "#1D4ED8", bg: "#EFF6FF" },
-    gold:    { label: "Gold",       color: "#92400E", bg: "#FEF3C7" },
-    bronze:  { label: "Bronze",     color: "#92400E", bg: "#FEF9EE" },
-    none:    { label: "Verificado", color: "#065F46", bg: "#ECFDF5" },
+    diamond: { label: "Diamond", color: "#1D4ED8", bg: "#EFF6FF" },
+    gold: { label: "Gold", color: "#92400E", bg: "#FEF3C7" },
+    bronze: { label: "Bronze", color: "#92400E", bg: "#FEF9EE" },
+    none: { label: "Verificado", color: "#065F46", bg: "#ECFDF5" },
   };
 
   const b = map[badge] ?? map.none;
-
   return (
-    <span 
-      className="text-xs font-semibold px-2 py-0.5 rounded" 
-      style={{ color: b.color, background: b.bg }}
-    >
+    <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ color: b.color, background: b.bg }}>
       {b.label}
     </span>
   );
@@ -56,22 +49,12 @@ export default async function ListingPage({ params }: { params: { id: string } }
     `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users(id,display_name,avatar_url,trust_badge,ine_verified,phone,whatsapp_optin,created_at)`,
     { headers: h, cache: "no-store" }
   );
-<<<<<<< HEAD
-  const rows = res.ok ? await res.json() : [];
-  const listing = rows[0];
+  const [listing] = res.ok ? await res.json() : [];
   if (!listing) notFound();
 
   fetch(`${SUPA_URL}/rest/v1/rpc/increment_view_count`, {
     method: "POST",
     headers: { ...h, "Content-Type": "application/json" },
-=======
-  const [listing] = res.ok ? await res.json() : [];
-  if (!listing) notFound();
-
-  // Fire-and-forget view count increment
-  fetch(`${SUPA_URL}/rest/v1/rpc/increment_view_count`, {
-    method: "POST", headers: { ...h, "Content-Type": "application/json" },
->>>>>>> 7ea8605 (Fix OTP send/verify reliability and phone normalization)
     body: JSON.stringify({ listing_id: params.id }),
   }).catch(() => {});
 
@@ -85,12 +68,11 @@ export default async function ListingPage({ params }: { params: { id: string } }
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {listing.photo_urls?.[0] && (
-          <img src={listing.photo_urls[0]} alt={listing.title_es} className="w-full h-80 object-cover rounded-2xl mb-6" />
-        )}
+        {listing.photo_urls?.[0] && <img src={listing.photo_urls[0]} alt={listing.title_es} className="w-full h-80 object-cover rounded-2xl mb-6" />}
         <div className="flex items-start justify-between mb-3">
           <span className="text-3xl font-bold text-[#1B4332]">
-            {price}<span className="text-base font-semibold text-[#6B7280] ml-2">MXN</span>
+            {price}
+            <span className="text-base font-semibold text-[#6B7280] ml-2">MXN</span>
           </span>
           {listing.negotiable && <span className="text-sm text-[#6B7280] italic">Negociable</span>}
         </div>
@@ -104,9 +86,7 @@ export default async function ListingPage({ params }: { params: { id: string } }
             <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#F4F0EB] text-[#6B7280]">{listing.location_city}</span>
           )}
         </div>
-        {listing.description_es && (
-          <p className="text-[#374151] leading-relaxed mb-6">{listing.description_es}</p>
-        )}
+        {listing.description_es && <p className="text-[#374151] leading-relaxed mb-6">{listing.description_es}</p>}
         {seller && (
           <Link href={`/seller/${seller.id}`} className="block hover:opacity-90 transition-opacity">
             <div className="bg-[#F4F0EB] rounded-xl p-4 mb-6 flex items-center gap-3">
@@ -131,9 +111,13 @@ export default async function ListingPage({ params }: { params: { id: string } }
         </div>
         <div className="flex flex-col gap-3">
           {showWA && (
-            <a href={waUrl} target="_blank" rel="noopener noreferrer"
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="w-full py-4 rounded-xl font-semibold text-base flex items-center justify-center gap-2 transition-colors"
-              style={{ background: "#25D366", color: "white" }}>
+              style={{ background: "#25D366", color: "white" }}
+            >
               Contactar por WhatsApp
             </a>
           )}
