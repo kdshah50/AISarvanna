@@ -25,13 +25,16 @@ function getRequiredEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "SUPABASE_SERVICE_ROL
 }
 
 function logSupabaseError(step: string, phone: string, err: any) {
-  console.error(`[send-otp] ${step}`, {
+  const payload = {
     phone,
     message: err?.message,
     code: err?.code,
     details: err?.details,
     hint: err?.hint,
-  });
+    status: err?.status,
+    raw: typeof err === "object" ? JSON.stringify(err) : String(err),
+  };
+  console.error(`[send-otp] ${step}`, payload);
 }
 
 function newRequestId(req: NextRequest) {
@@ -40,6 +43,7 @@ function newRequestId(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const requestId = newRequestId(req);
+  let step: "validate" | "rate_limit" | "insert" | "twilio" | "done" = "validate";
   try {
     const supabase = createClient(
       getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
@@ -57,6 +61,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    step = "rate_limit";
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { data: recentOtps, error: rateLimitError } = await supabase
       .from("otp_codes")
@@ -67,12 +72,20 @@ export async function POST(req: NextRequest) {
       .limit(5);
     if (rateLimitError) {
       logSupabaseError("rate-limit-query-failed", phone, rateLimitError);
-      throw new Error("No se pudo validar intentos OTP");
+      return NextResponse.json(
+        {
+          error: "No se pudo enviar el código OTP",
+          requestId,
+          step: "rate_limit",
+        },
+        { status: 500 }
+      );
     }
     if ((recentOtps?.length ?? 0) >= 5) {
       return NextResponse.json({ error: "Demasiados intentos. Espera una hora.", requestId }, { status: 429 });
     }
 
+    step = "insert";
     const code = generateOTP();
     const { error: insertError } = await supabase.from("otp_codes").insert({
       phone,
@@ -81,11 +94,19 @@ export async function POST(req: NextRequest) {
     });
     if (insertError) {
       logSupabaseError("otp-insert-failed", phone, insertError);
-      throw new Error("No se pudo guardar el código OTP");
+      return NextResponse.json(
+        {
+          error: "No se pudo enviar el código OTP",
+          requestId,
+          step: "insert",
+        },
+        { status: 500 }
+      );
     }
 
     const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: token, TWILIO_WHATSAPP_FROM: from } = process.env;
     if (sid && token && from) {
+      step = "twilio";
       const fromAddress = asWhatsappAddress(from);
       const toAddress = asWhatsappAddress(phone);
       const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
@@ -102,19 +123,28 @@ export async function POST(req: NextRequest) {
       });
       if (!twilioRes.ok) {
         const errText = await twilioRes.text();
-        throw new Error(`Error de envío WhatsApp: ${twilioRes.status} ${errText}`);
+        console.error("[send-otp] twilio-failed", { requestId, phone, status: twilioRes.status, errText });
+        return NextResponse.json(
+          {
+            error: "No se pudo enviar el código OTP",
+            requestId,
+            step: "twilio",
+          },
+          { status: 500 }
+        );
       }
     } else {
       console.log(`[DEV OTP] +${phone} -> ${code}`);
     }
 
+    step = "done";
     if (process.env.NODE_ENV !== "production") {
       return NextResponse.json({ ok: true, devOtp: code, requestId });
     }
     return NextResponse.json({ ok: true, requestId });
   } catch (e: any) {
-    console.error("[send-otp] unhandled error", { requestId, message: e?.message, stack: e?.stack });
+    console.error("[send-otp] unhandled error", { requestId, step, message: e?.message, stack: e?.stack });
     const msg = process.env.NODE_ENV === "production" ? "No se pudo enviar el código OTP" : e?.message;
-    return NextResponse.json({ error: msg, requestId }, { status: 500 });
+    return NextResponse.json({ error: msg, requestId, step }, { status: 500 });
   }
 }
