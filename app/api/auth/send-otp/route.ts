@@ -34,7 +34,12 @@ function logSupabaseError(step: string, phone: string, err: any) {
   });
 }
 
+function newRequestId(req: NextRequest) {
+  return req.headers.get("x-vercel-id") ?? globalThis.crypto?.randomUUID?.() ?? String(Date.now());
+}
+
 export async function POST(req: NextRequest) {
+  const requestId = newRequestId(req);
   try {
     const supabase = createClient(
       getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
@@ -44,23 +49,28 @@ export async function POST(req: NextRequest) {
     const phone = normalizeAuthPhone(String(body?.phone ?? ""));
     if (!phone || !isValidAuthPhone(phone)) {
       return NextResponse.json(
-        { error: "Número inválido (México: 10 dígitos; EE.UU.: 10 dígitos con código +1)" },
+        {
+          error: "Número inválido (México: 10 dígitos; EE.UU.: 10 dígitos con código +1)",
+          requestId,
+        },
         { status: 400 }
       );
     }
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count, error: rateLimitError } = await supabase
+    const { data: recentOtps, error: rateLimitError } = await supabase
       .from("otp_codes")
-      .select("*", { count: "exact", head: true })
+      .select("id")
       .eq("phone", phone)
-      .gte("created_at", oneHourAgo);
+      .gte("created_at", oneHourAgo)
+      .order("created_at", { ascending: false })
+      .limit(5);
     if (rateLimitError) {
       logSupabaseError("rate-limit-query-failed", phone, rateLimitError);
       throw new Error("No se pudo validar intentos OTP");
     }
-    if ((count ?? 0) >= 5) {
-      return NextResponse.json({ error: "Demasiados intentos. Espera una hora." }, { status: 429 });
+    if ((recentOtps?.length ?? 0) >= 5) {
+      return NextResponse.json({ error: "Demasiados intentos. Espera una hora.", requestId }, { status: 429 });
     }
 
     const code = generateOTP();
@@ -99,12 +109,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (process.env.NODE_ENV !== "production") {
-      return NextResponse.json({ ok: true, devOtp: code });
+      return NextResponse.json({ ok: true, devOtp: code, requestId });
     }
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, requestId });
   } catch (e: any) {
-    console.error("[send-otp] unhandled error", { message: e?.message, stack: e?.stack });
+    console.error("[send-otp] unhandled error", { requestId, message: e?.message, stack: e?.stack });
     const msg = process.env.NODE_ENV === "production" ? "No se pudo enviar el código OTP" : e?.message;
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg, requestId }, { status: 500 });
   }
 }
