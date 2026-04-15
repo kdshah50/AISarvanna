@@ -1,33 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { jwtVerify } from "jose";
-
-const COOKIE_NAME = "tianguis_token";
-
-function jwtSecret() {
-  return new TextEncoder().encode(process.env.JWT_SECRET ?? "tianguis_dev_secret_change_in_production");
-}
-
-async function getUserIdFromRequest(req: NextRequest): Promise<string | null> {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  if (!token) return null;
-  try {
-    const { payload } = await jwtVerify(token, jwtSecret());
-    const sub = payload.sub;
-    return typeof sub === "string" && sub.length > 0 ? sub : null;
-  } catch {
-    return null;
-  }
-}
-
-function adminSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Missing Supabase env");
-  }
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
 
 /** Session + profile payload for /profile (bypasses RLS that blocks anon reads on users/listings). */
 export async function GET(req: NextRequest) {
@@ -37,7 +9,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    const supabase = adminSupabase();
+    const supabase = createAdminSupabase();
 
     const { data: user, error: userError } = await supabase
       .from("users")
@@ -84,7 +56,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Nombre inválido" }, { status: 400 });
     }
 
-    const supabase = adminSupabase();
+    const supabase = createAdminSupabase();
     const { data, error } = await supabase
       .from("users")
       .update({ display_name: displayName })

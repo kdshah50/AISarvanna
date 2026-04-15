@@ -1,0 +1,203 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+
+export const dynamic = "force-dynamic";
+
+/** GET ?listingId= — buyer: their thread + messages; seller: all threads for this listing. */
+export async function GET(req: NextRequest) {
+  try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    }
+
+    const listingId = req.nextUrl.searchParams.get("listingId");
+    if (!listingId) {
+      return NextResponse.json({ error: "listingId requerido" }, { status: 400 });
+    }
+
+    const supabase = createAdminSupabase();
+    const { data: listing, error: listingError } = await supabase
+      .from("listings")
+      .select("id,seller_id,title_es")
+      .eq("id", listingId)
+      .maybeSingle();
+
+    if (listingError || !listing) {
+      return NextResponse.json({ error: "Anuncio no encontrado" }, { status: 404 });
+    }
+
+    const sellerId = listing.seller_id as string | null;
+    if (!sellerId) {
+      return NextResponse.json({ error: "Anuncio sin vendedor" }, { status: 400 });
+    }
+
+    if (sellerId === userId) {
+      const { data: convs, error: convErr } = await supabase
+        .from("listing_conversations")
+        .select("id,buyer_id,updated_at,created_at")
+        .eq("listing_id", listingId)
+        .eq("seller_id", userId)
+        .order("updated_at", { ascending: false });
+
+      if (convErr) {
+        console.error("[conversations] seller list", convErr);
+        return NextResponse.json({ error: "No se pudo cargar conversaciones" }, { status: 500 });
+      }
+
+      const buyerIds = [...new Set((convs ?? []).map((c) => c.buyer_id))];
+      const buyerMap: Record<string, { display_name: string | null; phone: string | null }> = {};
+      if (buyerIds.length > 0) {
+        const { data: buyers } = await supabase.from("users").select("id,display_name,phone").in("id", buyerIds);
+        for (const b of buyers ?? []) {
+          buyerMap[b.id] = { display_name: b.display_name, phone: b.phone };
+        }
+      }
+
+      const threads = await Promise.all(
+        (convs ?? []).map(async (c) => {
+          const { data: last } = await supabase
+            .from("listing_messages")
+            .select("body,created_at")
+            .eq("conversation_id", c.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const b = buyerMap[c.buyer_id];
+          const buyerLabel =
+            b?.display_name?.trim() || (b?.phone ? `…${b.phone.replace(/\D/g, "").slice(-4)}` : "Comprador");
+          return {
+            conversationId: c.id,
+            buyer_id: c.buyer_id,
+            buyer_name: buyerLabel,
+            last_body: last?.body ?? "",
+            last_at: last?.created_at ?? c.updated_at,
+          };
+        })
+      );
+
+      return NextResponse.json({
+        role: "seller",
+        listing: { id: listing.id, title_es: listing.title_es },
+        threads,
+      });
+    }
+
+    const { data: conv, error: convErr } = await supabase
+      .from("listing_conversations")
+      .select("id")
+      .eq("listing_id", listingId)
+      .eq("buyer_id", userId)
+      .maybeSingle();
+
+    if (convErr) {
+      console.error("[conversations] buyer conv", convErr);
+      return NextResponse.json({ error: "No se pudo cargar la conversación" }, { status: 500 });
+    }
+
+    if (!conv) {
+      return NextResponse.json({
+        role: "buyer",
+        listing: { id: listing.id, title_es: listing.title_es },
+        conversation: null,
+        messages: [],
+      });
+    }
+
+    const { data: messages, error: msgErr } = await supabase
+      .from("listing_messages")
+      .select("id,sender_id,body,created_at")
+      .eq("conversation_id", conv.id)
+      .order("created_at", { ascending: true });
+
+    if (msgErr) {
+      console.error("[conversations] messages", msgErr);
+      return NextResponse.json({ error: "No se pudo cargar mensajes" }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      role: "buyer",
+      listing: { id: listing.id, title_es: listing.title_es },
+      conversation: { id: conv.id },
+      messages: messages ?? [],
+    });
+  } catch (e) {
+    console.error("[conversations] GET", e);
+    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  }
+}
+
+/** POST { listingId } — buyer opens thread (idempotent). */
+export async function POST(req: NextRequest) {
+  try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const listingId = String(body?.listingId ?? "");
+    if (!listingId) {
+      return NextResponse.json({ error: "listingId requerido" }, { status: 400 });
+    }
+
+    const supabase = createAdminSupabase();
+    const { data: listing, error: listingError } = await supabase
+      .from("listings")
+      .select("id,seller_id")
+      .eq("id", listingId)
+      .maybeSingle();
+
+    if (listingError || !listing) {
+      return NextResponse.json({ error: "Anuncio no encontrado" }, { status: 404 });
+    }
+
+    const sellerId = listing.seller_id as string | null;
+    if (!sellerId) {
+      return NextResponse.json({ error: "Anuncio sin vendedor" }, { status: 400 });
+    }
+    if (sellerId === userId) {
+      return NextResponse.json({ error: "No puedes chatear contigo mismo" }, { status: 400 });
+    }
+
+    const { data: existing } = await supabase
+      .from("listing_conversations")
+      .select("id")
+      .eq("listing_id", listingId)
+      .eq("buyer_id", userId)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ conversationId: existing.id });
+    }
+
+    const { data: created, error: insertErr } = await supabase
+      .from("listing_conversations")
+      .insert({
+        listing_id: listingId,
+        buyer_id: userId,
+        seller_id: sellerId,
+      })
+      .select("id")
+      .single();
+
+    if (insertErr) {
+      if (insertErr.code === "23505") {
+        const { data: row } = await supabase
+          .from("listing_conversations")
+          .select("id")
+          .eq("listing_id", listingId)
+          .eq("buyer_id", userId)
+          .maybeSingle();
+        if (row) return NextResponse.json({ conversationId: row.id });
+      }
+      console.error("[conversations] POST insert", insertErr);
+      return NextResponse.json({ error: "No se pudo crear la conversación" }, { status: 500 });
+    }
+
+    return NextResponse.json({ conversationId: created.id });
+  } catch (e) {
+    console.error("[conversations] POST", e);
+    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  }
+}

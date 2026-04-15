@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import ListingChat from "@/components/ListingChat";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY =
@@ -43,7 +44,13 @@ function TrustBadge({ badge }: { badge: string }) {
   );
 }
 
-export default async function ListingPage({ params }: { params: { id: string } }) {
+export default async function ListingPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { chat?: string };
+}) {
   const h = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` };
   const res = await fetch(
     `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users(id,display_name,avatar_url,trust_badge,ine_verified,phone,whatsapp_optin,created_at)`,
@@ -110,6 +117,7 @@ export default async function ListingPage({ params }: { params: { id: string } }
           </div>
         </div>
         <div className="flex flex-col gap-3">
+          <ListingChat listingId={params.id} initialConversationId={searchParams?.chat} />
           {showWA && (
             <a
               href={waUrl}
@@ -121,9 +129,6 @@ export default async function ListingPage({ params }: { params: { id: string } }
               Contactar por WhatsApp
             </a>
           )}
-          <button className="w-full py-4 rounded-xl bg-[#1B4332] text-white font-semibold text-base hover:bg-[#2D6A4F] transition-colors">
-            Contactar vendedor
-          </button>
         </div>
       </div>
     </main>

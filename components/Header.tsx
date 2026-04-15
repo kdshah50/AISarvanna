@@ -87,6 +87,13 @@ function HeaderInner() {
                 </button>
                 {showMenu && (
                   <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-[#E5E0D8] rounded-xl shadow-lg overflow-hidden z-50">
+                    <Link
+                      href="/messages"
+                      className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-[#F4F0EB] transition-colors"
+                      onClick={() => setShowMenu(false)}
+                    >
+                      {lang === "en" ? "Messages" : "Mensajes"}
+                    </Link>
                     <Link href="/profile"
                       className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-[#F4F0EB] transition-colors"
                       onClick={() => setShowMenu(false)}>

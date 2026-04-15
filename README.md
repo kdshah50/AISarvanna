@@ -71,6 +71,40 @@ Run these in **Supabase → SQL Editor** (or your migration pipeline). Pushing t
 
 On `send-otp` errors, JSON may include **`requestId`** (matches Vercel `x-vercel-id`) and **`step`**: `rate_limit` | `insert` | `twilio` — useful when correlating with Vercel logs.
 
+## In-app messaging (Phase 2)
+
+Buyer–seller chat is **per listing**: one thread per pair **`(listing_id, buyer_id)`**; `seller_id` is stored on the row for fast inbox queries.
+
+### Database
+
+Apply on the same Supabase project:
+
+- `supabase/migrations/20260420120000_listing_messaging.sql` — creates `listing_conversations` and `listing_messages`.
+- **`listing_id` is `UUID`** to match Supabase projects where `public.listings.id` is UUID. If your `listings.id` is `TEXT`, change that column in the migration to `TEXT` (and align the `REFERENCES` clause).
+- If an earlier run failed mid-migration, run `20260420120100_listing_messaging_repair.sql` (drops the two tables), then run `20260420120000` again.
+
+### UI
+
+- **`/listing/[id]`** — `ListingChat` block (above WhatsApp). Buyers start a thread by sending the first message; sellers see a list of buyers for that listing and select a thread to reply.
+- **`/messages`** — inbox (all threads where the user is buyer or seller).
+- **`/messages/[conversationId]`** — full-screen thread.
+
+### API (cookie session + service role)
+
+| Route | Method | Role |
+|-------|--------|------|
+| `/api/conversations?listingId=` | GET | Buyer: their thread + messages; seller: threads for this listing. |
+| `/api/conversations` | POST `{ listingId }` | Buyer: create thread (idempotent). |
+| `/api/conversations/[id]` | GET | Participant: thread + messages + listing title. |
+| `/api/conversations/[id]/messages` | POST `{ body }` | Participant: append message (max 4000 chars). |
+| `/api/conversations/inbox` | GET | All threads for current user. |
+
+Shared JWT + Supabase admin client helpers live in `lib/auth-server.ts` (also used by `/api/auth/me`).
+
+### Optional deep link
+
+Open a specific thread on the listing page: `/listing/{id}?chat={conversationId}`.
+
 ## Deploy (GitHub → Vercel)
 
 1. Commit and push to **`main`** (or the branch connected to Vercel production).
@@ -92,6 +126,8 @@ On `send-otp` errors, JSON may include **`requestId`** (matches Vercel `x-vercel
 
 - `app/` — Next.js App Router pages and API routes
 - `app/api/auth/` — OTP + session + profile loader
+- `app/api/conversations/` — in-app messaging APIs
+- `app/messages/` — inbox + thread pages
 - `components/` — `LoginForm`, `VerifyForm`, `Header`, etc.
 - `lib/phone.ts` — phone validation/formatting
 - `supabase/migrations/` — SQL migrations (run in Supabase for production DB)
