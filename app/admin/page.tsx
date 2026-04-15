@@ -39,6 +39,7 @@ export default function AdminPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [commissions, setCommissions] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState("");
+  const [msgError, setMsgError] = useState(false);
 
   const headers = {
     apikey: ANON_KEY,
@@ -71,44 +72,66 @@ export default function AdminPage() {
 
   useEffect(() => { if (authed) load(); }, [authed, filter]);
 
+  const showMsg = (text: string, error = false) => {
+    setMsg(text);
+    setMsgError(error);
+    setTimeout(() => {
+      setMsg("");
+      setMsgError(false);
+    }, 5000);
+  };
+
+  const postAdmin = async (body: Record<string, unknown>) => {
+    const res = await fetch("/api/admin/listing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, pin }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(typeof data?.error === "string" ? data.error : "Error al guardar");
+    }
+  };
+
   const approve = async (id: string) => {
     setSaving(id);
     const pct = parseFloat(commissions[id] ?? "5");
-    await fetch(`${SUPA_URL}/rest/v1/listings?id=eq.${id}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ is_verified: true, commission_pct: pct }),
-    });
-    setMsg(`✅ Approved — commission ${pct}%`);
-    setTimeout(() => setMsg(""), 3000);
-    setSaving(null);
-    load();
+    try {
+      await postAdmin({ id, action: "approve", commission_pct: pct });
+      showMsg(`✅ Aprobado — comisión ${pct}%`);
+      await load();
+    } catch (e: any) {
+      showMsg(e?.message ?? "No se pudo aprobar", true);
+    } finally {
+      setSaving(null);
+    }
   };
 
   const reject = async (id: string) => {
     setSaving(id);
-    await fetch(`${SUPA_URL}/rest/v1/listings?id=eq.${id}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ status: "archived", is_verified: false }),
-    });
-    setMsg("🗑️ Listing archived");
-    setTimeout(() => setMsg(""), 3000);
-    setSaving(null);
-    load();
+    try {
+      await postAdmin({ id, action: "reject" });
+      showMsg("🗑️ Anuncio archivado");
+      await load();
+    } catch (e: any) {
+      showMsg(e?.message ?? "No se pudo rechazar", true);
+    } finally {
+      setSaving(null);
+    }
   };
 
   const updateCommission = async (id: string) => {
     setSaving(id);
     const pct = parseFloat(commissions[id] ?? "5");
-    await fetch(`${SUPA_URL}/rest/v1/listings?id=eq.${id}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ commission_pct: pct }),
-    });
-    setMsg(`✅ Commission updated to ${pct}%`);
-    setTimeout(() => setMsg(""), 3000);
-    setSaving(null);
+    try {
+      await postAdmin({ id, action: "commission", commission_pct: pct });
+      showMsg(`✅ Comisión actualizada a ${pct}%`);
+      await load();
+    } catch (e: any) {
+      showMsg(e?.message ?? "No se pudo actualizar la comisión", true);
+    } finally {
+      setSaving(null);
+    }
   };
 
   // ── PIN screen ───────────────────────────────────────────────────────────
@@ -156,7 +179,12 @@ export default function AdminPage() {
 
         {/* Status message */}
         {msg && (
-          <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-xl px-4 py-3 text-sm text-[#065F46] font-medium mb-4">
+          <div
+            className={`rounded-xl px-4 py-3 text-sm font-medium mb-4 border ${
+              msgError
+                ? "bg-red-50 border-red-200 text-red-800"
+                : "bg-[#ECFDF5] border-[#A7F3D0] text-[#065F46]"
+            }`}>
             {msg}
           </div>
         )}
