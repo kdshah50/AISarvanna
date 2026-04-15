@@ -37,10 +37,16 @@ export default function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: e164 }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error al enviar código");
+      const isJson = (res.headers.get("content-type") ?? "").includes("application/json");
+      const data = isJson ? await res.json() : null;
+      if (!res.ok) {
+        const fallback = "No se pudo enviar el código OTP. Intenta de nuevo en un minuto.";
+        throw new Error((data as { error?: string } | null)?.error ?? fallback);
+      }
       const params = new URLSearchParams({ phone: e164 });
-      if (data?.devOtp) params.set("otp", String(data.devOtp));
+      if (data && typeof data === "object" && "devOtp" in data && data.devOtp) {
+        params.set("otp", String(data.devOtp));
+      }
       router.push(`/auth/verify?${params.toString()}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error");
