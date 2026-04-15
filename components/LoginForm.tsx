@@ -39,7 +39,9 @@ export default function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al enviar código");
-      router.push(`/auth/verify?phone=${encodeURIComponent(e164)}`);
+      const params = new URLSearchParams({ phone: e164 });
+      if (data?.devOtp) params.set("otp", String(data.devOtp));
+      router.push(`/auth/verify?${params.toString()}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {

@@ -12,6 +12,7 @@ export default function VerifyForm() {
   const router = useRouter();
   const params = useSearchParams();
   const phone = normalizeAuthPhone(params.get("phone") ?? "");
+  const devOtp = (params.get("otp") ?? "").replace(/\D/g, "").slice(0, 6);
   const { prefix: phonePrefix, formatted: displayNational } = useMemo(() => nationalDigitsForDisplay(phone), [phone]);
 
   useEffect(() => {
@@ -23,6 +24,14 @@ export default function VerifyForm() {
     const timer = setInterval(() => setResendCountdown((c) => (c > 0 ? c - 1 : 0)), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    // In local/dev, auto-fill OTP returned by send endpoint.
+    if (devOtp.length !== 6 || !phone) return;
+    const digits = devOtp.split("");
+    setCode(digits);
+    handleVerify(devOtp);
+  }, [devOtp, phone]);
 
   const handleDigit = (i: number, val: string) => {
     const digit = val.replace(/\D/g, "").slice(-1);

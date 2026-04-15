@@ -3,14 +3,42 @@ import { createClient } from "@supabase/supabase-js";
 import { isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
 
 function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, "0");
+}
+
+function asWhatsappAddress(value: string) {
+  const v = value.trim();
+  if (!v) return v;
+  if (v.startsWith("whatsapp:")) return v;
+  const cleaned = v.replace(/^whatsapp:/, "");
+  return `whatsapp:${cleaned.startsWith("+") ? cleaned : `+${cleaned}`}`;
+}
+
+function getRequiredEnv(name: "NEXT_PUBLIC_SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY") {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required env: ${name}`);
+  }
+  return value;
+}
+
+function logSupabaseError(step: string, phone: string, err: any) {
+  console.error(`[send-otp] ${step}`, {
+    phone,
+    message: err?.message,
+    code: err?.code,
+    details: err?.details,
+    hint: err?.hint,
+  });
 }
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
+      getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY")
     );
     const body = await req.json();
     const phone = normalizeAuthPhone(String(body?.phone ?? ""));
@@ -27,7 +55,10 @@ export async function POST(req: NextRequest) {
       .select("*", { count: "exact", head: true })
       .eq("phone", phone)
       .gte("created_at", oneHourAgo);
-    if (rateLimitError) throw new Error("No se pudo validar intentos OTP");
+    if (rateLimitError) {
+      logSupabaseError("rate-limit-query-failed", phone, rateLimitError);
+      throw new Error("No se pudo validar intentos OTP");
+    }
     if ((count ?? 0) >= 5) {
       return NextResponse.json({ error: "Demasiados intentos. Espera una hora." }, { status: 429 });
     }
@@ -38,10 +69,15 @@ export async function POST(req: NextRequest) {
       code,
       expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     });
-    if (insertError) throw new Error("No se pudo guardar el código OTP");
+    if (insertError) {
+      logSupabaseError("otp-insert-failed", phone, insertError);
+      throw new Error("No se pudo guardar el código OTP");
+    }
 
     const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: token, TWILIO_WHATSAPP_FROM: from } = process.env;
     if (sid && token && from) {
+      const fromAddress = asWhatsappAddress(from);
+      const toAddress = asWhatsappAddress(phone);
       const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
         method: "POST",
         headers: {
@@ -49,8 +85,8 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          From: from,
-          To: `whatsapp:+${phone}`,
+          From: fromAddress,
+          To: toAddress,
           Body: `Tu código de Naranjogo es: *${code}*\nVálido 5 minutos. No lo compartas.`,
         }),
       });
@@ -62,8 +98,13 @@ export async function POST(req: NextRequest) {
       console.log(`[DEV OTP] +${phone} -> ${code}`);
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      return NextResponse.json({ ok: true, devOtp: code });
+    }
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error("[send-otp] unhandled error", { message: e?.message, stack: e?.stack });
+    const msg = process.env.NODE_ENV === "production" ? "No se pudo enviar el código OTP" : e?.message;
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
