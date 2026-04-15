@@ -9,12 +9,12 @@ const SUPA_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1N
 
 type User = {
   id: string;
-  phone: string;
+  phone: string | null;
   display_name: string | null;
   trust_badge: string;
   phone_verified: boolean;
   ine_verified: boolean;
-  created_at: string;
+  created_at: string | null;
 };
 
 type Listing = {
@@ -156,8 +156,9 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const badge = badgeInfo(user.trust_badge ?? "none");
-  const memberYear = new Date(user.created_at).getFullYear();
-  const initials = (user.display_name ?? user.phone.slice(-4)).slice(0, 2).toUpperCase();
+  const memberYear = user.created_at ? new Date(user.created_at).getFullYear() : new Date().getFullYear();
+  const fallbackPhone = user.phone ? user.phone.slice(-4) : "NA";
+  const initials = (user.display_name?.trim() || fallbackPhone).slice(0, 2).toUpperCase();
   const activeListings   = listings.filter(l => l.status === "active" && l.is_verified);
   const pendingListings  = listings.filter(l => l.status === "active" && !l.is_verified);
   const archivedListings = listings.filter(l => l.status === "archived");
@@ -206,7 +207,7 @@ export default function ProfilePage() {
               ) : (
                 <div className="flex items-center gap-2 mb-1">
                   <h1 className="font-serif text-xl font-bold text-[#1C1917]">
-                    {user.display_name ?? user.phone}
+                    {user.display_name ?? user.phone ?? "Usuario"}
                   </h1>
                   <button onClick={() => setEditing(true)}
                     className="text-xs text-[#6B7280] hover:text-[#1B4332] transition-colors">
