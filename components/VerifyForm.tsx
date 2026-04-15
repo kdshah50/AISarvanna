@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { nationalDigitsForDisplay, normalizeAuthPhone } from "@/lib/phone";
 
@@ -9,6 +9,7 @@ export default function VerifyForm() {
   const [error, setError] = useState("");
   const [resendCountdown, setResendCountdown] = useState(90);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const devOtpAutoStarted = useRef(false);
   const router = useRouter();
   const params = useSearchParams();
   const phone = normalizeAuthPhone(params.get("phone") ?? "");
@@ -25,13 +26,44 @@ export default function VerifyForm() {
     return () => clearInterval(timer);
   }, []);
 
+  const handleVerify = useCallback(
+    async (fullCode: string) => {
+      setError("");
+      setLoading(true);
+      try {
+        const res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, code: fullCode }),
+        });
+        const ct = res.headers.get("content-type") ?? "";
+        const data = ct.includes("application/json") ? await res.json() : null;
+        if (!res.ok) {
+          throw new Error((data as { error?: string } | null)?.error ?? "Código incorrecto");
+        }
+        const token = (data as { token?: string } | null)?.token;
+        if (!token) throw new Error("Respuesta inválida del servidor");
+        document.cookie = `tianguis_token=${token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Lax`;
+        router.push("/profile");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Error");
+        setCode(["", "", "", "", "", ""]);
+        inputRefs.current[0]?.focus();
+      } finally {
+        setLoading(false);
+      }
+    },
+    [phone, router]
+  );
+
   useEffect(() => {
-    // In local/dev, auto-fill OTP returned by send endpoint.
-    if (devOtp.length !== 6 || !phone) return;
+    // In local/dev, auto-fill OTP returned by send endpoint (once).
+    if (devOtp.length !== 6 || !phone || devOtpAutoStarted.current) return;
+    devOtpAutoStarted.current = true;
     const digits = devOtp.split("");
     setCode(digits);
-    handleVerify(devOtp);
-  }, [devOtp, phone]);
+    void handleVerify(devOtp);
+  }, [devOtp, phone, handleVerify]);
 
   const handleDigit = (i: number, val: string) => {
     const digit = val.replace(/\D/g, "").slice(-1);
@@ -39,33 +71,11 @@ export default function VerifyForm() {
     next[i] = digit;
     setCode(next);
     if (digit && i < 5) inputRefs.current[i + 1]?.focus();
-    if (next.every((d) => d)) handleVerify(next.join(""));
+    if (next.every((d) => d)) void handleVerify(next.join(""));
   };
 
   const handleKeyDown = (i: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !code[i] && i > 0) inputRefs.current[i - 1]?.focus();
-  };
-
-  const handleVerify = async (fullCode: string) => {
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code: fullCode }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Código incorrecto");
-      document.cookie = `tianguis_token=${data.token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Lax`;
-      router.push("/profile");
-    } catch (e: any) {
-      setError(e.message);
-      setCode(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleResend = async () => {
@@ -117,7 +127,7 @@ export default function VerifyForm() {
           <button
             onClick={() => {
               const f = code.join("");
-              if (f.length === 6) handleVerify(f);
+              if (f.length === 6) void handleVerify(f);
             }}
             disabled={code.join("").length < 6 || loading}
             className="w-full py-3.5 rounded-xl bg-[#1B4332] text-white font-semibold disabled:opacity-40 flex items-center justify-center gap-2"

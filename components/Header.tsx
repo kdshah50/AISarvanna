@@ -79,7 +79,7 @@ function HeaderInner() {
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F4F0EB] hover:bg-[#E5E0D8] transition-colors"
                 >
                   <div className="w-6 h-6 rounded-full bg-[#1B4332] flex items-center justify-center text-white text-[10px] font-bold">
-                    {user.phone.slice(-4, -2)}
+                    {(user.phone.length >= 2 ? user.phone.slice(-2) : "••").toUpperCase()}
                   </div>
                   <span className="text-xs font-semibold text-[#1B4332]">
                     {badgeIcon(user.badge)}
