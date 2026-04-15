@@ -3,6 +3,7 @@ import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { decodeJwtPayload, getTianguisTokenFromCookie } from "@/lib/client-auth";
 
 const SellModal = dynamic(() => import("./SellModal"), { ssr: false });
 
@@ -37,16 +38,12 @@ function HeaderInner() {
   const lang = params.get("lang") || "es";
   const router = useRouter();
 
-  // Read JWT from cookie on mount
   useEffect(() => {
-    const token = document.cookie.split("; ").find(r => r.startsWith("tianguis_token="))?.split("=")[1];
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload.exp * 1000 > Date.now()) {
-          setUser({ phone: payload.phone, badge: payload.badge });
-        }
-      } catch {}
+    const token = getTianguisTokenFromCookie();
+    if (!token) return;
+    const payload = decodeJwtPayload(token);
+    if (payload?.phone && payload?.badge != null && typeof payload.exp === "number" && payload.exp * 1000 > Date.now()) {
+      setUser({ phone: payload.phone, badge: payload.badge });
     }
   }, []);
 

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { decodeJwtPayload, getTianguisTokenFromCookie } from "@/lib/client-auth";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
@@ -95,31 +96,38 @@ export default function ProfilePage() {
   }[lang];
 
   useEffect(() => {
-    // Read JWT from cookie
-    const token = document.cookie.split("; ").find(r => r.startsWith("tianguis_token="))?.split("=")[1];
-    if (!token) { router.push("/auth/login"); return; }
+    const token = getTianguisTokenFromCookie();
+    if (!token) {
+      router.push("/auth/login");
+      return;
+    }
 
-    let userId: string;
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      if (payload.exp * 1000 < Date.now()) { router.push("/auth/login"); return; }
-      userId = payload.sub;
-    } catch { router.push("/auth/login"); return; }
+    const payload = decodeJwtPayload(token);
+    if (!payload?.sub || typeof payload.exp !== "number" || payload.exp * 1000 < Date.now()) {
+      router.push("/auth/login");
+      return;
+    }
+    const userId = payload.sub;
 
-    // Fetch user + their listings
     Promise.all([
       fetch(`${SUPA_URL}/rest/v1/users?id=eq.${userId}&select=id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at`,
         { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }),
       fetch(`${SUPA_URL}/rest/v1/listings?seller_id=eq.${userId}&select=id,title_es,price_mxn,status,is_verified,category_id,location_city,created_at&order=created_at.desc`,
         { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }),
     ]).then(async ([uRes, lRes]) => {
-      const [userData] = uRes.ok ? await uRes.json() : [];
+      const users = uRes.ok ? await uRes.json() : [];
+      const userData = Array.isArray(users) && users[0] ? users[0] : null;
       const listingsData = lRes.ok ? await lRes.json() : [];
-      if (userData) { setUser(userData); setDisplayName(userData.display_name ?? ""); }
+      if (!userData) {
+        router.push("/auth/login");
+        return;
+      }
+      setUser(userData);
+      setDisplayName(userData.display_name ?? "");
       setListings(Array.isArray(listingsData) ? listingsData : []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, [router]);
 
   const handleSaveName = async () => {
     if (!user || !displayName.trim()) return;

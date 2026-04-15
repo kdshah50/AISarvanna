@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { nationalDigitsForDisplay } from "@/lib/phone";
+import { nationalDigitsForDisplay, normalizeAuthPhone } from "@/lib/phone";
 
 export default function VerifyForm() {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -11,8 +11,12 @@ export default function VerifyForm() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
   const params = useSearchParams();
-  const phone = params.get("phone") ?? "";
+  const phone = normalizeAuthPhone(params.get("phone") ?? "");
   const { prefix: phonePrefix, formatted: displayNational } = useMemo(() => nationalDigitsForDisplay(phone), [phone]);
+
+  useEffect(() => {
+    if (!phone) router.replace("/auth/login");
+  }, [phone, router]);
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
