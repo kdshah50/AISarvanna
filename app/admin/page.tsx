@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-// Admin PIN loaded from environment variable — set NEXT_PUBLIC_ADMIN_PIN in Vercel
-const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN ?? "naranjogo2026";
+// Baked in at build time — after changing NEXT_PUBLIC_ADMIN_PIN in Vercel, redeploy.
+const ADMIN_PIN = (process.env.NEXT_PUBLIC_ADMIN_PIN ?? "naranjogo2026").trim();
 
 type Listing = {
   id: string;
@@ -85,7 +85,7 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/listing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...body, pin }),
+      body: JSON.stringify({ ...body, pin: pin.trim() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -146,7 +146,7 @@ export default function AdminPage() {
           onChange={e => { setPin(e.target.value); setPinError(false); }}
           onKeyDown={e => {
             if (e.key === "Enter") {
-              if (pin === ADMIN_PIN) setAuthed(true);
+              if (pin.trim() === ADMIN_PIN) setAuthed(true);
               else setPinError(true);
             }
           }}
@@ -155,7 +155,7 @@ export default function AdminPage() {
         />
         {pinError && <p className="text-xs text-red-500 mb-3">Incorrect PIN</p>}
         <button
-          onClick={() => { if (pin === ADMIN_PIN) setAuthed(true); else setPinError(true); }}
+          onClick={() => { if (pin.trim() === ADMIN_PIN) setAuthed(true); else setPinError(true); }}
           className="w-full bg-[#1B4332] text-white font-semibold py-3 rounded-xl text-sm hover:bg-[#2D6A4F] transition-colors">
           Enter
         </button>

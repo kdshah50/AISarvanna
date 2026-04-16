@@ -8,13 +8,13 @@ export const dynamic = "force-dynamic";
  * to "naranjogo2026" — server used to default to "" and rejected every approve (401).
  */
 function adminPin(): string {
-  return process.env.ADMIN_PIN ?? process.env.NEXT_PUBLIC_ADMIN_PIN ?? "naranjogo2026";
+  return (process.env.ADMIN_PIN ?? process.env.NEXT_PUBLIC_ADMIN_PIN ?? "naranjogo2026").trim();
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const pin = String(body?.pin ?? "");
+    const pin = String(body?.pin ?? "").trim();
     if (!pin || pin !== adminPin()) {
       return NextResponse.json({ error: "PIN incorrecto o no configurado en el servidor" }, { status: 401 });
     }
