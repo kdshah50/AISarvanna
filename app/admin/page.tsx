@@ -4,9 +4,6 @@ import { useState, useEffect } from "react";
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-// Baked in at build time — after changing NEXT_PUBLIC_ADMIN_PIN in Vercel, redeploy.
-const ADMIN_PIN = (process.env.NEXT_PUBLIC_ADMIN_PIN ?? "naranjogo2026").trim();
-
 type Listing = {
   id: string;
   title_es: string;
@@ -32,6 +29,7 @@ export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [authed, setAuthed] = useState(false);
   const [pinError, setPinError] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,6 +69,24 @@ export default function AdminPage() {
   };
 
   useEffect(() => { if (authed) load(); }, [authed, filter]);
+
+  const submitPin = async () => {
+    setPinError(false);
+    setPinLoading(true);
+    try {
+      const res = await fetch("/api/admin/verify-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pin.trim() }),
+      });
+      if (res.ok) setAuthed(true);
+      else setPinError(true);
+    } catch {
+      setPinError(true);
+    } finally {
+      setPinLoading(false);
+    }
+  };
 
   const showMsg = (text: string, error = false) => {
     setMsg(text);
@@ -145,19 +161,18 @@ export default function AdminPage() {
           value={pin}
           onChange={e => { setPin(e.target.value); setPinError(false); }}
           onKeyDown={e => {
-            if (e.key === "Enter") {
-              if (pin.trim() === ADMIN_PIN) setAuthed(true);
-              else setPinError(true);
-            }
+            if (e.key === "Enter" && !pinLoading) void submitPin();
           }}
           placeholder="Enter admin PIN"
           className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] mb-3 text-center tracking-widest"
         />
         {pinError && <p className="text-xs text-red-500 mb-3">Incorrect PIN</p>}
         <button
-          onClick={() => { if (pin.trim() === ADMIN_PIN) setAuthed(true); else setPinError(true); }}
-          className="w-full bg-[#1B4332] text-white font-semibold py-3 rounded-xl text-sm hover:bg-[#2D6A4F] transition-colors">
-          Enter
+          type="button"
+          disabled={pinLoading || !pin.trim()}
+          onClick={() => void submitPin()}
+          className="w-full bg-[#1B4332] text-white font-semibold py-3 rounded-xl text-sm hover:bg-[#2D6A4F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          {pinLoading ? "…" : "Enter"}
         </button>
       </div>
     </main>

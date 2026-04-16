@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAdminPin } from "@/lib/admin-pin";
 import { createAdminSupabase } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Must match `app/admin/page.tsx` gate. If env is unset everywhere, client defaults
- * to "naranjogo2026" — server used to default to "" and rejected every approve (401).
- */
-function adminPin(): string {
-  return (process.env.ADMIN_PIN ?? process.env.NEXT_PUBLIC_ADMIN_PIN ?? "naranjogo2026").trim();
-}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const pin = String(body?.pin ?? "").trim();
-    if (!pin || pin !== adminPin()) {
+    if (!pin || pin !== getAdminPin()) {
       return NextResponse.json({ error: "PIN incorrecto o no configurado en el servidor" }, { status: 401 });
     }
 
