@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:messaging": "npx --yes tsx scripts/test-messaging.ts",
+    "test:messaging:smoke": "npx --yes tsx scripts/test-messaging.ts --smoke"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -16,6 +18,7 @@
     "next-intl": "^3.26.5",
     "react": "^18",
     "react-dom": "^18",
+    "stripe": "^22.0.2",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

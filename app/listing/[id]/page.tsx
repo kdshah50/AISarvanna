@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import ListingChat from "@/components/ListingChat";
+import ServiceBookingBlock from "@/components/ServiceBookingBlock";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY =
@@ -67,10 +68,13 @@ export default async function ListingPage({
 
   const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(listing.price_mxn / 100);
   const seller = listing.users as any;
+  const isServiceListing = listing.category_id === "services";
+
+  // For service listings, WhatsApp/phone is gated behind payment — never show publicly
   const waPhone = seller?.phone?.replace(/\D/g, "") ?? "";
   const waText = encodeURIComponent(`Hola! Vi tu anuncio en Naranjogo: "${listing.title_es}" (${price}). Sigue disponible?`);
   const waUrl = `https://wa.me/${waPhone || "521"}?text=${waText}`;
-  const showWA = seller?.whatsapp_optin !== false;
+  const showWA = !isServiceListing && seller?.whatsapp_optin !== false;
 
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
@@ -112,8 +116,19 @@ export default async function ListingPage({
         )}
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-center gap-3">
           <div>
-            <p className="text-sm font-semibold text-emerald-800">Compra Protegida</p>
-            <p className="text-xs text-emerald-700">Tu pago esta protegido hasta confirmar tu compra</p>
+            {isServiceListing ? (
+              <>
+                <p className="text-sm font-semibold text-emerald-800">Contacto Protegido</p>
+                <p className="text-xs text-emerald-700">
+                  El número del proveedor se revela después de pagar la tarifa de servicio. Igual que Uber — primero platica, después conecta.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-emerald-800">Compra Protegida</p>
+                <p className="text-xs text-emerald-700">Tu pago esta protegido hasta confirmar tu compra</p>
+              </>
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-3">
@@ -129,6 +144,11 @@ export default async function ListingPage({
               Contactar por WhatsApp
             </a>
           )}
+          <ServiceBookingBlock
+            listingId={params.id}
+            isService={listing.category_id === "services"}
+            sellerId={listing.seller_id ?? null}
+          />
         </div>
       </div>
     </main>

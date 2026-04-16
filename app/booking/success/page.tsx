@@ -1,0 +1,200 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+type BookingData = {
+  id: string;
+  listingId: string;
+  paymentStatus: string;
+  status: string;
+  commissionAmountCents: number;
+  paidAt: string | null;
+  isBuyer: boolean;
+  listing: { title: string; photo: string | null; priceMxn: number } | null;
+  seller: { displayName: string; avatarUrl: string | null } | null;
+  contact: { phone: string | null; whatsappUrl: string | null } | null;
+};
+
+function formatMXN(cents: number): string {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+}
+
+export default function BookingSuccessPage() {
+  const searchParams = useSearchParams();
+  const bookingId = searchParams.get("id");
+  const [data, setData] = useState<BookingData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retries, setRetries] = useState(0);
+
+  useEffect(() => {
+    if (!bookingId) {
+      setError("No se encontró la reserva");
+      setLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    const fetchBooking = async () => {
+      const res = await fetch(`/api/bookings/${bookingId}`, { credentials: "same-origin" });
+      if (!res.ok) {
+        if (mounted) setError("No se pudo cargar la reserva");
+        if (mounted) setLoading(false);
+        return;
+      }
+      const json = await res.json();
+
+      if (json.paymentStatus === "pending" && retries < 10) {
+        setTimeout(() => {
+          if (mounted) setRetries((r) => r + 1);
+        }, 2000);
+        return;
+      }
+
+      if (mounted) {
+        setData(json);
+        setLoading(false);
+      }
+    };
+
+    void fetchBooking();
+    return () => { mounted = false; };
+  }, [bookingId, retries]);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#FDF8F1] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#1B4332] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-[#6B7280]">Confirmando tu pago…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <main className="min-h-screen bg-[#FDF8F1] flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl p-8 text-center shadow-sm">
+          <p className="text-red-600 text-sm mb-4">{error || "Reserva no encontrada"}</p>
+          <Link href="/" className="text-sm text-[#1B4332] font-semibold hover:underline">
+            Volver al inicio
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const isPaid = data.paymentStatus === "paid";
+  const phone = data.contact?.phone;
+  const displayPhone = phone?.replace(/(\d{2})(\d{2,3})(\d{3})(\d{4})/, "+$1 $2 $3 $4") ?? "";
+  const digits = phone?.replace(/\D/g, "") ?? "";
+
+  return (
+    <main className="min-h-screen bg-[#FDF8F1]">
+      <div className="max-w-lg mx-auto px-4 py-12">
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className={`px-6 py-5 text-center ${isPaid ? "bg-emerald-50" : "bg-amber-50"}`}>
+            <div className="text-4xl mb-2">{isPaid ? "✓" : "⏳"}</div>
+            <h1 className="text-xl font-bold text-[#1C1917]">
+              {isPaid ? "Reserva confirmada" : "Pago pendiente"}
+            </h1>
+            <p className="text-sm text-[#6B7280] mt-1">
+              {isPaid
+                ? "Tu pago fue procesado exitosamente"
+                : "Estamos procesando tu pago, espera un momento…"}
+            </p>
+          </div>
+
+          {/* Listing info */}
+          {data.listing && (
+            <div className="px-6 py-4 border-b border-[#E5E0D8]">
+              <div className="flex items-center gap-3">
+                {data.listing.photo && (
+                  <img
+                    src={data.listing.photo}
+                    alt=""
+                    className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
+                  />
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-[#1C1917]">{data.listing.title}</p>
+                  {data.seller && (
+                    <p className="text-xs text-[#6B7280]">Proveedor: {data.seller.displayName}</p>
+                  )}
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    Tarifa pagada: {formatMXN(data.commissionAmountCents)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Contact info — only if paid */}
+          {isPaid && phone && (
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <p className="text-xs text-[#6B7280] mb-1 font-medium uppercase tracking-wide">
+                  Contacto del proveedor
+                </p>
+                <div className="bg-[#F4F0EB] rounded-xl p-4">
+                  <p className="text-2xl font-bold text-[#1C1917] tracking-wide text-center">
+                    {displayPhone}
+                  </p>
+                </div>
+              </div>
+
+              {data.contact?.whatsappUrl && (
+                <a
+                  href={data.contact.whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-4 rounded-xl font-semibold text-base flex items-center justify-center gap-2 transition-colors"
+                  style={{ background: "#25D366", color: "white" }}
+                >
+                  Contactar por WhatsApp
+                </a>
+              )}
+
+              <a
+                href={`tel:+${digits}`}
+                className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border border-[#1B4332] text-[#1B4332] hover:bg-[#ECFDF5]"
+              >
+                Llamar al proveedor
+              </a>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="px-6 py-4 bg-[#F4F0EB] flex justify-between items-center">
+            <Link
+              href={`/listing/${data.listingId}`}
+              className="text-sm text-[#1B4332] font-semibold hover:underline"
+            >
+              ← Volver al anuncio
+            </Link>
+            <Link
+              href="/messages"
+              className="text-sm text-[#1B4332] font-semibold hover:underline"
+            >
+              Mensajes
+            </Link>
+          </div>
+        </div>
+
+        {isPaid && (
+          <p className="text-center text-xs text-[#6B7280] mt-4">
+            Este contacto también está disponible en la página del servicio mientras tu reserva esté activa.
+          </p>
+        )}
+      </div>
+    </main>
+  );
+}

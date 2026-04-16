@@ -29,6 +29,7 @@ export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [authed, setAuthed] = useState(false);
   const [pinError, setPinError] = useState(false);
+  const [pinErrorDetail, setPinErrorDetail] = useState<string | null>(null);
   const [pinLoading, setPinLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
 
@@ -73,6 +74,7 @@ export default function AdminPage() {
 
   const submitPin = async () => {
     setPinError(false);
+    setPinErrorDetail(null);
     setPinLoading(true);
     try {
       const res = await fetch("/api/admin/verify-pin", {
@@ -80,10 +82,22 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: pin.trim() }),
       });
-      if (res.ok) setAuthed(true);
-      else setPinError(true);
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (res.ok) {
+        setAuthed(true);
+        return;
+      }
+      setPinError(true);
+      if (res.status === 404) {
+        setPinErrorDetail("No está el servicio de verificación. Haz redeploy en Vercel con el código nuevo.");
+      } else if (res.status === 401) {
+        setPinErrorDetail(data.error ?? "PIN incorrecto (revisa ADMIN_PIN / NEXT_PUBLIC_ADMIN_PIN en Vercel).");
+      } else {
+        setPinErrorDetail(data.error ?? `Error ${res.status}. Revisa logs en Vercel.`);
+      }
     } catch {
       setPinError(true);
+      setPinErrorDetail("Sin conexión o error de red.");
     } finally {
       setPinLoading(false);
     }
@@ -161,7 +175,7 @@ export default function AdminPage() {
           <input
             type={showPin ? "text" : "password"}
             value={pin}
-            onChange={e => { setPin(e.target.value); setPinError(false); }}
+            onChange={e => { setPin(e.target.value); setPinError(false); setPinErrorDetail(null); }}
             onKeyDown={e => {
               if (e.key === "Enter" && !pinLoading) void submitPin();
             }}
@@ -176,7 +190,11 @@ export default function AdminPage() {
             {showPin ? "Ocultar" : "Mostrar"}
           </button>
         </div>
-        {pinError && <p className="text-xs text-red-500 mb-3">Incorrect PIN</p>}
+        {pinError && (
+          <p className="text-xs text-red-600 mb-3 text-left leading-relaxed">
+            {pinErrorDetail ?? "PIN incorrecto"}
+          </p>
+        )}
         <button
           type="button"
           disabled={pinLoading || !pin.trim()}

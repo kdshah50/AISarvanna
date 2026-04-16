@@ -1,8 +1,8 @@
 {
   "components/Header.tsx -> ./SellModal": {
-    "id": 6676,
+    "id": "components/Header.tsx -> ./SellModal",
     "files": [
-      "static/chunks/676.da2ee68ded9e8d7f.js"
+      "static/chunks/_app-pages-browser_components_SellModal_tsx.js"
     ]
   }
 }

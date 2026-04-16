@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const supabase = createAdminSupabase();
     const { data: conv, error: convErr } = await supabase
       .from("listing_conversations")
-      .select("id,buyer_id,seller_id")
+      .select("id,buyer_id,seller_id,listing_id")
       .eq("id", conversationId)
       .maybeSingle();
 
@@ -45,6 +45,37 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     await supabase.from("listing_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+
+    if (userId === conv.buyer_id) {
+      const { data: listing } = await supabase
+        .from("listings")
+        .select("category_id")
+        .eq("id", conv.listing_id)
+        .maybeSingle();
+      if (listing?.category_id === "services") {
+        const now = new Date().toISOString();
+        const { data: gate } = await supabase
+          .from("listing_service_contact_gate")
+          .select("listing_id")
+          .eq("listing_id", conv.listing_id)
+          .eq("buyer_id", userId)
+          .maybeSingle();
+        if (!gate) {
+          await supabase.from("listing_service_contact_gate").insert({
+            listing_id: conv.listing_id,
+            buyer_id: userId,
+            contacted_in_app: true,
+            updated_at: now,
+          });
+        } else {
+          await supabase
+            .from("listing_service_contact_gate")
+            .update({ contacted_in_app: true, updated_at: now })
+            .eq("listing_id", conv.listing_id)
+            .eq("buyer_id", userId);
+        }
+      }
+    }
 
     return NextResponse.json({ message: inserted });
   } catch (e) {

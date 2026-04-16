@@ -62,6 +62,9 @@ export default function ConversationThread({
       const { message } = await res.json();
       setDraft("");
       setMessages((m) => [...m, message as Msg]);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("tianguis:listing-contact"));
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {

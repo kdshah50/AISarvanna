@@ -144,6 +144,9 @@ export default function ListingChat({
       const { message } = await res.json();
       setDraft("");
       setMessages((m) => [...m, message as Msg]);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("tianguis:listing-contact"));
+      }
       await loadListingScope();
       if (role === "seller" && cid) await loadConversation(cid);
     } catch (e: unknown) {

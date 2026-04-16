@@ -1,12 +1,11 @@
 -- In-app messaging: one thread per (listing_id, buyer_id). Seller is denormalized from listings.seller_id.
 -- Run in Supabase SQL Editor on the same project as the app.
 --
--- listings.id type: many Supabase projects use UUID for listings.id. If yours is TEXT, change
--- listing_id below to TEXT and drop the REFERENCES clause or match your listings PK type.
+-- listings.id is TEXT in 20260321120000_listings_architecture.sql (UUID strings from listings-api).
 
 CREATE TABLE IF NOT EXISTS public.listing_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id UUID NOT NULL REFERENCES public.listings (id) ON DELETE CASCADE,
+  listing_id TEXT NOT NULL REFERENCES public.listings (id) ON DELETE CASCADE,
   buyer_id TEXT NOT NULL,
   seller_id TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
