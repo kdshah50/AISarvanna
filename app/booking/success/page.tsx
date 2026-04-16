@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type BookingData = {
@@ -26,6 +26,23 @@ function formatMXN(cents: number): string {
 }
 
 export default function BookingSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#FDF8F1] flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-[#1B4332] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-sm text-[#6B7280]">Cargando…</p>
+          </div>
+        </main>
+      }
+    >
+      <BookingSuccessContent />
+    </Suspense>
+  );
+}
+
+function BookingSuccessContent() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get("id");
   const [data, setData] = useState<BookingData | null>(null);
