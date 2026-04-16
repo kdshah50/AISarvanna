@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [pinError, setPinError] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
+  const [showPin, setShowPin] = useState(false);
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
@@ -156,16 +157,25 @@ export default function AdminPage() {
       <div className="bg-white rounded-3xl border border-[#E5E0D8] p-10 max-w-sm w-full text-center shadow-sm">
         <div className="text-4xl mb-4">🔐</div>
         <h1 className="font-serif text-xl font-bold text-[#1B4332] mb-6">Admin — Naranjogo</h1>
-        <input
-          type="password"
-          value={pin}
-          onChange={e => { setPin(e.target.value); setPinError(false); }}
-          onKeyDown={e => {
-            if (e.key === "Enter" && !pinLoading) void submitPin();
-          }}
-          placeholder="Enter admin PIN"
-          className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] mb-3 text-center tracking-widest"
-        />
+        <div className="relative mb-3">
+          <input
+            type={showPin ? "text" : "password"}
+            value={pin}
+            onChange={e => { setPin(e.target.value); setPinError(false); }}
+            onKeyDown={e => {
+              if (e.key === "Enter" && !pinLoading) void submitPin();
+            }}
+            placeholder="Admin PIN"
+            autoComplete="current-password"
+            className="w-full border border-[#E5E0D8] rounded-xl pl-4 pr-[5.5rem] py-3 text-sm outline-none focus:border-[#1B4332] text-left"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPin((s) => !s)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#1B4332] hover:underline px-2 py-1 rounded-lg">
+            {showPin ? "Ocultar" : "Mostrar"}
+          </button>
+        </div>
         {pinError && <p className="text-xs text-red-500 mb-3">Incorrect PIN</p>}
         <button
           type="button"
