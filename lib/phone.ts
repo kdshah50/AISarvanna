@@ -1,11 +1,24 @@
-/** E.164 without +: Mexico 52 + 10 digits, US/Canada NANP 1 + 10 digits */
+/**
+ * E.164 digits without leading +.
+ * Mexico mobile (WhatsApp/Twilio): country 52 + mobile trunk 1 + 10-digit national → `521` + 10 digits (13 chars).
+ * Legacy bug used `52` + 10 digits (12 chars); we still accept it and canonicalize to `521…`.
+ * US/Canada: `1` + 10 digits (NANP).
+ */
 export function isValidAuthPhone(phone: string): boolean {
-  return /^52\d{10}$/.test(phone) || /^1\d{10}$/.test(phone);
+  return /^521\d{10}$/.test(phone) || /^52\d{10}$/.test(phone) || /^1\d{10}$/.test(phone);
 }
 
 /** Normalize phone to digits-only E.164 without plus sign. */
 export function normalizeAuthPhone(input: string): string {
   return input.replace(/\D/g, "").replace(/^00/, "");
+}
+
+/** Mexico mobile: ensure `521` + 10 digits so Twilio/WhatsApp match international mobile routing. */
+export function canonicalizeAuthPhone(phone: string): string {
+  if (/^52\d{10}$/.test(phone)) {
+    return `521${phone.slice(2)}`;
+  }
+  return phone;
 }
 
 export function formatMxLocalInput(val: string): string {
@@ -25,6 +38,13 @@ export function formatUsLocalInput(val: string): string {
 
 export function nationalDigitsForDisplay(phone: string): { prefix: string; formatted: string } {
   if (!phone) return { prefix: "", formatted: "" };
+  if (phone.startsWith("521") && phone.length === 13) {
+    const n = phone.slice(3);
+    return {
+      prefix: "+52 1",
+      formatted: n.replace(/(\d{2})(\d{4})(\d{4})/, "$1 $2 $3"),
+    };
+  }
   if (phone.startsWith("52") && phone.length === 12) {
     const n = phone.slice(2);
     return {

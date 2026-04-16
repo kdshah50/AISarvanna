@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { SignJWT } from "jose";
-import { isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
+import { canonicalizeAuthPhone, isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     const body = await req.json();
-    const phone = normalizeAuthPhone(String(body?.phone ?? ""));
+    let phone = normalizeAuthPhone(String(body?.phone ?? ""));
+    phone = canonicalizeAuthPhone(phone);
     const code = String(body?.code ?? "").replace(/\D/g, "").slice(0, 6);
 
     if (!isValidAuthPhone(phone) || code.length !== 6) {

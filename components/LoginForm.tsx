@@ -30,7 +30,7 @@ export default function LoginForm() {
       setLoading(false);
       return;
     }
-    const e164 = country === "MX" ? `52${clean}` : `1${clean}`;
+    const e164 = country === "MX" ? `521${clean}` : `1${clean}`;
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",

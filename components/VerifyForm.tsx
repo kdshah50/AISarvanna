@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { nationalDigitsForDisplay, normalizeAuthPhone } from "@/lib/phone";
+import { canonicalizeAuthPhone, nationalDigitsForDisplay, normalizeAuthPhone } from "@/lib/phone";
 
 export default function VerifyForm() {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -12,7 +12,7 @@ export default function VerifyForm() {
   const devOtpAutoStarted = useRef(false);
   const router = useRouter();
   const params = useSearchParams();
-  const phone = normalizeAuthPhone(params.get("phone") ?? "");
+  const phone = canonicalizeAuthPhone(normalizeAuthPhone(params.get("phone") ?? ""));
   const devOtp = (params.get("otp") ?? "").replace(/\D/g, "").slice(0, 6);
   const { prefix: phonePrefix, formatted: displayNational } = useMemo(() => nationalDigitsForDisplay(phone), [phone]);
 

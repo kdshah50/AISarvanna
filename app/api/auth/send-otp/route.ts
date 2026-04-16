@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
+import { canonicalizeAuthPhone, isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
 
 function generateOTP() {
   return Math.floor(Math.random() * 1000000)
@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
       getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY")
     );
     const body = await req.json();
-    const phone = normalizeAuthPhone(String(body?.phone ?? ""));
+    let phone = normalizeAuthPhone(String(body?.phone ?? ""));
+    phone = canonicalizeAuthPhone(phone);
     if (!phone || !isValidAuthPhone(phone)) {
       return NextResponse.json(
         {
