@@ -3,9 +3,12 @@ import { createAdminSupabase } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
-/** Server-side admin actions (service role bypasses RLS). PIN must match env. */
+/**
+ * Must match `app/admin/page.tsx` gate. If env is unset everywhere, client defaults
+ * to "naranjogo2026" — server used to default to "" and rejected every approve (401).
+ */
 function adminPin(): string {
-  return process.env.ADMIN_PIN ?? process.env.NEXT_PUBLIC_ADMIN_PIN ?? "";
+  return process.env.ADMIN_PIN ?? process.env.NEXT_PUBLIC_ADMIN_PIN ?? "naranjogo2026";
 }
 
 export async function POST(req: NextRequest) {
@@ -22,7 +25,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "id y action requeridos" }, { status: 400 });
     }
 
-    const supabase = createAdminSupabase();
+    let supabase;
+    try {
+      supabase = createAdminSupabase();
+    } catch (e: any) {
+      console.error("[admin/listing] supabase", e);
+      return NextResponse.json(
+        { error: "Servidor sin SUPABASE_SERVICE_ROLE_KEY o URL de Supabase" },
+        { status: 500 }
+      );
+    }
 
     if (action === "approve") {
       const raw = body?.commission_pct;
@@ -32,27 +44,41 @@ export async function POST(req: NextRequest) {
           : parseFloat(String(raw ?? "5"));
       const commission_pct = Number.isFinite(pct) ? Math.min(30, Math.max(0, pct)) : 5;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("listings")
         .update({ is_verified: true, commission_pct })
-        .eq("id", id);
+        .eq("id", id.trim())
+        .select("id");
 
       if (error) {
         console.error("[admin/listing] approve", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
+      if (!data?.length) {
+        return NextResponse.json(
+          { error: "No se actualizó ningún anuncio (id no encontrado o distinto tipo en BD)" },
+          { status: 404 }
+        );
+      }
       return NextResponse.json({ ok: true });
     }
 
     if (action === "reject") {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("listings")
         .update({ status: "archived", is_verified: false })
-        .eq("id", id);
+        .eq("id", id.trim())
+        .select("id");
 
       if (error) {
         console.error("[admin/listing] reject", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      if (!data?.length) {
+        return NextResponse.json(
+          { error: "No se actualizó ningún anuncio (id no encontrado)" },
+          { status: 404 }
+        );
       }
       return NextResponse.json({ ok: true });
     }
@@ -65,11 +91,18 @@ export async function POST(req: NextRequest) {
           : parseFloat(String(raw ?? "5"));
       const commission_pct = Number.isFinite(pct) ? Math.min(30, Math.max(0, pct)) : 5;
 
-      const { error } = await supabase.from("listings").update({ commission_pct }).eq("id", id);
+      const { data, error } = await supabase
+        .from("listings")
+        .update({ commission_pct })
+        .eq("id", id.trim())
+        .select("id");
 
       if (error) {
         console.error("[admin/listing] commission", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      if (!data?.length) {
+        return NextResponse.json({ error: "No se encontró el anuncio" }, { status: 404 });
       }
       return NextResponse.json({ ok: true });
     }
