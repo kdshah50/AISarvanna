@@ -45,9 +45,12 @@ export default function VerifyForm() {
         const token = (data as { token?: string } | null)?.token;
         if (!token) throw new Error("Respuesta inválida del servidor");
         document.cookie = `tianguis_token=${token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Lax`;
-        router.push(returnTo && returnTo.startsWith("/") ? returnTo : "/profile");
+        const dest = returnTo && returnTo.startsWith("/") ? returnTo : "/profile";
+        window.location.href = dest;
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : "Error");
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[verify] error", msg);
+        setError(msg || "Error al verificar");
         setCode(["", "", "", "", "", ""]);
         inputRefs.current[0]?.focus();
       } finally {
