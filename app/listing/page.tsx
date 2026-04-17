@@ -42,7 +42,7 @@ function TrustBadge({ badge }: { badge: string }) {
 export default async function ListingPage({ params }: { params: { id: string } }) {
   const h = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` };
   const res = await fetch(
-    `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users(id,display_name,avatar_url,trust_badge,ine_verified,phone,whatsapp_optin,created_at)`,
+    `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users!fk_listings_seller(id,display_name,avatar_url,trust_badge,ine_verified,phone,whatsapp_optin,created_at)`,
     { headers: h, cache: "no-store" }
   );
   const [listing] = res.ok ? await res.json() : [];
