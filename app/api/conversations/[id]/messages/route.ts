@@ -78,31 +78,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       }
     }
 
-    // Notify the other party via WhatsApp (non-blocking)
+    // Notify the other party via WhatsApp (awaited so Vercel doesn't kill it)
     const recipientId = userId === conv.buyer_id ? conv.seller_id : conv.buyer_id;
-    (async () => {
-      try {
-        const { data: recipient } = await supabase
-          .from("users")
-          .select("phone,display_name")
-          .eq("id", recipientId)
-          .maybeSingle();
-        if (!recipient?.phone) return;
+    try {
+      const { data: recipient } = await supabase
+        .from("users")
+        .select("phone,display_name")
+        .eq("id", recipientId)
+        .maybeSingle();
 
+      if (!recipient?.phone) {
+        console.warn("[notify] no phone for recipient", recipientId);
+      } else {
         const { data: sender } = await supabase
           .from("users")
           .select("display_name")
           .eq("id", userId)
           .maybeSingle();
 
-        const { data: listing } = await supabase
+        const { data: listingRow } = await supabase
           .from("listings")
           .select("title_es")
           .eq("id", conv.listing_id)
           .maybeSingle();
 
         const senderName = sender?.display_name?.trim() || "Un cliente";
-        const listingTitle = listing?.title_es || "tu servicio";
+        const listingTitle = listingRow?.title_es || "tu servicio";
         const preview = body.length > 80 ? body.slice(0, 80) + "…" : body;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.naranjogo.com.mx";
 
@@ -117,11 +118,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           `→ ${appUrl}/listing/${conv.listing_id}?chat=${conversationId}`,
         ].join("\n");
 
-        await sendWhatsApp(recipient.phone, msg);
-      } catch (e) {
-        console.error("[conversations/:id/messages] notify error", e);
+        const sent = await sendWhatsApp(recipient.phone, msg);
+        console.log("[notify]", sent ? "sent" : "failed", { to: recipient.phone });
       }
-    })();
+    } catch (e) {
+      console.error("[notify] error", e);
+    }
 
     return NextResponse.json({ message: inserted });
   } catch (e) {
