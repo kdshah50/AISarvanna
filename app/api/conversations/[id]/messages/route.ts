@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { sendWhatsApp } from "@/lib/twilio";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,51 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         }
       }
     }
+
+    // Notify the other party via WhatsApp (non-blocking)
+    const recipientId = userId === conv.buyer_id ? conv.seller_id : conv.buyer_id;
+    (async () => {
+      try {
+        const { data: recipient } = await supabase
+          .from("users")
+          .select("phone,display_name")
+          .eq("id", recipientId)
+          .maybeSingle();
+        if (!recipient?.phone) return;
+
+        const { data: sender } = await supabase
+          .from("users")
+          .select("display_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const { data: listing } = await supabase
+          .from("listings")
+          .select("title_es")
+          .eq("id", conv.listing_id)
+          .maybeSingle();
+
+        const senderName = sender?.display_name?.trim() || "Un cliente";
+        const listingTitle = listing?.title_es || "tu servicio";
+        const preview = body.length > 80 ? body.slice(0, 80) + "…" : body;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.naranjogo.com.mx";
+
+        const msg = [
+          `💬 *Nuevo mensaje en Naranjogo*`,
+          ``,
+          `De: ${senderName}`,
+          `Servicio: ${listingTitle}`,
+          ``,
+          `"${preview}"`,
+          ``,
+          `→ ${appUrl}/listing/${conv.listing_id}?chat=${conversationId}`,
+        ].join("\n");
+
+        await sendWhatsApp(recipient.phone, msg);
+      } catch (e) {
+        console.error("[conversations/:id/messages] notify error", e);
+      }
+    })();
 
     return NextResponse.json({ message: inserted });
   } catch (e) {
