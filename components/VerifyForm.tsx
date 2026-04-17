@@ -14,6 +14,7 @@ export default function VerifyForm() {
   const params = useSearchParams();
   const phone = canonicalizeAuthPhone(normalizeAuthPhone(params.get("phone") ?? ""));
   const devOtp = (params.get("otp") ?? "").replace(/\D/g, "").slice(0, 6);
+  const returnTo = params.get("returnTo") ?? "";
   const { prefix: phonePrefix, formatted: displayNational } = useMemo(() => nationalDigitsForDisplay(phone), [phone]);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function VerifyForm() {
         const token = (data as { token?: string } | null)?.token;
         if (!token) throw new Error("Respuesta inválida del servidor");
         document.cookie = `tianguis_token=${token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Lax`;
-        router.push("/profile");
+        router.push(returnTo && returnTo.startsWith("/") ? returnTo : "/profile");
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : "Error");
         setCode(["", "", "", "", "", ""]);

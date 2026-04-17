@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatMxLocalInput, formatUsLocalInput } from "@/lib/phone";
 
@@ -17,6 +17,8 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo") ?? "";
 
   const selected = COUNTRIES.find((c) => c.id === country)!;
 
@@ -47,6 +49,7 @@ export default function LoginForm() {
       if (data && typeof data === "object" && "devOtp" in data && data.devOtp) {
         params.set("otp", String(data.devOtp));
       }
+      if (returnTo) params.set("returnTo", returnTo);
       router.push(`/auth/verify?${params.toString()}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error");

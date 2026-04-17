@@ -37,15 +37,21 @@ function HeaderInner() {
   const params = useSearchParams();
   const lang = params.get("lang") || "es";
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const token = getTianguisTokenFromCookie();
-    if (!token) return;
+    if (!token) {
+      setUser(null);
+      return;
+    }
     const payload = decodeJwtPayload(token);
     if (payload?.phone && payload?.badge != null && typeof payload.exp === "number" && payload.exp * 1000 > Date.now()) {
       setUser({ phone: payload.phone, badge: payload.badge });
+    } else {
+      setUser(null);
     }
-  }, []);
+  }, [pathname]);
 
   const handleLogout = () => {
     document.cookie = "tianguis_token=; path=/; max-age=0";
