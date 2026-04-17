@@ -63,14 +63,15 @@ export async function POST(req: NextRequest) {
     }
 
     step = "rate_limit";
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const rateLimitWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const maxOtpsPerWindow = 10;
     const { data: recentOtps, error: rateLimitError } = await supabase
       .from("otp_codes")
       .select("id")
       .eq("phone", phone)
-      .gte("created_at", oneHourAgo)
+      .gte("created_at", rateLimitWindow)
       .order("created_at", { ascending: false })
-      .limit(5);
+      .limit(maxOtpsPerWindow);
     if (rateLimitError) {
       logSupabaseError("rate-limit-query-failed", phone, rateLimitError);
       return NextResponse.json(
@@ -82,8 +83,8 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-    if ((recentOtps?.length ?? 0) >= 5) {
-      return NextResponse.json({ error: "Demasiados intentos. Espera una hora.", requestId }, { status: 429 });
+    if ((recentOtps?.length ?? 0) >= maxOtpsPerWindow) {
+      return NextResponse.json({ error: "Demasiados intentos. Espera 15 minutos.", requestId }, { status: 429 });
     }
 
     step = "insert";
