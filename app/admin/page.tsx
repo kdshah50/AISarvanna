@@ -56,7 +56,7 @@ export default function AdminPage() {
       ? "is_verified=eq.true&status=eq.active"
       : "status=eq.active";
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/listings?${query}&category_id=eq.services&select=id,title_es,description_es,price_mxn,category_id,is_verified,status,location_city,commission_pct,created_at,users(display_name,phone)&order=created_at.desc&limit=50`,
+      `${SUPA_URL}/rest/v1/listings?${query}&category_id=eq.services&select=id,title_es,description_es,price_mxn,category_id,is_verified,status,location_city,commission_pct,created_at,users!fk_listings_seller(display_name,phone)&order=created_at.desc&limit=50`,
       { headers }
     );
     const data = await res.json();

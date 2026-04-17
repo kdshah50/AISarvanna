@@ -17,7 +17,7 @@ const PRICE_FLOORS: Record<string, number> = {
 
 export async function GET() {
   const res = await fetch(
-    `${SUPA_URL}/rest/v1/listings?select=*,users(display_name,trust_badge)&status=eq.active&is_verified=eq.true&order=created_at.desc&limit=24`,
+    `${SUPA_URL}/rest/v1/listings?select=*,users!fk_listings_seller(display_name,trust_badge)&status=eq.active&is_verified=eq.true&order=created_at.desc&limit=24`,
     { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
   );
   return NextResponse.json(await res.json());

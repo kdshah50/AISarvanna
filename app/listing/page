@@ -16,7 +16,7 @@ export default async function HomePage({ searchParams }: Props) {
   let cards: any[] = [];
 
   try {
-    let url = `${SUPA_URL}/rest/v1/listings?select=id,title_es,price_mxn,category_id,condition,location_city,shipping_available,negotiable,photo_urls,users(display_name,trust_badge,ine_verified)&status=eq.active&category_id=eq.services&order=created_at.desc&limit=24`;
+    let url = `${SUPA_URL}/rest/v1/listings?select=id,title_es,price_mxn,category_id,condition,location_city,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)&status=eq.active&category_id=eq.services&order=created_at.desc&limit=24`;
     if (category && category !== "all") url += `&category_id=eq.${category}`;
     if (query) url += `&title_es=ilike.*${encodeURIComponent(query)}*`;
 

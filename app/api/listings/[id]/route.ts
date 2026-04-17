@@ -14,7 +14,7 @@ const headers = (key: string) => ({
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&select=*,users(display_name,avatar_url,trust_badge,ine_verified,created_at)`,
+      `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&select=*,users!fk_listings_seller(display_name,avatar_url,trust_badge,ine_verified,created_at)`,
       { headers: headers(SUPA_KEY), cache: "no-store" }
     );
     const data = await res.json();

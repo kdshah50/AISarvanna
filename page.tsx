@@ -31,7 +31,7 @@ export default async function HomePage() {
       ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       ?? "";
 
-    const url = `${SUPA_URL}/rest/v1/listings?select=id,title_es,price_mxn,category_id,condition,location_city,shipping_available,negotiable,photo_urls,users(display_name,trust_badge,ine_verified)&status=eq.active&order=created_at.desc&limit=24`;
+    const url = `${SUPA_URL}/rest/v1/listings?select=id,title_es,price_mxn,category_id,condition,location_city,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)&status=eq.active&order=created_at.desc&limit=24`;
 
     const res = await fetch(url, {
       headers: {
