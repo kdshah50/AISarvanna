@@ -18,6 +18,16 @@ type Listing = {
   users: { display_name: string; phone: string } | null;
 };
 
+type UserRow = {
+  id: string;
+  phone: string | null;
+  display_name: string | null;
+  trust_badge: string | null;
+  phone_verified: boolean;
+  ine_verified: boolean;
+  created_at: string;
+};
+
 function fmtMXN(c: number) {
   return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(c / 100);
 }
@@ -33,6 +43,8 @@ export default function AdminPage() {
   const [pinLoading, setPinLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
 
+  const [tab, setTab] = useState<"listings" | "sellers">("listings");
+
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"pending" | "verified" | "all">("pending");
@@ -40,6 +52,10 @@ export default function AdminPage() {
   const [commissions, setCommissions] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState("");
   const [msgError, setMsgError] = useState(false);
+
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSaving, setUserSaving] = useState<string | null>(null);
 
   const headers = {
     apikey: ANON_KEY,
@@ -70,7 +86,41 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  useEffect(() => { if (authed) load(); }, [authed, filter]);
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users?pin=${encodeURIComponent(pin.trim())}`);
+      const data = await res.json();
+      setUsers(Array.isArray(data.users) ? data.users : []);
+    } catch {
+      setUsers([]);
+    }
+    setUsersLoading(false);
+  };
+
+  const updateUser = async (userId: string, updates: Record<string, unknown>) => {
+    setUserSaving(userId);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pin.trim(), userId, ...updates }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      showMsg(`✅ User updated`);
+      await loadUsers();
+    } catch (e: unknown) {
+      showMsg(e instanceof Error ? e.message : "Error", true);
+    } finally {
+      setUserSaving(null);
+    }
+  };
+
+  useEffect(() => {
+    if (authed && tab === "listings") load();
+    if (authed && tab === "sellers") loadUsers();
+  }, [authed, filter, tab]);
 
   const submitPin = async () => {
     setPinError(false);
@@ -215,9 +265,25 @@ export default function AdminPage() {
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
             <h1 className="font-serif text-2xl font-bold text-[#1B4332]">Naranjogo Admin</h1>
-            <p className="text-sm text-[#6B7280]">Provider approval & commission management</p>
+            <p className="text-sm text-[#6B7280]">Provider approval, verification & trust management</p>
           </div>
           <a href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332]">← Back to site</a>
+        </div>
+
+        {/* Main tabs */}
+        <div className="flex gap-2 mb-6 border-b border-[#E5E0D8] pb-3">
+          <button onClick={() => setTab("listings")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              tab === "listings" ? "bg-[#1B4332] text-white" : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-[#1B4332]"
+            }`}>
+            📋 Listings
+          </button>
+          <button onClick={() => setTab("sellers")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              tab === "sellers" ? "bg-[#1B4332] text-white" : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-[#1B4332]"
+            }`}>
+            👤 Sellers & Trust
+          </button>
         </div>
 
         {/* Status message */}
@@ -232,6 +298,98 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ── SELLERS TAB ─────────────────────────────────────────── */}
+        {tab === "sellers" && (
+          <>
+            {usersLoading ? (
+              <div className="text-center py-20 text-[#6B7280]">Loading sellers...</div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border border-[#E5E0D8]">
+                <p className="text-[#6B7280] text-sm">No users found</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {users.filter(u => !u.id.startsWith("a1000000")).map(u => {
+                  const badge = u.trust_badge ?? "none";
+                  const badgeColors: Record<string, { bg: string; text: string }> = {
+                    diamond: { bg: "bg-blue-50", text: "text-blue-700" },
+                    gold: { bg: "bg-yellow-50", text: "text-yellow-700" },
+                    bronze: { bg: "bg-orange-50", text: "text-orange-700" },
+                    none: { bg: "bg-gray-50", text: "text-gray-500" },
+                  };
+                  const bc = badgeColors[badge] ?? badgeColors.none;
+                  return (
+                    <div key={u.id} className="bg-white rounded-2xl border border-[#E5E0D8] p-5 shadow-sm">
+                      <div className="flex flex-wrap gap-4 items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-[#1B4332] flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
+                            {u.display_name?.[0] ?? "?"}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-[#1C1917]">{u.display_name || "Sin nombre"}</p>
+                            <p className="text-xs text-[#6B7280]">{u.phone ?? "No phone"}</p>
+                            <p className="text-[10px] text-[#9CA3AF] mt-0.5">
+                              Joined {new Date(u.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Current status badges */}
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${bc.bg} ${bc.text} capitalize`}>
+                            {badge}
+                          </span>
+                          {u.phone_verified && (
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
+                              ✓ Phone
+                            </span>
+                          )}
+                          {u.ine_verified && (
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
+                              ✓ INE
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Admin actions */}
+                      <div className="flex flex-wrap gap-2 items-center border-t border-[#E5E0D8] pt-3">
+                        <span className="text-xs font-semibold text-[#6B7280] mr-1">Trust badge:</span>
+                        {(["none", "bronze", "gold", "diamond"] as const).map(b => (
+                          <button key={b} onClick={() => updateUser(u.id, { trust_badge: b })}
+                            disabled={userSaving === u.id || badge === b}
+                            className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-40 capitalize ${
+                              badge === b
+                                ? "bg-[#1B4332] text-white"
+                                : "bg-white border border-[#E5E0D8] text-[#374151] hover:border-[#1B4332]"
+                            }`}>
+                            {userSaving === u.id ? "…" : b}
+                          </button>
+                        ))}
+
+                        <div className="w-px h-6 bg-[#E5E0D8] mx-2 hidden sm:block" />
+
+                        <button
+                          onClick={() => updateUser(u.id, { ine_verified: !u.ine_verified })}
+                          disabled={userSaving === u.id}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-40 ${
+                            u.ine_verified
+                              ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                              : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-blue-400"
+                          }`}>
+                          {userSaving === u.id ? "…" : u.ine_verified ? "✓ INE Verified" : "Verify INE"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── LISTINGS TAB ────────────────────────────────────────── */}
+        {tab === "listings" && <>
         {/* Filter tabs */}
         <div className="flex gap-2 mb-6">
           {(["pending", "verified", "all"] as const).map(f => (
@@ -341,6 +499,7 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+        </>}
       </div>
     </main>
   );
