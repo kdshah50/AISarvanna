@@ -3,11 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 
+import { COLONIAS } from "@/lib/colonias";
+
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const SMA_ZIP = "37745";
 
 const ABS_THRESHOLD = 0.20;
 const REL_FACTOR    = 0.60;
+const COLONIA_RADIUS_KM = 2.0;
 
 async function embedQuery(text: string): Promise<number[] | null> {
   if (!OPENAI_KEY) return null;
@@ -42,11 +45,13 @@ const SELECT_COLS = "id,title_es,price_mxn,category_id,condition,location_city,l
 export async function GET(req: NextRequest) {
   const headers = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
   const { searchParams } = new URL(req.url);
-  const query    = (searchParams.get("q") ?? "").trim();
-  const category = searchParams.get("category") ?? "services";
-  const lat      = parseFloat(searchParams.get("lat") ?? "NaN");
-  const lng      = parseFloat(searchParams.get("lng") ?? "NaN");
-  const hasGeo   = !isNaN(lat) && !isNaN(lng);
+  const query      = (searchParams.get("q") ?? "").trim();
+  const category   = searchParams.get("category") ?? "services";
+  const coloniaKey = searchParams.get("colonia") ?? "";
+  const coloniaRef = coloniaKey ? COLONIAS[coloniaKey] : null;
+  const lat        = parseFloat(searchParams.get("lat") ?? "NaN");
+  const lng        = parseFloat(searchParams.get("lng") ?? "NaN");
+  const hasGeo     = !isNaN(lat) && !isNaN(lng);
 
   let sparseRows: any[] = [];
   let denseRows:  any[] = [];
@@ -112,12 +117,22 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const results = Array.from(map.values())
+  let fused = Array.from(map.values())
     .map(({ listing, sparse, dense, geo }) => ({
       ...listing,
       _score: Math.round((sparse * 0.4 + dense * 0.4) * geo * 10000) / 10000,
       _mode: dense > 0 && sparse > 0 ? "hybrid" : dense > 0 ? "dense" : "sparse",
-    }))
+    }));
+
+  if (coloniaRef) {
+    fused = fused.filter((l) => {
+      const lt = l.location_lat; const ln = l.location_lng;
+      if (!lt || !ln) return false;
+      return haversineKm(coloniaRef.lat, coloniaRef.lng, lt, ln) <= COLONIA_RADIUS_KM;
+    });
+  }
+
+  const results = fused
     .sort((a, b) => b._score - a._score)
     .slice(0, 24);
 

@@ -2,6 +2,7 @@ import ListingGrid from "@/components/listings/ListingGrid";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
+import { COLONIAS } from "@/lib/colonias";
 
 export const dynamic = "force-dynamic";
 
@@ -23,17 +24,20 @@ function distKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 interface Props {
-  searchParams?: { q?: string; category?: string; lat?: string; lng?: string; lang?: string };
+  searchParams?: { q?: string; category?: string; lat?: string; lng?: string; lang?: string; colonia?: string };
 }
 
 export default async function HomePage({ searchParams }: Props) {
-  const query   = searchParams?.q ?? "";
-  const lang    = searchParams?.lang ?? "es";
-  const userLat = parseFloat(searchParams?.lat ?? "NaN");
-  const userLng = parseFloat(searchParams?.lng ?? "NaN");
-  const hasGeo  = !isNaN(userLat) && !isNaN(userLng);
-  const refLat  = hasGeo ? userLat : SMA_LAT;
-  const refLng  = hasGeo ? userLng : SMA_LNG;
+  const query       = searchParams?.q ?? "";
+  const lang        = searchParams?.lang ?? "es";
+  const coloniaKey  = searchParams?.colonia ?? "";
+  const coloniaData = coloniaKey ? COLONIAS[coloniaKey] : null;
+  const userLat     = parseFloat(searchParams?.lat ?? "NaN");
+  const userLng     = parseFloat(searchParams?.lng ?? "NaN");
+  const hasGeo      = !isNaN(userLat) && !isNaN(userLng);
+  const refLat      = hasGeo ? userLat : SMA_LAT;
+  const refLng      = hasGeo ? userLng : SMA_LNG;
+  const COLONIA_RADIUS_KM = 2.0;
 
   let cards: any[] = [];
   let searchMode = "sparse";
@@ -43,6 +47,7 @@ export default async function HomePage({ searchParams }: Props) {
       // ── Use hybrid search API when query present ──────────────────────────
       const params = new URLSearchParams({ q: query, category: "services" });
       if (hasGeo) { params.set("lat", String(userLat)); params.set("lng", String(userLng)); }
+      if (coloniaKey) { params.set("colonia", coloniaKey); }
       const res = await fetch(`${APP_URL}/api/search?${params}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
@@ -71,7 +76,16 @@ export default async function HomePage({ searchParams }: Props) {
       );
       if (res.ok) {
         const data = await res.json();
-        cards = Array.isArray(data) ? data.map((row: any) => {
+        let rows = Array.isArray(data) ? data : [];
+
+        if (coloniaData) {
+          rows = rows.filter((row: any) => {
+            const km = distKm(coloniaData.lat, coloniaData.lng, row.location_lat ?? SMA_LAT, row.location_lng ?? SMA_LNG);
+            return km <= COLONIA_RADIUS_KM;
+          });
+        }
+
+        cards = rows.map((row: any) => {
           const km = distKm(refLat, refLng, row.location_lat ?? SMA_LAT, row.location_lng ?? SMA_LNG);
           return {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
@@ -85,14 +99,16 @@ export default async function HomePage({ searchParams }: Props) {
             seller_verified: row.users?.ine_verified ?? false,
             _dist_km: Math.round(km * 10) / 10,
           };
-        }).sort((a: any, b: any) => hasGeo ? a._dist_km - b._dist_km : 0) : [];
+        }).sort((a: any, b: any) => a._dist_km - b._dist_km);
       }
     }
   } catch (e) { console.error("Search error:", e); }
 
   const heading = query
     ? (lang === "en" ? `Results for "${query}"` : `Resultados para "${query}"`)
-    : (lang === "en" ? "Local Services — San Miguel de Allende" : "Servicios locales — San Miguel de Allende");
+    : coloniaData
+      ? (lang === "en" ? `Services in ${coloniaData.label}` : `Servicios en ${coloniaData.label}`)
+      : (lang === "en" ? "Local Services — San Miguel de Allende" : "Servicios locales — San Miguel de Allende");
 
   const isHybrid = searchMode === "hybrid";
 
@@ -112,6 +128,11 @@ export default async function HomePage({ searchParams }: Props) {
             {hasGeo && (
               <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]">
                 📍 {lang === "en" ? "Sorted by distance" : "Ordenado por distancia"}
+              </span>
+            )}
+            {coloniaData && (
+              <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#FDE68A] text-[#78350F] border border-[#F59E0B]">
+                📍 {coloniaData.label}
               </span>
             )}
             <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">

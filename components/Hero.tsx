@@ -1,6 +1,7 @@
 "use client";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { COLONIAS, COLONIA_KEYS } from "@/lib/colonias";
 
 const T = {
   es: {
@@ -32,6 +33,7 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
   const params = useSearchParams();
   const lang = (params.get("lang") || "es") as "es" | "en";
   const t = T[lang];
+  const activeColonia = params.get("colonia") ?? "";
 
   const go = (q: string, extra: Record<string, string> = {}) => {
     const p = new URLSearchParams(params.toString());
@@ -47,11 +49,21 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setGeoLoading(false);
-        go(query, { lat: coords.latitude.toFixed(6), lng: coords.longitude.toFixed(6) });
+        go(query, { lat: coords.latitude.toFixed(6), lng: coords.longitude.toFixed(6), colonia: "" });
       },
       () => setGeoLoading(false),
       { timeout: 8000 }
     );
+  };
+
+  const handleColonia = (key: string) => {
+    const isActive = activeColonia === key;
+    if (isActive) {
+      go(query, { colonia: "" });
+    } else {
+      const c = COLONIAS[key];
+      go(query, { colonia: key, lat: String(c.lat), lng: String(c.lng) });
+    }
   };
 
   return (
@@ -87,8 +99,8 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
           </button>
         </div>
 
-        {/* Near me + zip note */}
-        <div className="flex items-center justify-center gap-3 flex-wrap">
+        {/* Near me */}
+        <div className="flex items-center justify-center gap-3 flex-wrap mb-4">
           <button
             onClick={handleNearMe}
             disabled={geoLoading}
@@ -100,7 +112,27 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
               : <>📍 {t.near}</>
             }
           </button>
-          <span className="text-white/40 text-xs italic">{t.zipNote}</span>
+        </div>
+
+        {/* Colonia chips */}
+        <div className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
+          {COLONIA_KEYS.map((key) => {
+            const c = COLONIAS[key];
+            const active = activeColonia === key;
+            return (
+              <button
+                key={key}
+                onClick={() => handleColonia(key)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  active
+                    ? "bg-[#D4A017] text-[#1B4332] shadow-md"
+                    : "bg-white/10 text-white/80 hover:bg-white/20 border border-white/20"
+                }`}
+              >
+                {c.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
