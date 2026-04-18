@@ -130,9 +130,54 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Error al guardar la reseña" }, { status: 500 });
     }
 
-    return NextResponse.json({ review }, { status: 201 });
+    const promoted = await maybePromoteBadge(supabase, booking.seller_id);
+
+    return NextResponse.json({ review, badgePromoted: promoted }, { status: 201 });
   } catch (e: unknown) {
     console.error("[reviews] POST error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
+const BADGE_RANK: Record<string, number> = { none: 0, bronze: 1, gold: 2, diamond: 3 };
+
+async function maybePromoteBadge(
+  supabase: ReturnType<typeof createAdminSupabase>,
+  sellerId: string,
+): Promise<string | null> {
+  try {
+    const { data: reviews } = await supabase
+      .from("seller_reviews")
+      .select("rating")
+      .eq("seller_id", sellerId);
+
+    const count = reviews?.length ?? 0;
+    if (count === 0) return null;
+
+    const avg = reviews!.reduce((s, r) => s + r.rating, 0) / count;
+
+    let earned = "bronze";
+    if (count >= 10 && avg >= 4.0) earned = "diamond";
+    else if (count >= 3 && avg >= 3.5) earned = "gold";
+
+    const { data: seller } = await supabase
+      .from("users")
+      .select("trust_badge")
+      .eq("id", sellerId)
+      .maybeSingle();
+
+    const current = seller?.trust_badge ?? "none";
+    if ((BADGE_RANK[earned] ?? 0) <= (BADGE_RANK[current] ?? 0)) return null;
+
+    await supabase
+      .from("users")
+      .update({ trust_badge: earned })
+      .eq("id", sellerId);
+
+    console.log(`[badge-promote] ${sellerId}: ${current} → ${earned} (${count} reviews, avg ${avg.toFixed(1)})`);
+    return earned;
+  } catch (e) {
+    console.error("[badge-promote] error:", e);
+    return null;
   }
 }

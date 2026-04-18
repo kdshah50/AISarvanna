@@ -26,6 +26,8 @@ type UserRow = {
   phone_verified: boolean;
   ine_verified: boolean;
   created_at: string;
+  review_count?: number;
+  review_avg?: number;
 };
 
 function fmtMXN(c: number) {
@@ -91,7 +93,21 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/users?pin=${encodeURIComponent(pin.trim())}`);
       const data = await res.json();
-      setUsers(Array.isArray(data.users) ? data.users : []);
+      const usersList: UserRow[] = Array.isArray(data.users) ? data.users : [];
+
+      const enriched = await Promise.all(
+        usersList.map(async (u) => {
+          try {
+            const rRes = await fetch(`/api/reviews?sellerId=${u.id}`);
+            if (rRes.ok) {
+              const rd = await rRes.json();
+              return { ...u, review_count: rd.total ?? 0, review_avg: rd.average ?? 0 };
+            }
+          } catch { /* silent */ }
+          return { ...u, review_count: 0, review_avg: 0 };
+        })
+      );
+      setUsers(enriched);
     } catch {
       setUsers([]);
     }
@@ -350,6 +366,26 @@ export default function AdminPage() {
                             </span>
                           )}
                         </div>
+                      </div>
+
+                      {/* Review stats & auto-promotion */}
+                      <div className="flex flex-wrap gap-3 items-center mb-3 text-xs">
+                        <span className="text-[#6B7280]">
+                          ★ {(u.review_avg ?? 0).toFixed(1)} · {u.review_count ?? 0} reseña{(u.review_count ?? 0) !== 1 ? "s" : ""}
+                        </span>
+                        {(() => {
+                          const rc = u.review_count ?? 0;
+                          const ra = u.review_avg ?? 0;
+                          let earned = "bronze";
+                          if (rc >= 10 && ra >= 4.0) earned = "diamond";
+                          else if (rc >= 3 && ra >= 3.5) earned = "gold";
+                          const rank: Record<string, number> = { none: 0, bronze: 1, gold: 2, diamond: 3 };
+                          const willPromote = (rank[earned] ?? 0) > (rank[badge] ?? 0);
+                          if (willPromote) return <span className="text-emerald-600 font-semibold">↑ Auto-promote → {earned}</span>;
+                          if (rc < 3) return <span className="text-[#9CA3AF]">{3 - rc} more for Gold</span>;
+                          if (rc < 10) return <span className="text-[#9CA3AF]">{10 - rc} more for Diamond</span>;
+                          return null;
+                        })()}
                       </div>
 
                       {/* Admin actions */}

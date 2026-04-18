@@ -13,9 +13,9 @@ function fmtMXN(centavos: number) {
 
 function TrustBadge({ badge }: { badge: string }) {
   const styles: Record<string, { label: string; color: string; bg: string; desc: string }> = {
-    diamond: { label: "Diamond",    color: "#1D4ED8", bg: "#EFF6FF", desc: "Vendedor top" },
-    gold:    { label: "Gold",       color: "#92400E", bg: "#FEF3C7", desc: "INE verificado" },
-    bronze:  { label: "Bronze",     color: "#78350F", bg: "#FEF9EE", desc: "Telefono verificado" },
+    diamond: { label: "Diamond",    color: "#1D4ED8", bg: "#EFF6FF", desc: "10+ reseñas · ★ 4.0+" },
+    gold:    { label: "Gold",       color: "#92400E", bg: "#FEF3C7", desc: "3+ reseñas · ★ 3.5+" },
+    bronze:  { label: "Bronze",     color: "#78350F", bg: "#FEF9EE", desc: "Teléfono verificado" },
     none:    { label: "Verificado", color: "#065F46", bg: "#ECFDF5", desc: "Cuenta activa" },
   };
   const s = styles[badge] ?? styles.none;
@@ -117,8 +117,41 @@ export default async function SellerPage({ params }: { params: { id: string } })
         <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-2xl p-4 mb-6 flex items-center gap-3">
           <div>
             <p className="text-sm font-semibold text-[#065F46]">Compra Protegida</p>
-            <p className="text-xs text-[#047857]">Articulos cubiertos por Compra Protegida.</p>
+            <p className="text-xs text-[#047857]">Artículos cubiertos por Compra Protegida.</p>
           </div>
+        </div>
+
+        {/* Badge progression */}
+        <div className="bg-white border border-[#E5E0D8] rounded-2xl p-5 mb-6">
+          <h3 className="text-sm font-bold text-[#1C1917] mb-3">Nivel de confianza</h3>
+          <div className="space-y-2">
+            {([
+              { badge: "bronze", label: "Bronze", req: "Teléfono verificado", met: true },
+              { badge: "gold", label: "Gold", req: "3+ reseñas · promedio ≥ 3.5", met: reviewCount >= 3 && avgRating >= 3.5 },
+              { badge: "diamond", label: "Diamond", req: "10+ reseñas · promedio ≥ 4.0", met: reviewCount >= 10 && avgRating >= 4.0 },
+            ] as const).map((tier) => {
+              const active = (seller.trust_badge ?? "none") === tier.badge
+                || ({"diamond": ["diamond"], "gold": ["gold", "diamond"], "bronze": ["bronze", "gold", "diamond"]}[tier.badge]?.includes(seller.trust_badge ?? "none"));
+              return (
+                <div key={tier.badge} className={`flex items-center gap-3 rounded-xl px-3 py-2 ${active ? "bg-[#F4F0EB]" : ""}`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${tier.met ? "border-emerald-500 bg-emerald-500" : "border-[#D1D5DB]"}`}>
+                    {tier.met && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-[#1C1917]">{tier.label}</span>
+                    <span className="text-xs text-[#6B7280] ml-2">{tier.req}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {reviewCount < 10 && (
+            <p className="text-[10px] text-[#9CA3AF] mt-3">
+              {reviewCount < 3
+                ? `${3 - reviewCount} reseña${3 - reviewCount !== 1 ? "s" : ""} más para Gold`
+                : `${10 - reviewCount} reseña${10 - reviewCount !== 1 ? "s" : ""} más para Diamond`}
+            </p>
+          )}
         </div>
         <div>
           <h2 className="font-serif text-xl font-bold text-[#1C1917] mb-4">
