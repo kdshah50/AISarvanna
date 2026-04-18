@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS public.service_bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id TEXT NOT NULL REFERENCES public.listings (id) ON DELETE CASCADE,
+  listing_id UUID NOT NULL REFERENCES public.listings (id) ON DELETE CASCADE,
   buyer_id TEXT NOT NULL,
   seller_id TEXT NOT NULL,
 
