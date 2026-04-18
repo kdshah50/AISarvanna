@@ -80,7 +80,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // Notify the other party via WhatsApp (awaited so Vercel doesn't kill it)
     const recipientId = userId === conv.buyer_id ? conv.seller_id : conv.buyer_id;
-    console.log("[notify] sender:", userId, "recipient:", recipientId, "conv:", conversationId);
+    console.log("[notify] sender:", userId, "recipient:", recipientId, "conv:", conversationId,
+      "buyer_id:", conv.buyer_id, "seller_id:", conv.seller_id);
     if (recipientId === userId) {
       console.warn("[notify] skipping self-notification (buyer_id === seller_id)");
       return NextResponse.json({ message: inserted });
@@ -91,6 +92,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         .select("phone,display_name")
         .eq("id", recipientId)
         .maybeSingle();
+
+      console.log("[notify] recipient lookup:", { recipientId, phone: recipient?.phone, name: recipient?.display_name });
 
       if (!recipient?.phone) {
         console.warn("[notify] no phone for recipient", recipientId);
@@ -123,8 +126,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           `→ ${appUrl}/listing/${conv.listing_id}?chat=${conversationId}`,
         ].join("\n");
 
+        console.log("[notify] sending WhatsApp to:", recipient.phone, "for recipient:", recipientId);
         const sent = await sendWhatsApp(recipient.phone, msg);
-        console.log("[notify]", sent ? "sent" : "failed", { to: recipient.phone });
+        console.log("[notify]", sent ? "sent" : "failed", { to: recipient.phone, recipientId });
       }
     } catch (e) {
       console.error("[notify] error", e);
