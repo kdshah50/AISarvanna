@@ -10,7 +10,7 @@ export function isValidAuthPhone(phone: string): boolean {
 
 /** Normalize phone to digits-only E.164 without plus sign. */
 export function normalizeAuthPhone(input: string): string {
-  return input.replace(/\D/g, "").replace(/^00/, "");
+  return input.replace(/[^0-9]/g, "").replace(/^00/, "");
 }
 
 /** Mexico: strip legacy mobile trunk `1` so number is `52` + 10 national digits. */

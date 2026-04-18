@@ -51,6 +51,18 @@ export async function POST(req: NextRequest) {
     const { error: markUsedError } = await supabase.from("otp_codes").update({ used: true }).eq("id", otp.id);
     if (markUsedError) throw new Error("No se pudo actualizar el OTP");
 
+    // Check for duplicate accounts with +prefix variant (e.g. "+17326908527" vs "17326908527")
+    const plusVariant = `+${phone}`;
+    const { data: dupUser } = await supabase
+      .from("users")
+      .select("id,phone")
+      .eq("phone", plusVariant)
+      .maybeSingle();
+    if (dupUser) {
+      await supabase.from("users").update({ phone }).eq("id", dupUser.id);
+      console.log("[verify-otp] merged +prefix duplicate", { id: dupUser.id, old: plusVariant, new: phone });
+    }
+
     const { data: user, error: userError } = await supabase
       .from("users")
       .upsert({ phone, phone_verified: true, trust_badge: "bronze" }, { onConflict: "phone" })
