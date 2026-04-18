@@ -198,24 +198,60 @@ export default function ListingChat({
       </div>
 
       {role === "seller" && threads.length > 0 && (
-        <div className="max-h-32 overflow-y-auto border-b border-[#E5E0D8] divide-y divide-[#E5E0D8]">
-          {threads.map((t) => (
-            <button
-              key={t.conversationId}
-              type="button"
-              onClick={() => void loadConversation(t.conversationId)}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-[#F4F0EB] ${selectedId === t.conversationId ? "bg-[#ECFDF5]" : ""}`}
-            >
-              <span className="font-semibold text-[#1C1917]">{t.buyer_name}</span>
-              <span className="block text-xs text-[#6B7280] truncate">{t.last_body || "Sin mensajes aún"}</span>
-            </button>
-          ))}
+        <div className="border-b border-[#E5E0D8]">
+          <p className="px-4 pt-2 pb-1 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+            Compradores ({threads.length})
+          </p>
+          <div className="max-h-36 overflow-y-auto divide-y divide-[#E5E0D8]">
+            {threads.map((t) => {
+              const isActive = selectedId === t.conversationId;
+              return (
+                <button
+                  key={t.conversationId}
+                  type="button"
+                  onClick={() => void loadConversation(t.conversationId)}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-3 ${
+                    isActive ? "bg-[#ECFDF5] border-l-4 border-[#059669]" : "hover:bg-[#F4F0EB] border-l-4 border-transparent"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    isActive ? "bg-[#059669] text-white" : "bg-[#F4F0EB] text-[#1B4332]"
+                  }`}>
+                    {(t.buyer_name?.[0] ?? "C").toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className={`font-semibold ${isActive ? "text-[#065F46]" : "text-[#1C1917]"}`}>
+                      {t.buyer_name}
+                    </span>
+                    <span className="block text-xs text-[#6B7280] truncate">{t.last_body || "Sin mensajes aún"}</span>
+                  </div>
+                  {isActive && <span className="text-[#059669] text-xs">●</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {role === "seller" && threads.length === 0 && (
         <p className="px-4 py-3 text-sm text-[#6B7280]">Aún no hay mensajes de compradores en este anuncio.</p>
       )}
+
+      {/* Active chat header — shows who you're talking to */}
+      {role === "seller" && selectedId && (() => {
+        const active = threads.find((t) => t.conversationId === selectedId);
+        return active ? (
+          <div className="px-4 py-2 bg-[#ECFDF5] border-b border-[#A7F3D0] flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-[#1B4332] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              {(active.buyer_name?.[0] ?? "C").toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-[#065F46]">Chateando con: {active.buyer_name}</p>
+            </div>
+            <span className="text-[10px] text-[#059669] font-semibold px-2 py-0.5 rounded-full bg-[#D1FAE5]">Activo</span>
+          </div>
+        ) : null;
+      })()}
 
       <div className="max-h-64 overflow-y-auto px-4 py-3 space-y-2">
         {messages.map((m) => {

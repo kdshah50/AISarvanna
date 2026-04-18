@@ -15,6 +15,8 @@ export default function ConversationThread({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
+  const [otherName, setOtherName] = useState("");
+  const [role, setRole] = useState<"buyer" | "seller" | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -32,6 +34,8 @@ export default function ConversationThread({
     const data = await res.json();
     setMessages(data.messages ?? []);
     setTitle(data.listing?.title_es ?? "Conversación");
+    setRole(data.role ?? null);
+    setOtherName(data.other_name ?? "");
     setLoading(false);
   }, [conversationId]);
 
@@ -80,6 +84,11 @@ export default function ConversationThread({
     <div className="rounded-xl border border-[#E5E0D8] bg-white overflow-hidden">
       <div className="px-4 py-3 border-b border-[#E5E0D8] bg-[#F4F0EB]">
         <h1 className="text-sm font-bold text-[#1C1917] truncate">{title}</h1>
+        {otherName && (
+          <p className="text-xs text-[#065F46] font-semibold mt-0.5">
+            {role === "seller" ? "Comprador" : "Vendedor"}: {otherName}
+          </p>
+        )}
       </div>
       <div className="max-h-[50vh] overflow-y-auto px-4 py-3 space-y-2 min-h-[120px]">
         {messages.map((m) => {

@@ -45,11 +45,25 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: "No se pudo cargar mensajes" }, { status: 500 });
     }
 
+    const isSeller = conv.seller_id === userId;
+    const otherId = isSeller ? conv.buyer_id : conv.seller_id;
+    let otherName = "";
+    if (otherId) {
+      const { data: otherUser } = await supabase
+        .from("users")
+        .select("display_name,phone")
+        .eq("id", otherId)
+        .maybeSingle();
+      otherName = otherUser?.display_name?.trim()
+        || (otherUser?.phone ? `…${otherUser.phone.replace(/\D/g, "").slice(-4)}` : "");
+    }
+
     return NextResponse.json({
       conversation: conv,
       listing: listing ?? { id: conv.listing_id, title_es: "", seller_id: conv.seller_id },
       messages: messages ?? [],
-      role: conv.seller_id === userId ? "seller" : "buyer",
+      role: isSeller ? "seller" : "buyer",
+      other_name: otherName,
     });
   } catch (e) {
     console.error("[conversations/:id] GET", e);
