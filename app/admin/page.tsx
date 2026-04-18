@@ -45,7 +45,7 @@ export default function AdminPage() {
   const [pinLoading, setPinLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
 
-  const [tab, setTab] = useState<"listings" | "sellers">("listings");
+  const [tab, setTab] = useState<"listings" | "sellers" | "reports">("listings");
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,6 +58,26 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSaving, setUserSaving] = useState<string | null>(null);
+
+  type ReportRow = {
+    id: string;
+    reporter_id: string;
+    listing_id: string | null;
+    seller_id: string | null;
+    reason: string;
+    details: string | null;
+    status: string;
+    admin_note: string | null;
+    created_at: string;
+    resolved_at: string | null;
+    listing_title: string | null;
+    reporter_name: string;
+    seller_name: string | null;
+  };
+  const [reports, setReports] = useState<ReportRow[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportFilter, setReportFilter] = useState<"open" | "all">("open");
+  const [reportSaving, setReportSaving] = useState<string | null>(null);
 
   const headers = {
     apikey: ANON_KEY,
@@ -133,10 +153,42 @@ export default function AdminPage() {
     }
   };
 
+  const loadReports = async () => {
+    setReportsLoading(true);
+    try {
+      const res = await fetch(`/api/reports?pin=${encodeURIComponent(pin.trim())}&status=${reportFilter}`);
+      const data = await res.json();
+      setReports(Array.isArray(data.reports) ? data.reports : []);
+    } catch {
+      setReports([]);
+    }
+    setReportsLoading(false);
+  };
+
+  const updateReport = async (reportId: string, status: string) => {
+    setReportSaving(reportId);
+    try {
+      const res = await fetch("/api/reports", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pin.trim(), reportId, status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      showMsg("✅ Report updated");
+      await loadReports();
+    } catch (e: unknown) {
+      showMsg(e instanceof Error ? e.message : "Error", true);
+    } finally {
+      setReportSaving(null);
+    }
+  };
+
   useEffect(() => {
     if (authed && tab === "listings") load();
     if (authed && tab === "sellers") loadUsers();
-  }, [authed, filter, tab]);
+    if (authed && tab === "reports") loadReports();
+  }, [authed, filter, tab, reportFilter]);
 
   const submitPin = async () => {
     setPinError(false);
@@ -300,6 +352,12 @@ export default function AdminPage() {
             }`}>
             👤 Sellers & Trust
           </button>
+          <button onClick={() => setTab("reports")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              tab === "reports" ? "bg-red-600 text-white" : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-red-400"
+            }`}>
+            🚩 Reports
+          </button>
         </div>
 
         {/* Status message */}
@@ -416,6 +474,110 @@ export default function AdminPage() {
                           {userSaving === u.id ? "…" : u.ine_verified ? "✓ INE Verified" : "Verify INE"}
                         </button>
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── REPORTS TAB ────────────────────────────────────────── */}
+        {tab === "reports" && (
+          <>
+            <div className="flex gap-2 mb-6">
+              {(["open", "all"] as const).map(f => (
+                <button key={f} onClick={() => setReportFilter(f)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors capitalize ${
+                    reportFilter === f
+                      ? "bg-red-600 text-white"
+                      : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-red-400"
+                  }`}>
+                  {f === "open" ? "Open" : "All"}
+                </button>
+              ))}
+            </div>
+
+            {reportsLoading ? (
+              <div className="text-center py-20 text-[#6B7280]">Loading reports...</div>
+            ) : reports.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border border-[#E5E0D8]">
+                <p className="text-4xl mb-3">✓</p>
+                <p className="text-[#6B7280] text-sm">No {reportFilter === "open" ? "open " : ""}reports</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {reports.map(r => {
+                  const reasonLabels: Record<string, string> = {
+                    fraud: "Fraude",
+                    fake_listing: "Anuncio falso",
+                    misleading: "Engañoso",
+                    inappropriate: "Inapropiado",
+                    spam: "Spam",
+                    other: "Otro",
+                  };
+                  const statusColors: Record<string, string> = {
+                    open: "bg-red-50 text-red-700",
+                    reviewed: "bg-yellow-50 text-yellow-700",
+                    action_taken: "bg-emerald-50 text-emerald-700",
+                    dismissed: "bg-gray-50 text-gray-500",
+                  };
+                  return (
+                    <div key={r.id} className="bg-white rounded-2xl border border-[#E5E0D8] p-5 shadow-sm">
+                      <div className="flex flex-wrap gap-3 items-start justify-between mb-3">
+                        <div>
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${statusColors[r.status] ?? statusColors.open}`}>
+                            {r.status.replace("_", " ")}
+                          </span>
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 ml-2">
+                            {reasonLabels[r.reason] ?? r.reason}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#9CA3AF]">
+                          {new Date(r.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+
+                      {r.listing_title && (
+                        <p className="text-sm font-semibold text-[#1C1917] mb-1">
+                          Anuncio: <a href={`/listing/${r.listing_id}`} className="text-[#1B4332] hover:underline">{r.listing_title}</a>
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-4 text-xs text-[#6B7280] mb-2">
+                        <span>Reportado por: {r.reporter_name}</span>
+                        {r.seller_name && <span>Vendedor: {r.seller_name}</span>}
+                      </div>
+
+                      {r.details && (
+                        <p className="text-sm text-[#374151] bg-[#F4F0EB] rounded-xl p-3 mb-3">{r.details}</p>
+                      )}
+
+                      {r.admin_note && (
+                        <p className="text-xs text-[#6B7280] italic mb-3">Admin: {r.admin_note}</p>
+                      )}
+
+                      {r.status === "open" && (
+                        <div className="flex flex-wrap gap-2 border-t border-[#E5E0D8] pt-3">
+                          <button
+                            onClick={() => updateReport(r.id, "reviewed")}
+                            disabled={reportSaving === r.id}
+                            className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-yellow-50 text-yellow-700 hover:bg-yellow-100 disabled:opacity-40 transition-colors">
+                            {reportSaving === r.id ? "…" : "Mark Reviewed"}
+                          </button>
+                          <button
+                            onClick={() => updateReport(r.id, "action_taken")}
+                            disabled={reportSaving === r.id}
+                            className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 transition-colors">
+                            {reportSaving === r.id ? "…" : "Action Taken"}
+                          </button>
+                          <button
+                            onClick={() => updateReport(r.id, "dismissed")}
+                            disabled={reportSaving === r.id}
+                            className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-40 transition-colors">
+                            {reportSaving === r.id ? "…" : "Dismiss"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

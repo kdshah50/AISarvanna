@@ -5,6 +5,7 @@ import ListingChat from "@/components/ListingChat";
 import ServiceBookingBlock from "@/components/ServiceBookingBlock";
 import WhatsAppCTA from "@/components/WhatsAppCTA";
 import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
+import ReportButton from "@/components/ReportButton";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY =
@@ -158,6 +159,11 @@ export default async function ListingPage({
             <SellerReviews sellerId={sellerId} />
           </div>
         )}
+
+        {/* Report */}
+        <div className="mt-8 pt-6 border-t border-[#E5E0D8] flex justify-center">
+          <ReportButton listingId={params.id} sellerId={sellerId} />
+        </div>
       </div>
     </main>
   );
