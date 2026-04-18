@@ -11,5 +11,4 @@ export interface ListingCard {
   seller_name: string;
   seller_badge: string;
   seller_verified: boolean;
-  seller_phone?: string | null;
 }
