@@ -37,7 +37,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
 
-const SELECT_COLS = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)";
+const SELECT_COLS = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone)";
 
 export async function GET(req: NextRequest) {
   const headers = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };

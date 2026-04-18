@@ -57,6 +57,7 @@ export default async function HomePage({ searchParams }: Props) {
           seller_name: row.users?.display_name ?? "Proveedor",
           seller_badge: row.users?.trust_badge ?? "none",
           seller_verified: false,
+          seller_phone: row.users?.phone ?? null,
           _dist_km: row._dist_km ?? null,
           _mode: row._mode,
         }));
@@ -65,7 +66,7 @@ export default async function HomePage({ searchParams }: Props) {
       // ── No query: show all CP 37745 services sorted by distance ───────────
       const res = await fetch(
         `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.services`
-        + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)`
+        + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone)`
         + `&order=created_at.desc&limit=24`,
         { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
       );
@@ -83,6 +84,7 @@ export default async function HomePage({ searchParams }: Props) {
             seller_name: row.users?.display_name ?? "Proveedor",
             seller_badge: row.users?.trust_badge ?? "none",
             seller_verified: row.users?.ine_verified ?? false,
+            seller_phone: row.users?.phone ?? null,
             _dist_km: Math.round(km * 10) / 10,
           };
         }).sort((a: any, b: any) => hasGeo ? a._dist_km - b._dist_km : 0) : [];
