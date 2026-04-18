@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import ListingChat from "@/components/ListingChat";
 import ServiceBookingBlock from "@/components/ServiceBookingBlock";
+import WhatsAppCTA from "@/components/WhatsAppCTA";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY =
@@ -91,6 +92,16 @@ export default async function ListingPage({
             <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#F4F0EB] text-[#6B7280]">{listing.location_city}</span>
           )}
         </div>
+        {/* WhatsApp CTA — hero button, always visible */}
+        {isServiceListing && (
+          <div className="mb-6">
+            <WhatsAppCTA listingId={params.id} isService={isServiceListing} />
+            <p className="text-center text-xs text-[#6B7280] mt-2">
+              Platica primero, paga la tarifa y recibe el WhatsApp del proveedor
+            </p>
+          </div>
+        )}
+
         {listing.description_es && <p className="text-[#374151] leading-relaxed mb-6">{listing.description_es}</p>}
         {seller && (
           <Link href={`/seller/${seller.id}`} className="block hover:opacity-90 transition-opacity">
@@ -108,21 +119,15 @@ export default async function ListingPage({
             </div>
           </Link>
         )}
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-center gap-3">
-          <div>
-            <p className="text-sm font-semibold text-emerald-800">Contacto Protegido</p>
-            <p className="text-xs text-emerald-700">
-              Platica con el proveedor en la app. Paga la tarifa de servicio para recibir su WhatsApp directo. Igual que Uber — primero platica, después conecta.
-            </p>
-          </div>
-        </div>
         <div className="flex flex-col gap-3">
           <ListingChat listingId={params.id} initialConversationId={searchParams?.chat} />
-          <ServiceBookingBlock
-            listingId={params.id}
-            isService={listing.category_id === "services"}
-            sellerId={listing.seller_id ?? null}
-          />
+          <div id="booking-section">
+            <ServiceBookingBlock
+              listingId={params.id}
+              isService={listing.category_id === "services"}
+              sellerId={listing.seller_id ?? null}
+            />
+          </div>
         </div>
       </div>
     </main>

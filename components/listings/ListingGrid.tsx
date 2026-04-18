@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ListingCard } from "@/lib/types";
+import { WhatsAppBadgeLocked } from "@/components/WhatsAppCTA";
 
 function fmtMXN(centavos: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -73,9 +74,7 @@ export default function ListingGrid({ listings }: { listings: ListingCard[] }) {
                   </span>
                   <TrustBadge badge={listing.seller_badge} verified={listing.seller_verified} />
                 </div>
-                <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-[#ECFDF5] text-emerald-700">
-                  Contacto protegido
-                </span>
+                <WhatsAppBadgeLocked />
               </div>
             </div>
           </div>
