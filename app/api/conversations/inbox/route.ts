@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
     const merged = [...(asBuyer ?? []), ...(asSeller ?? [])] as Row[];
     const all = merged.filter((r) => {
       if (seen.has(r.id)) return false;
+      if (r.buyer_id === r.seller_id) return false;
       seen.add(r.id);
       return true;
     });

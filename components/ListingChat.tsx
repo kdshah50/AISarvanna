@@ -102,6 +102,20 @@ export default function ListingChat({
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/conversations/${selectedId}`, { credentials: "same-origin" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const fresh = data.messages ?? [];
+        setMessages((prev) => (fresh.length !== prev.length ? fresh : prev));
+      } catch { /* silent */ }
+    }, 5000);
+    return () => clearInterval(poll);
+  }, [selectedId]);
+
   const ensureConversation = async (): Promise<string | null> => {
     if (selectedId) return selectedId;
     const res = await fetch("/api/conversations", {

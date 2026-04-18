@@ -32,12 +32,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Anuncio sin vendedor" }, { status: 400 });
     }
 
+    console.log("[conversations] GET userId:", userId, "sellerId:", sellerId, "listingId:", listingId);
+
     if (sellerId === userId) {
       const { data: convs, error: convErr } = await supabase
         .from("listing_conversations")
         .select("id,buyer_id,updated_at,created_at")
         .eq("listing_id", listingId)
         .eq("seller_id", userId)
+        .neq("buyer_id", userId)
         .order("updated_at", { ascending: false });
 
       if (convErr) {

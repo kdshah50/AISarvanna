@@ -80,6 +80,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // Notify the other party via WhatsApp (awaited so Vercel doesn't kill it)
     const recipientId = userId === conv.buyer_id ? conv.seller_id : conv.buyer_id;
+    console.log("[notify] sender:", userId, "recipient:", recipientId, "conv:", conversationId);
+    if (recipientId === userId) {
+      console.warn("[notify] skipping self-notification (buyer_id === seller_id)");
+      return NextResponse.json({ message: inserted });
+    }
     try {
       const { data: recipient } = await supabase
         .from("users")
