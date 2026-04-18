@@ -64,16 +64,20 @@ export default function ListingChat({
   }, [listingId]);
 
   const loadConversation = useCallback(async (conversationId: string) => {
-    setError("");
-    const res = await fetch(`/api/conversations/${conversationId}`, { credentials: "same-origin" });
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      setError((d as { error?: string }).error ?? "No se pudo cargar");
-      return;
-    }
-    const data = await res.json();
     setSelectedId(conversationId);
-    setMessages(data.messages ?? []);
+    setError("");
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, { credentials: "same-origin" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError((d as { error?: string }).error ?? "No se pudo cargar");
+        return;
+      }
+      const data = await res.json();
+      setMessages(data.messages ?? []);
+    } catch {
+      setError("Error de conexión");
+    }
   }, []);
 
   useEffect(() => {
@@ -96,6 +100,7 @@ export default function ListingChat({
     scrollToBottom();
   }, [messages]);
 
+  // Poll selected conversation for new messages
   useEffect(() => {
     if (!selectedId) return;
     const poll = setInterval(async () => {
@@ -109,6 +114,22 @@ export default function ListingChat({
     }, 5000);
     return () => clearInterval(poll);
   }, [selectedId]);
+
+  // Poll thread list for new buyers/messages (seller only)
+  useEffect(() => {
+    if (role !== "seller") return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/conversations?listingId=${encodeURIComponent(listingId)}`, { credentials: "same-origin" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.role === "seller" && Array.isArray(data.threads)) {
+          setThreads(data.threads);
+        }
+      } catch { /* silent */ }
+    }, 8000);
+    return () => clearInterval(poll);
+  }, [role, listingId]);
 
   const ensureConversation = async (): Promise<string | null> => {
     if (selectedId) return selectedId;
