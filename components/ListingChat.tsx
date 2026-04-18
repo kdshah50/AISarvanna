@@ -33,7 +33,7 @@ export default function ListingChat({
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  const loadListingScope = useCallback(async (keepSelection = false) => {
+  const loadListingScope = useCallback(async () => {
     setError("");
     const res = await fetch(`/api/conversations?listingId=${encodeURIComponent(listingId)}`, {
       credentials: "same-origin",
@@ -53,18 +53,11 @@ export default function ListingChat({
     setRole(data.role);
     if (data.role === "seller") {
       setThreads(data.threads ?? []);
-      if (!keepSelection) {
-        setSelectedId(null);
-        setMessages([]);
-      }
     } else {
       setThreads([]);
       if (data.conversation?.id) {
         setSelectedId(data.conversation.id);
         setMessages(data.messages ?? []);
-      } else if (!keepSelection) {
-        setSelectedId(null);
-        setMessages([]);
       }
     }
     setLoading(false);
@@ -79,9 +72,8 @@ export default function ListingChat({
       return;
     }
     const data = await res.json();
-    setMessages(data.messages ?? []);
     setSelectedId(conversationId);
-    setRole(data.role);
+    setMessages(data.messages ?? []);
   }, []);
 
   useEffect(() => {
@@ -163,8 +155,6 @@ export default function ListingChat({
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("tianguis:listing-contact"));
       }
-      await loadListingScope(true);
-      if (role === "seller" && cid) await loadConversation(cid);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
