@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ReviewForm } from "@/components/SellerReviews";
 
 type BookingData = {
   id: string;
@@ -205,6 +206,12 @@ function BookingSuccessContent() {
             </Link>
           </div>
         </div>
+
+        {isPaid && (
+          <div className="mt-6">
+            <ReviewForm bookingId={data.id} />
+          </div>
+        )}
 
         {isPaid && (
           <p className="text-center text-xs text-[#6B7280] mt-4">

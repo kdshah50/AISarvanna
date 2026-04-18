@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import ListingChat from "@/components/ListingChat";
 import ServiceBookingBlock from "@/components/ServiceBookingBlock";
 import WhatsAppCTA from "@/components/WhatsAppCTA";
+import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY =
@@ -67,6 +68,23 @@ export default async function ListingPage({
     body: JSON.stringify({ listing_id: params.id }),
   }).catch(() => {});
 
+  const sellerId = listing.seller_id ?? (listing.users as any)?.id;
+
+  let reviewCount = 0;
+  let avgRating = 0;
+  if (sellerId) {
+    const revRes = await fetch(
+      `${SUPA_URL}/rest/v1/seller_reviews?seller_id=eq.${sellerId}&select=rating`,
+      { headers: h, cache: "no-store" }
+    );
+    const revRows: { rating: number }[] = revRes.ok ? await revRes.json() : [];
+    reviewCount = revRows.length;
+    avgRating =
+      reviewCount > 0
+        ? Math.round((revRows.reduce((s, r) => s + r.rating, 0) / reviewCount) * 10) / 10
+        : 0;
+  }
+
   const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(listing.price_mxn / 100);
   const seller = listing.users as any;
   const isServiceListing = listing.category_id === "services";
@@ -113,6 +131,7 @@ export default async function ListingPage({
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="font-semibold text-sm">{seller.display_name ?? "Vendedor"}</span>
                   <TrustBadge badge={seller.trust_badge ?? "none"} />
+                  {reviewCount > 0 && <RatingSummary average={avgRating} total={reviewCount} />}
                 </div>
                 <span className="text-xs text-[#6B7280]">Miembro desde {new Date(seller.created_at).getFullYear()}</span>
               </div>
@@ -129,6 +148,16 @@ export default async function ListingPage({
             />
           </div>
         </div>
+
+        {sellerId && (
+          <div className="mt-8">
+            <h2 className="font-serif text-xl font-bold text-[#1C1917] mb-4">
+              Reseñas del vendedor
+              {reviewCount > 0 && <span className="ml-2 text-sm font-normal text-[#6B7280]">({reviewCount})</span>}
+            </h2>
+            <SellerReviews sellerId={sellerId} />
+          </div>
+        )}
       </div>
     </main>
   );

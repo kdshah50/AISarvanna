@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
+import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
@@ -69,6 +70,17 @@ export default async function SellerPage({ params }: { params: { id: string } })
   );
   const sold = soldRes.ok ? await soldRes.json() : [];
 
+  const reviewsRes = await fetch(
+    `${SUPA_URL}/rest/v1/seller_reviews?seller_id=eq.${params.id}&select=rating`,
+    { headers: h, cache: "no-store" }
+  );
+  const reviewRows: { rating: number }[] = reviewsRes.ok ? await reviewsRes.json() : [];
+  const reviewCount = reviewRows.length;
+  const avgRating =
+    reviewCount > 0
+      ? Math.round((reviewRows.reduce((s, r) => s + r.rating, 0) / reviewCount) * 10) / 10
+      : 0;
+
   const memberSince = new Date(seller.created_at).getFullYear();
   const initials = (seller.display_name ?? "V").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
@@ -87,6 +99,9 @@ export default async function SellerPage({ params }: { params: { id: string } })
               <h1 className="font-serif text-2xl font-bold text-[#1C1917] mb-1">{seller.display_name ?? "Vendedor"}</h1>
               <p className="text-sm text-[#6B7280] mb-3">Miembro desde {memberSince}</p>
               <TrustBadge badge={seller.trust_badge ?? "none"} />
+              {reviewCount > 0 && (
+                <RatingSummary average={avgRating} total={reviewCount} />
+              )}
             </div>
             <div className="flex gap-4 text-xs text-[#6B7280]">
               <span className={seller.phone_verified ? "text-[#059669]" : ""}>{seller.phone_verified ? "+" : "o"} Telefono</span>
@@ -95,7 +110,7 @@ export default async function SellerPage({ params }: { params: { id: string } })
             <div className="flex gap-3 w-full mt-2">
               <StatCard value={listings.length} label="Activos" />
               <StatCard value={sold.length} label="Vendidos" />
-              <StatCard value={memberSince} label="Desde" />
+              <StatCard value={reviewCount} label="Reseñas" />
             </div>
           </div>
         </div>
@@ -135,6 +150,14 @@ export default async function SellerPage({ params }: { params: { id: string } })
               ))}
             </div>
           )}
+        </div>
+
+        {/* Reviews */}
+        <div className="mt-8">
+          <h2 className="font-serif text-xl font-bold text-[#1C1917] mb-4">
+            Reseñas {reviewCount > 0 && <span className="ml-2 text-sm font-normal text-[#6B7280]">({reviewCount})</span>}
+          </h2>
+          <SellerReviews sellerId={params.id} />
         </div>
       </div>
     </main>
