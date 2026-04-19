@@ -110,26 +110,38 @@ export async function POST(req: NextRequest) {
     if (sid && token && from) {
       step = "twilio";
       const fromAddress = asWhatsappAddress(from);
-      const toAddress = asWhatsappAddress(phone);
-      console.log("[send-otp] twilio-attempt", { requestId, phone, toAddress, fromAddress });
-      const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-        method: "POST",
-        headers: {
-          Authorization: "Basic " + Buffer.from(`${sid}:${token}`).toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          From: fromAddress,
-          To: toAddress,
-          Body: `Tu código de Naranjogo es: *${code}*\nVálido 5 minutos. No lo compartas.`,
-        }),
-      });
-      const twilioBody = await twilioRes.text();
-      console.log("[send-otp] twilio-response", { requestId, phone, status: twilioRes.status, body: twilioBody });
-      if (!twilioRes.ok) {
+      const msgBody = `Tu código de Naranjogo es: *${code}*\nVálido 5 minutos. No lo compartas.`;
+      const authHeader = "Basic " + Buffer.from(`${sid}:${token}`).toString("base64");
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
+
+      // MX numbers: send to both +52 and +521 formats simultaneously.
+      // WhatsApp may register the user under either format; one will
+      // deliver and the other will silently fail with error 63015.
+      const destinations = [phone];
+      if (/^52\d{10}$/.test(phone)) {
+        destinations.push(`521${phone.slice(2)}`);
+      }
+
+      const results = await Promise.all(
+        destinations.map(async (dest) => {
+          const toAddress = asWhatsappAddress(dest);
+          console.log("[send-otp] twilio-attempt", { requestId, phone: dest, toAddress, fromAddress });
+          const res = await fetch(twilioUrl, {
+            method: "POST",
+            headers: { Authorization: authHeader, "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ From: fromAddress, To: toAddress, Body: msgBody }),
+          });
+          const body = await res.text();
+          console.log("[send-otp] twilio-response", { requestId, phone: dest, status: res.status, body });
+          return { dest, ok: res.ok, status: res.status, body };
+        })
+      );
+
+      const anyOk = results.some((r) => r.ok);
+      if (!anyOk) {
         let twilioError = "";
         try {
-          const parsed = JSON.parse(twilioBody);
+          const parsed = JSON.parse(results[0].body);
           twilioError = parsed?.message || parsed?.error_message || "";
         } catch { /* not json */ }
         return NextResponse.json(
@@ -137,7 +149,7 @@ export async function POST(req: NextRequest) {
             error: `No se pudo enviar el código OTP${twilioError ? `: ${twilioError}` : ""}`,
             requestId,
             step: "twilio",
-            twilioStatus: twilioRes.status,
+            twilioStatus: results[0].status,
           },
           { status: 500 }
         );

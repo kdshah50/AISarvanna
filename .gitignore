@@ -17,3 +17,5 @@ listings-api/*.db
 **/.DS_Store
 .next/
 .next
+.vercel
+.env*.local
