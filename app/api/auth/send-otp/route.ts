@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
       step = "twilio";
       const fromAddress = asWhatsappAddress(from);
       const toAddress = asWhatsappAddress(phone);
+      console.log("[send-otp] twilio-attempt", { requestId, phone, toAddress, fromAddress });
       const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
         method: "POST",
         headers: {
@@ -123,14 +124,20 @@ export async function POST(req: NextRequest) {
           Body: `Tu código de Naranjogo es: *${code}*\nVálido 5 minutos. No lo compartas.`,
         }),
       });
+      const twilioBody = await twilioRes.text();
+      console.log("[send-otp] twilio-response", { requestId, phone, status: twilioRes.status, body: twilioBody });
       if (!twilioRes.ok) {
-        const errText = await twilioRes.text();
-        console.error("[send-otp] twilio-failed", { requestId, phone, status: twilioRes.status, errText });
+        let twilioError = "";
+        try {
+          const parsed = JSON.parse(twilioBody);
+          twilioError = parsed?.message || parsed?.error_message || "";
+        } catch { /* not json */ }
         return NextResponse.json(
           {
-            error: "No se pudo enviar el código OTP",
+            error: `No se pudo enviar el código OTP${twilioError ? `: ${twilioError}` : ""}`,
             requestId,
             step: "twilio",
+            twilioStatus: twilioRes.status,
           },
           { status: 500 }
         );

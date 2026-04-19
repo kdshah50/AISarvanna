@@ -38,6 +38,14 @@
       "static/chunks/972-82a492e74697de68.js",
       "static/chunks/app/booking/success/page-f0c423e826099081.js"
     ],
+    "/listing/[id]/page": [
+      "static/chunks/webpack-193062c75398db2a.js",
+      "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
+      "static/chunks/117-3d33f1980da5cbc7.js",
+      "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
+      "static/chunks/972-82a492e74697de68.js",
+      "static/chunks/app/listing/[id]/page-1943b99e195f5483.js"
+    ],
     "/auth/login/page": [
       "static/chunks/webpack-193062c75398db2a.js",
       "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
@@ -52,14 +60,6 @@
       "static/chunks/117-3d33f1980da5cbc7.js",
       "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
       "static/chunks/app/auth/error-2797329923b08593.js"
-    ],
-    "/listing/[id]/page": [
-      "static/chunks/webpack-193062c75398db2a.js",
-      "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
-      "static/chunks/117-3d33f1980da5cbc7.js",
-      "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
-      "static/chunks/972-82a492e74697de68.js",
-      "static/chunks/app/listing/[id]/page-1943b99e195f5483.js"
     ],
     "/auth/verify/page": [
       "static/chunks/webpack-193062c75398db2a.js",
@@ -92,14 +92,6 @@
       "static/chunks/972-82a492e74697de68.js",
       "static/chunks/app/messages/page-f4a01bdec9848bf6.js"
     ],
-    "/profile/page": [
-      "static/chunks/webpack-193062c75398db2a.js",
-      "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
-      "static/chunks/117-3d33f1980da5cbc7.js",
-      "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
-      "static/chunks/972-82a492e74697de68.js",
-      "static/chunks/app/profile/page-40a869126f08c2c8.js"
-    ],
     "/seller/[id]/page": [
       "static/chunks/webpack-193062c75398db2a.js",
       "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
@@ -109,12 +101,13 @@
       "static/chunks/878-9c7ef27568e69700.js",
       "static/chunks/app/seller/[id]/page-c576e250564e1778.js"
     ],
-    "/unete/page": [
+    "/profile/page": [
       "static/chunks/webpack-193062c75398db2a.js",
       "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
       "static/chunks/117-3d33f1980da5cbc7.js",
       "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
-      "static/chunks/app/unete/page-b32e21661136f1d8.js"
+      "static/chunks/972-82a492e74697de68.js",
+      "static/chunks/app/profile/page-40a869126f08c2c8.js"
     ],
     "/seller/page": [
       "static/chunks/webpack-193062c75398db2a.js",
@@ -124,6 +117,13 @@
       "static/chunks/972-82a492e74697de68.js",
       "static/chunks/878-9c7ef27568e69700.js",
       "static/chunks/app/seller/page-87447a993e543b68.js"
+    ],
+    "/unete/page": [
+      "static/chunks/webpack-193062c75398db2a.js",
+      "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
+      "static/chunks/117-3d33f1980da5cbc7.js",
+      "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
+      "static/chunks/app/unete/page-b32e21661136f1d8.js"
     ],
     "/page": [
       "static/chunks/webpack-193062c75398db2a.js",
