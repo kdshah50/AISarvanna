@@ -38,22 +38,6 @@
       "static/chunks/972-82a492e74697de68.js",
       "static/chunks/app/booking/success/page-f0c423e826099081.js"
     ],
-    "/listing/page": [
-      "static/chunks/webpack-193062c75398db2a.js",
-      "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
-      "static/chunks/117-3d33f1980da5cbc7.js",
-      "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
-      "static/chunks/972-82a492e74697de68.js",
-      "static/chunks/app/listing/page-cee3769326dd2d4b.js"
-    ],
-    "/listing/[id]/page": [
-      "static/chunks/webpack-193062c75398db2a.js",
-      "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
-      "static/chunks/117-3d33f1980da5cbc7.js",
-      "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
-      "static/chunks/972-82a492e74697de68.js",
-      "static/chunks/app/listing/[id]/page-84b505734e57a523.js"
-    ],
     "/auth/login/page": [
       "static/chunks/webpack-193062c75398db2a.js",
       "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
@@ -69,13 +53,13 @@
       "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
       "static/chunks/app/auth/error-2797329923b08593.js"
     ],
-    "/messages/[conversationId]/page": [
+    "/listing/[id]/page": [
       "static/chunks/webpack-193062c75398db2a.js",
       "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
       "static/chunks/117-3d33f1980da5cbc7.js",
       "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
       "static/chunks/972-82a492e74697de68.js",
-      "static/chunks/app/messages/[conversationId]/page-6efcc8e23ff2ff7f.js"
+      "static/chunks/app/listing/[id]/page-1943b99e195f5483.js"
     ],
     "/auth/verify/page": [
       "static/chunks/webpack-193062c75398db2a.js",
@@ -84,14 +68,21 @@
       "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
       "static/chunks/app/auth/verify/page-e35156b3bbf2d03b.js"
     ],
-    "/seller/[id]/page": [
+    "/listing/page": [
       "static/chunks/webpack-193062c75398db2a.js",
       "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
       "static/chunks/117-3d33f1980da5cbc7.js",
       "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
       "static/chunks/972-82a492e74697de68.js",
-      "static/chunks/878-9c7ef27568e69700.js",
-      "static/chunks/app/seller/[id]/page-c576e250564e1778.js"
+      "static/chunks/app/listing/page-cee3769326dd2d4b.js"
+    ],
+    "/messages/[conversationId]/page": [
+      "static/chunks/webpack-193062c75398db2a.js",
+      "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
+      "static/chunks/117-3d33f1980da5cbc7.js",
+      "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
+      "static/chunks/972-82a492e74697de68.js",
+      "static/chunks/app/messages/[conversationId]/page-6088ca5a49cfa62b.js"
     ],
     "/messages/page": [
       "static/chunks/webpack-193062c75398db2a.js",
@@ -108,6 +99,15 @@
       "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
       "static/chunks/972-82a492e74697de68.js",
       "static/chunks/app/profile/page-40a869126f08c2c8.js"
+    ],
+    "/seller/[id]/page": [
+      "static/chunks/webpack-193062c75398db2a.js",
+      "static/chunks/fd9d1056-1ac2737fcdb1471b.js",
+      "static/chunks/117-3d33f1980da5cbc7.js",
+      "static/chunks/main-app-e7c4ccb1f2dd8b04.js",
+      "static/chunks/972-82a492e74697de68.js",
+      "static/chunks/878-9c7ef27568e69700.js",
+      "static/chunks/app/seller/[id]/page-c576e250564e1778.js"
     ],
     "/unete/page": [
       "static/chunks/webpack-193062c75398db2a.js",

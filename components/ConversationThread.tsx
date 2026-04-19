@@ -47,6 +47,22 @@ export default function ConversationThread({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Poll for new messages
+  useEffect(() => {
+    if (!conversationId) return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}`, { credentials: "same-origin" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const fresh: typeof messages = data.messages ?? [];
+        if (fresh.length === 0) return;
+        setMessages((prev) => (fresh.length > prev.length ? fresh : prev));
+      } catch { /* silent */ }
+    }, 5000);
+    return () => clearInterval(poll);
+  }, [conversationId]);
+
   const send = async () => {
     const text = draft.trim();
     if (!text || sending) return;

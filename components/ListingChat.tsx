@@ -108,8 +108,9 @@ export default function ListingChat({
         const res = await fetch(`/api/conversations/${selectedId}`, { credentials: "same-origin" });
         if (!res.ok) return;
         const data = await res.json();
-        const fresh = data.messages ?? [];
-        setMessages((prev) => (fresh.length !== prev.length ? fresh : prev));
+        const fresh: Msg[] = data.messages ?? [];
+        if (fresh.length === 0) return;
+        setMessages((prev) => (fresh.length > prev.length ? fresh : prev));
       } catch { /* silent */ }
     }, 5000);
     return () => clearInterval(poll);
