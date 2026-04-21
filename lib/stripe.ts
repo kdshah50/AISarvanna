@@ -12,10 +12,15 @@ export function getStripe(): Stripe {
 
 export const DEFAULT_COMMISSION_PCT = 10;
 
+/** Stripe minimum charge for MXN is 10.00 MXN (see stripe.com/docs/currencies — minimum charge amounts). */
+export const MIN_COMMISSION_CENTS_MXN = 1000;
+
 export function computeCommissionCents(
   priceMxnCents: number,
   commissionPct: number | null | undefined
 ): number {
-  const pct = commissionPct ?? DEFAULT_COMMISSION_PCT;
-  return Math.max(Math.round(priceMxnCents * pct / 100), 500); // minimum $5 MXN
+  const price = Number(priceMxnCents);
+  const pct = Number(commissionPct ?? DEFAULT_COMMISSION_PCT);
+  const raw = Math.round((Number.isFinite(price) ? price : 0) * (Number.isFinite(pct) ? pct : DEFAULT_COMMISSION_PCT) / 100);
+  return Math.max(raw, MIN_COMMISSION_CENTS_MXN);
 }

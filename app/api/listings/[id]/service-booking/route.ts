@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
 import { isServicesListing } from "@/lib/listing-category";
 import { buyerHasSentInAppMessage, ensureContactGateFromMessages } from "@/lib/contact-gate";
+import { MIN_COMMISSION_CENTS_MXN } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -127,7 +128,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       .maybeSingle();
 
     const commPct = listingPricing?.commission_pct ?? 10;
-    const commCents = Math.max(Math.round((listingPricing?.price_mxn ?? 0) * commPct / 100), 500);
+    const commCents = Math.max(
+      Math.round((Number(listingPricing?.price_mxn) || 0) * Number(commPct) / 100),
+      MIN_COMMISSION_CENTS_MXN
+    );
 
     return NextResponse.json({
       isService: true,

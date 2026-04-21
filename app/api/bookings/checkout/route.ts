@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
-import { getStripe, computeCommissionCents, DEFAULT_COMMISSION_PCT } from "@/lib/stripe";
+import { getStripe, computeCommissionCents, DEFAULT_COMMISSION_PCT, MIN_COMMISSION_CENTS_MXN } from "@/lib/stripe";
 import { getNextBookingDiscount, redeemDiscount } from "@/lib/loyalty";
 import { isServicesListing } from "@/lib/listing-category";
 import { buyerHasSentInAppMessage, ensureContactGateFromMessages } from "@/lib/contact-gate";
@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
     if (listing.seller_id === userId) {
       return NextResponse.json({ error: "No puedes reservar tu propio servicio" }, { status: 400 });
     }
+    if (!listing.seller_id) {
+      return NextResponse.json({ error: "Este anuncio no tiene proveedor asignado" }, { status: 400 });
+    }
 
     const { data: gate } = await supabase
       .from("listing_service_contact_gate")
@@ -72,8 +75,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const commissionPct = listing.commission_pct ?? DEFAULT_COMMISSION_PCT;
-    let commissionCents = computeCommissionCents(listing.price_mxn, commissionPct);
+    const commissionPct = Number(listing.commission_pct ?? DEFAULT_COMMISSION_PCT);
+    let commissionCents = computeCommissionCents(Number(listing.price_mxn) || 0, commissionPct);
+    if (!Number.isFinite(commissionCents) || commissionCents < MIN_COMMISSION_CENTS_MXN) {
+      commissionCents = MIN_COMMISSION_CENTS_MXN;
+    }
 
     // Check for loyalty milestone discount
     let loyaltyDiscount = 0;
@@ -83,7 +89,7 @@ export async function POST(req: NextRequest) {
       if (reward.discountPct > 0) {
         loyaltyDiscountPct = reward.discountPct;
         loyaltyDiscount = Math.round(commissionCents * loyaltyDiscountPct / 100);
-        commissionCents = Math.max(commissionCents - loyaltyDiscount, 500); // keep $5 minimum
+        commissionCents = Math.max(commissionCents - loyaltyDiscount, MIN_COMMISSION_CENTS_MXN);
       }
     } catch (loyaltyErr) {
       console.error("[checkout] loyalty check failed (non-fatal)", loyaltyErr);
@@ -114,7 +120,9 @@ export async function POST(req: NextRequest) {
       ? ` (descuento lealtad ${loyaltyDiscountPct}% aplicado)`
       : "";
 
-    const session = await stripe.checkout.sessions.create({
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
       mode: "payment",
       currency: "mxn",
       line_items: [
@@ -139,6 +147,18 @@ export async function POST(req: NextRequest) {
       success_url: `${APP_URL}/booking/success?id=${booking.id}`,
       cancel_url: `${APP_URL}/listing/${listingId}?booking_cancelled=1`,
     });
+    } catch (stripeErr: unknown) {
+      console.error("[checkout] Stripe checkout.sessions.create", stripeErr);
+      await supabase.from("service_bookings").delete().eq("id", booking.id);
+      const msg =
+        stripeErr && typeof stripeErr === "object" && "message" in stripeErr
+          ? String((stripeErr as { message?: string }).message)
+          : "Stripe error";
+      return NextResponse.json(
+        { error: "No se pudo iniciar el pago. Intenta de nuevo o contacta soporte.", detail: msg },
+        { status: 502 }
+      );
+    }
 
     await supabase
       .from("service_bookings")

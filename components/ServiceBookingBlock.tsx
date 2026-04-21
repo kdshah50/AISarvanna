@@ -132,7 +132,11 @@ export default function ServiceBookingBlock({
         body: JSON.stringify({ listingId, note: note.trim() || undefined }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error al crear pago");
+      if (!res.ok) {
+        const detail = typeof (data as { detail?: string }).detail === "string" ? (data as { detail: string }).detail : "";
+        const err = (data as { error?: string }).error ?? "Error al crear pago";
+        throw new Error(detail ? `${err} ${detail}` : err);
+      }
       if (data.url) {
         window.location.href = data.url;
       }
@@ -237,7 +241,7 @@ export default function ServiceBookingBlock({
         <h3 className="text-sm font-bold text-[#1C1917]">Reservar servicio</h3>
         <p className="text-xs text-[#6B7280] mt-1">
           El precio del anuncio (ej. $52) lo acuerdas con el proveedor. Aquí solo pagas la{" "}
-          <strong>tarifa de la plataforma</strong> (~comisión, mín. $5 MXN) para desbloquear su WhatsApp.
+          <strong>tarifa de la plataforma</strong> (~comisión; mín. $10 MXN por Stripe) para desbloquear su WhatsApp.
         </p>
       </div>
 
