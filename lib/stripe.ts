@@ -26,6 +26,18 @@ export const DEFAULT_COMMISSION_PCT = 10;
 /** Stripe minimum charge for MXN is 10.00 MXN (see stripe.com/docs/currencies — minimum charge amounts). */
 export const MIN_COMMISSION_CENTS_MXN = 1000;
 
+/** Checkout Session / webhook may return PaymentIntent as id string or expanded object. */
+export function stripePaymentIntentId(
+  pi: string | Stripe.PaymentIntent | null | undefined
+): string | null {
+  if (pi == null) return null;
+  if (typeof pi === "string") return pi;
+  if (typeof pi === "object" && "id" in pi && typeof (pi as { id: unknown }).id === "string") {
+    return (pi as { id: string }).id;
+  }
+  return null;
+}
+
 export function computeCommissionCents(
   priceMxnCents: number,
   commissionPct: number | null | undefined

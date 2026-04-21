@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/auth-server";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, stripePaymentIntentId } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -50,11 +50,13 @@ export async function GET(req: NextRequest) {
         .eq("id", booking.seller_id)
         .maybeSingle();
 
+      const intentId = stripePaymentIntentId(checkoutSession.payment_intent);
+
       const { error: upErr } = await supabase
         .from("service_bookings")
         .update({
           payment_status: "paid",
-          stripe_payment_intent_id: checkoutSession.payment_intent as string,
+          ...(intentId ? { stripe_payment_intent_id: intentId } : {}),
           paid_at: now,
           seller_phone_snapshot: seller?.phone ?? null,
           contact_revealed_at: now,
@@ -101,31 +103,34 @@ export async function GET(req: NextRequest) {
           )}`
         : null;
 
-    return NextResponse.json({
-      id: fresh.id,
-      listingId: fresh.listing_id,
-      paymentStatus: fresh.payment_status,
-      status: fresh.status,
-      commissionAmountCents: fresh.commission_amount_cents,
-      commissionPct: fresh.commission_pct,
-      paidAt: fresh.paid_at,
-      createdAt: fresh.created_at,
-      isBuyer: true,
-      listing: listing
-        ? {
-            title: listing.title_es,
-            photo: listing.photo_urls?.[0] ?? null,
-            priceMxn: listing.price_mxn,
-          }
-        : null,
-      seller: seller
-        ? {
-            displayName: seller.display_name,
-            avatarUrl: seller.avatar_url,
-          }
-        : null,
-      contact: isPaid ? { phone, whatsappUrl: waUrl } : null,
-    });
+    return NextResponse.json(
+      {
+        id: fresh.id,
+        listingId: fresh.listing_id,
+        paymentStatus: fresh.payment_status,
+        status: fresh.status,
+        commissionAmountCents: fresh.commission_amount_cents,
+        commissionPct: fresh.commission_pct,
+        paidAt: fresh.paid_at,
+        createdAt: fresh.created_at,
+        isBuyer: true,
+        listing: listing
+          ? {
+              title: listing.title_es,
+              photo: listing.photo_urls?.[0] ?? null,
+              priceMxn: listing.price_mxn,
+            }
+          : null,
+        seller: seller
+          ? {
+              displayName: seller.display_name,
+              avatarUrl: seller.avatar_url,
+            }
+          : null,
+        contact: isPaid ? { phone, whatsappUrl: waUrl } : null,
+      },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (e) {
     console.error("[verify-session] GET", e);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/auth-server";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, stripePaymentIntentId } from "@/lib/stripe";
 import { awardPoints } from "@/lib/loyalty";
 
 export const dynamic = "force-dynamic";
@@ -45,11 +45,13 @@ export async function POST(req: NextRequest) {
       .eq("id", session.metadata?.seller_id ?? "")
       .maybeSingle();
 
+    const intentId = stripePaymentIntentId(session.payment_intent);
+
     const { error: upErr } = await supabase
       .from("service_bookings")
       .update({
         payment_status: "paid",
-        stripe_payment_intent_id: session.payment_intent as string,
+        ...(intentId ? { stripe_payment_intent_id: intentId } : {}),
         paid_at: now,
         seller_phone_snapshot: seller?.phone ?? null,
         contact_revealed_at: now,

@@ -44,6 +44,13 @@ export default function BookingSuccessPage() {
   );
 }
 
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_ATTEMPTS = 25;
+
+function isTerminalPaymentStatus(ps: string | undefined) {
+  return ps === "paid" || ps === "failed" || ps === "refunded";
+}
+
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
   const stripeSessionId = searchParams.get("session_id");
@@ -51,7 +58,8 @@ function BookingSuccessContent() {
   const [data, setData] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [retries, setRetries] = useState(0);
+  const [pollAttempt, setPollAttempt] = useState(0);
+  const [retryBump, setRetryBump] = useState(0);
 
   useEffect(() => {
     if (!stripeSessionId && !bookingId) {
@@ -66,18 +74,25 @@ function BookingSuccessContent() {
         ? `/api/bookings/verify-session?session_id=${encodeURIComponent(stripeSessionId)}`
         : `/api/bookings/${bookingId}`;
 
-      const res = await fetch(url, { credentials: "same-origin" });
+      const res = await fetch(url, {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
       if (!res.ok) {
         if (mounted) setError("No se pudo cargar la reserva");
         if (mounted) setLoading(false);
         return;
       }
-      const json = await res.json();
+      const json = (await res.json()) as BookingData & { paymentStatus?: string };
 
-      if (json.paymentStatus === "pending" && retries < 10) {
+      const ps = json.paymentStatus;
+      const shouldPoll =
+        !isTerminalPaymentStatus(ps) && pollAttempt < MAX_POLL_ATTEMPTS;
+
+      if (shouldPoll) {
         setTimeout(() => {
-          if (mounted) setRetries((r) => r + 1);
-        }, 2000);
+          if (mounted) setPollAttempt((r) => r + 1);
+        }, POLL_INTERVAL_MS);
         return;
       }
 
@@ -88,8 +103,18 @@ function BookingSuccessContent() {
     };
 
     void fetchBooking();
-    return () => { mounted = false; };
-  }, [stripeSessionId, bookingId, retries]);
+    return () => {
+      mounted = false;
+    };
+  }, [stripeSessionId, bookingId, pollAttempt, retryBump]);
+
+  const retryConfirmation = () => {
+    setError("");
+    setData(null);
+    setLoading(true);
+    setPollAttempt(0);
+    setRetryBump((b) => b + 1);
+  };
 
   if (loading) {
     return (
@@ -116,6 +141,11 @@ function BookingSuccessContent() {
   }
 
   const isPaid = data.paymentStatus === "paid";
+  const showRetryPaid =
+    Boolean(stripeSessionId) &&
+    !isPaid &&
+    data.paymentStatus !== "failed" &&
+    data.paymentStatus !== "refunded";
   const phone = data.contact?.phone;
   const displayPhone = phone?.replace(/(\d{2})(\d{2,3})(\d{3})(\d{4})/, "+$1 $2 $3 $4") ?? "";
   const digits = phone?.replace(/\D/g, "") ?? "";
@@ -135,6 +165,20 @@ function BookingSuccessContent() {
                 ? "Tu pago fue procesado exitosamente"
                 : "Estamos procesando tu pago, espera un momento…"}
             </p>
+            {showRetryPaid && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs text-amber-800">
+                  Si ya pagaste en Stripe y esto no cambia, reintenta la confirmación (sincroniza con el banco).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => retryConfirmation()}
+                  className="text-sm font-semibold text-[#1B4332] underline hover:no-underline"
+                >
+                  Reintentar confirmación
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Listing info */}
