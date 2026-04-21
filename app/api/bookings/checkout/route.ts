@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         buyer_id: userId,
         seller_id: listing.seller_id,
       },
-      success_url: `${APP_URL}/booking/success?id=${booking.id}`,
+      success_url: `${APP_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${APP_URL}/listing/${listingId}?booking_cancelled=1`,
     });
     } catch (stripeErr: unknown) {

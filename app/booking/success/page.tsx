@@ -46,6 +46,7 @@ export default function BookingSuccessPage() {
 
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
+  const stripeSessionId = searchParams.get("session_id");
   const bookingId = searchParams.get("id");
   const [data, setData] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +54,7 @@ function BookingSuccessContent() {
   const [retries, setRetries] = useState(0);
 
   useEffect(() => {
-    if (!bookingId) {
+    if (!stripeSessionId && !bookingId) {
       setError("No se encontró la reserva");
       setLoading(false);
       return;
@@ -61,7 +62,11 @@ function BookingSuccessContent() {
 
     let mounted = true;
     const fetchBooking = async () => {
-      const res = await fetch(`/api/bookings/${bookingId}`, { credentials: "same-origin" });
+      const url = stripeSessionId
+        ? `/api/bookings/verify-session?session_id=${encodeURIComponent(stripeSessionId)}`
+        : `/api/bookings/${bookingId}`;
+
+      const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) {
         if (mounted) setError("No se pudo cargar la reserva");
         if (mounted) setLoading(false);
@@ -84,7 +89,7 @@ function BookingSuccessContent() {
 
     void fetchBooking();
     return () => { mounted = false; };
-  }, [bookingId, retries]);
+  }, [stripeSessionId, bookingId, retries]);
 
   if (loading) {
     return (
