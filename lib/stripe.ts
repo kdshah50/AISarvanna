@@ -2,11 +2,22 @@ import Stripe from "stripe";
 
 let _stripe: Stripe | null = null;
 
+/**
+ * Use fetch-based HTTP client — avoids "connection to Stripe... retried twice" on Vercel/serverless
+ * where the default Node http(s) agent can be flaky (see stripe/stripe-node#2523).
+ */
 export function getStripe(): Stripe {
   if (_stripe) return _stripe;
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
-  _stripe = new Stripe(key);
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!key || !key.startsWith("sk_")) {
+    throw new Error("Missing or invalid STRIPE_SECRET_KEY (must start with sk_)");
+  }
+  _stripe = new Stripe(key, {
+    httpClient: Stripe.createFetchHttpClient(),
+    timeout: 60_000,
+    maxNetworkRetries: 4,
+    appInfo: { name: "NaranjoGo", version: "1.0.0" },
+  });
   return _stripe;
 }
 
