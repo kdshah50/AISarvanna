@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
 import { getStripe, computeCommissionCents, DEFAULT_COMMISSION_PCT } from "@/lib/stripe";
+import { getNextBookingDiscount, redeemDiscount } from "@/lib/loyalty";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,21 @@ export async function POST(req: NextRequest) {
     }
 
     const commissionPct = listing.commission_pct ?? DEFAULT_COMMISSION_PCT;
-    const commissionCents = computeCommissionCents(listing.price_mxn, commissionPct);
+    let commissionCents = computeCommissionCents(listing.price_mxn, commissionPct);
+
+    // Check for loyalty milestone discount
+    let loyaltyDiscount = 0;
+    let loyaltyDiscountPct = 0;
+    try {
+      const reward = await getNextBookingDiscount(supabase, userId);
+      if (reward.discountPct > 0) {
+        loyaltyDiscountPct = reward.discountPct;
+        loyaltyDiscount = Math.round(commissionCents * loyaltyDiscountPct / 100);
+        commissionCents = Math.max(commissionCents - loyaltyDiscount, 500); // keep $5 minimum
+      }
+    } catch (loyaltyErr) {
+      console.error("[checkout] loyalty check failed (non-fatal)", loyaltyErr);
+    }
 
     const { data: booking, error: bookErr } = await supabase
       .from("service_bookings")
@@ -84,7 +99,10 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const priceMxn = (commissionCents / 100).toFixed(2);
+
+    const discountLabel = loyaltyDiscount > 0
+      ? ` (descuento lealtad ${loyaltyDiscountPct}% aplicado)`
+      : "";
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -96,7 +114,7 @@ export async function POST(req: NextRequest) {
             unit_amount: commissionCents,
             product_data: {
               name: `Comisión de reserva — ${listing.title_es}`,
-              description: `Tarifa de servicio (${commissionPct}%) para conectarte con el proveedor`,
+              description: `Tarifa de servicio (${commissionPct}%) para conectarte con el proveedor${discountLabel}`,
             },
           },
           quantity: 1,
@@ -117,7 +135,20 @@ export async function POST(req: NextRequest) {
       .update({ stripe_checkout_session_id: session.id })
       .eq("id", booking.id);
 
-    return NextResponse.json({ url: session.url, bookingId: booking.id });
+    // Log loyalty discount redemption if applicable
+    if (loyaltyDiscount > 0) {
+      try {
+        await redeemDiscount(supabase, userId, booking.id, loyaltyDiscount);
+      } catch (loyaltyErr) {
+        console.error("[checkout] loyalty redeem failed (non-fatal)", loyaltyErr);
+      }
+    }
+
+    return NextResponse.json({
+      url: session.url,
+      bookingId: booking.id,
+      loyaltyDiscount: loyaltyDiscount > 0 ? { pct: loyaltyDiscountPct, amountCents: loyaltyDiscount } : null,
+    });
   } catch (e) {
     console.error("[checkout] POST", e);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/auth-server";
 import { getStripe } from "@/lib/stripe";
+import { awardPoints } from "@/lib/loyalty";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,17 @@ export async function POST(req: NextRequest) {
 
     if (upErr) {
       console.error("[stripe-webhook] booking update failed", upErr);
+    }
+
+    // Award loyalty points (non-blocking — errors here should not fail the webhook)
+    const buyerId = session.metadata?.buyer_id;
+    const amountPaid = session.amount_total;
+    if (buyerId && amountPaid && amountPaid > 0) {
+      try {
+        await awardPoints(supabase, buyerId, bookingId, amountPaid);
+      } catch (loyaltyErr) {
+        console.error("[stripe-webhook] loyalty award failed (non-fatal)", loyaltyErr);
+      }
     }
   }
 

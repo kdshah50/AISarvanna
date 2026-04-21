@@ -25,6 +25,8 @@ type UserRow = {
   trust_badge: string | null;
   phone_verified: boolean;
   ine_verified: boolean;
+  curp: string | null;
+  ine_photo_url: string | null;
   created_at: string;
   review_count?: number;
   review_avg?: number;
@@ -45,7 +47,7 @@ export default function AdminPage() {
   const [pinLoading, setPinLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
 
-  const [tab, setTab] = useState<"listings" | "sellers" | "reports">("listings");
+  const [tab, setTab] = useState<"listings" | "sellers" | "reports" | "claims">("listings");
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,6 +60,29 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSaving, setUserSaving] = useState<string | null>(null);
+
+  type ClaimRow = {
+    id: string;
+    booking_id: string;
+    buyer_id: string;
+    seller_id: string;
+    listing_id: string;
+    reason: string;
+    details: string | null;
+    status: string;
+    admin_note: string | null;
+    refund_amount_cents: number | null;
+    created_at: string;
+    resolved_at: string | null;
+    listing_title: string | null;
+    buyer_name: string;
+    seller_name: string;
+    commission_cents: number;
+  };
+  const [claims, setClaims] = useState<ClaimRow[]>([]);
+  const [claimsLoading, setClaimsLoading] = useState(false);
+  const [claimFilter, setClaimFilter] = useState<"open" | "all">("open");
+  const [claimSaving, setClaimSaving] = useState<string | null>(null);
 
   type ReportRow = {
     id: string;
@@ -153,6 +178,37 @@ export default function AdminPage() {
     }
   };
 
+  const loadClaims = async () => {
+    setClaimsLoading(true);
+    try {
+      const res = await fetch(`/api/claims?pin=${encodeURIComponent(pin.trim())}&status=${claimFilter}`);
+      const data = await res.json();
+      setClaims(Array.isArray(data.claims) ? data.claims : []);
+    } catch {
+      setClaims([]);
+    }
+    setClaimsLoading(false);
+  };
+
+  const updateClaim = async (claimId: string, status: string) => {
+    setClaimSaving(claimId);
+    try {
+      const res = await fetch("/api/claims", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pin.trim(), claimId, status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      showMsg("✅ Claim updated");
+      await loadClaims();
+    } catch (e: unknown) {
+      showMsg(e instanceof Error ? e.message : "Error", true);
+    } finally {
+      setClaimSaving(null);
+    }
+  };
+
   const loadReports = async () => {
     setReportsLoading(true);
     try {
@@ -188,7 +244,8 @@ export default function AdminPage() {
     if (authed && tab === "listings") load();
     if (authed && tab === "sellers") loadUsers();
     if (authed && tab === "reports") loadReports();
-  }, [authed, filter, tab, reportFilter]);
+    if (authed && tab === "claims") loadClaims();
+  }, [authed, filter, tab, reportFilter, claimFilter]);
 
   const submitPin = async () => {
     setPinError(false);
@@ -358,6 +415,12 @@ export default function AdminPage() {
             }`}>
             🚩 Reports
           </button>
+          <button onClick={() => setTab("claims")}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              tab === "claims" ? "bg-emerald-600 text-white" : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-emerald-400"
+            }`}>
+            🛡️ Claims
+          </button>
         </div>
 
         {/* Status message */}
@@ -424,6 +487,25 @@ export default function AdminPage() {
                             </span>
                           )}
                         </div>
+                      </div>
+
+                      {/* CURP & INE verification */}
+                      <div className="flex flex-wrap gap-3 items-start mb-3">
+                        {u.curp && (
+                          <div className="bg-[#ECFDF5] rounded-xl px-3 py-2 text-xs">
+                            <span className="font-semibold text-[#065F46]">🪪 CURP:</span>{" "}
+                            <span className="font-mono text-[#1C1917] tracking-wide">{u.curp}</span>
+                          </div>
+                        )}
+                        {u.ine_photo_url && (
+                          <a href={u.ine_photo_url} target="_blank" rel="noopener noreferrer"
+                            className="bg-blue-50 rounded-xl px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
+                            📸 Ver foto INE →
+                          </a>
+                        )}
+                        {!u.curp && !u.ine_photo_url && (
+                          <span className="text-xs text-[#9CA3AF]">Sin documentos de verificación</span>
+                        )}
                       </div>
 
                       {/* Review stats & auto-promotion */}
@@ -575,6 +657,116 @@ export default function AdminPage() {
                             disabled={reportSaving === r.id}
                             className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-40 transition-colors">
                             {reportSaving === r.id ? "…" : "Dismiss"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── CLAIMS TAB ─────────────────────────────────────────── */}
+        {tab === "claims" && (
+          <>
+            <div className="flex gap-2 mb-6">
+              {(["open", "all"] as const).map(f => (
+                <button key={f} onClick={() => setClaimFilter(f)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors capitalize ${
+                    claimFilter === f
+                      ? "bg-emerald-600 text-white"
+                      : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-emerald-400"
+                  }`}>
+                  {f === "open" ? "Open" : "All"}
+                </button>
+              ))}
+            </div>
+
+            {claimsLoading ? (
+              <div className="text-center py-20 text-[#6B7280]">Loading claims...</div>
+            ) : claims.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border border-[#E5E0D8]">
+                <p className="text-4xl mb-3">🛡️</p>
+                <p className="text-[#6B7280] text-sm">No {claimFilter === "open" ? "open " : ""}guarantee claims</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {claims.map(c => {
+                  const reasonLabels: Record<string, string> = {
+                    no_show: "No se presentó",
+                    poor_quality: "Mala calidad",
+                    incomplete: "Incompleto",
+                    overcharged: "Cobro excesivo",
+                    safety_issue: "Seguridad",
+                    other: "Otro",
+                  };
+                  const statusColors: Record<string, string> = {
+                    open: "bg-amber-50 text-amber-700",
+                    under_review: "bg-blue-50 text-blue-700",
+                    approved: "bg-emerald-50 text-emerald-700",
+                    denied: "bg-red-50 text-red-700",
+                    refunded: "bg-emerald-50 text-emerald-700",
+                  };
+                  return (
+                    <div key={c.id} className="bg-white rounded-2xl border border-[#E5E0D8] p-5 shadow-sm">
+                      <div className="flex flex-wrap gap-3 items-start justify-between mb-3">
+                        <div>
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${statusColors[c.status] ?? statusColors.open}`}>
+                            {c.status.replace("_", " ")}
+                          </span>
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 ml-2">
+                            {reasonLabels[c.reason] ?? c.reason}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#9CA3AF]">
+                          {new Date(c.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+
+                      {c.listing_title && (
+                        <p className="text-sm font-semibold text-[#1C1917] mb-1">
+                          Servicio: <a href={`/listing/${c.listing_id}`} className="text-[#1B4332] hover:underline">{c.listing_title}</a>
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-4 text-xs text-[#6B7280] mb-2">
+                        <span>Comprador: {c.buyer_name}</span>
+                        <span>Vendedor: {c.seller_name}</span>
+                        <span>Comisión pagada: {fmtMXN(c.commission_cents)}</span>
+                      </div>
+
+                      {c.details && (
+                        <p className="text-sm text-[#374151] bg-[#F4F0EB] rounded-xl p-3 mb-3">{c.details}</p>
+                      )}
+
+                      {c.admin_note && (
+                        <p className="text-xs text-[#6B7280] italic mb-3">Admin: {c.admin_note}</p>
+                      )}
+
+                      {(c.status === "open" || c.status === "under_review") && (
+                        <div className="flex flex-wrap gap-2 border-t border-[#E5E0D8] pt-3">
+                          {c.status === "open" && (
+                            <button onClick={() => updateClaim(c.id, "under_review")}
+                              disabled={claimSaving === c.id}
+                              className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 transition-colors">
+                              {claimSaving === c.id ? "…" : "Review"}
+                            </button>
+                          )}
+                          <button onClick={() => updateClaim(c.id, "approved")}
+                            disabled={claimSaving === c.id}
+                            className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 transition-colors">
+                            {claimSaving === c.id ? "…" : "Approve"}
+                          </button>
+                          <button onClick={() => updateClaim(c.id, "denied")}
+                            disabled={claimSaving === c.id}
+                            className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-40 transition-colors">
+                            {claimSaving === c.id ? "…" : "Deny"}
+                          </button>
+                          <button onClick={() => updateClaim(c.id, "refunded")}
+                            disabled={claimSaving === c.id}
+                            className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 disabled:opacity-40 transition-colors">
+                            {claimSaving === c.id ? "…" : "Refund"}
                           </button>
                         </div>
                       )}

@@ -4,12 +4,7 @@ const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 
-import { COLONIAS as SHARED_COLONIAS } from "@/lib/colonias";
-
-const COLONIAS: Record<string, { lat: number; lng: number; label: string }> = {
-  ...SHARED_COLONIAS,
-  otro: { lat: 20.9153, lng: -100.7439, label: "San Miguel de Allende" },
-};
+import { COLONIAS } from "@/lib/colonias";
 
 const ADMIN_WHATSAPP = process.env.ADMIN_WHATSAPP_NUMBER ?? "";
 const TWILIO_SID     = process.env.TWILIO_ACCOUNT_SID ?? "";
@@ -26,6 +21,7 @@ async function notifyAdmin(form: any) {
       `🔧 ${form.service_label}`,
       `💰 $${form.price} MXN`,
       `📍 ${form.colonia ? (COLONIAS[form.colonia]?.label ?? form.colonia) : form.city}, SMA`,
+      ...(form.curp ? [`🪪 CURP: ${form.curp}`] : []),
       ``,
       `"${(form.description ?? "").slice(0, 120)}..."`,
       ``,
@@ -63,6 +59,7 @@ export async function POST(req: NextRequest) {
       name, whatsapp, service, service_label,
       description, price, city, colonia, address, lang,
       accepted_terms, accepted_pricing, accepted_at,
+      curp, payment_methods,
     } = body;
 
     // Validate required fields
@@ -88,9 +85,28 @@ export async function POST(req: NextRequest) {
     const existingUsers = userRes.ok ? await userRes.json() : [];
     let sellerId: string;
 
+    const cleanCurp = (curp ?? "").trim().toUpperCase().slice(0, 18) || undefined;
+
     if (existingUsers.length > 0) {
       sellerId = existingUsers[0].id;
+      if (cleanCurp) {
+        await fetch(
+          `${SUPA_URL}/rest/v1/users?id=eq.${sellerId}`,
+          {
+            method: "PATCH",
+            headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ curp: cleanCurp }),
+          }
+        ).catch(() => {});
+      }
     } else {
+      const userPayload: Record<string, unknown> = {
+        phone,
+        display_name: name,
+        trust_badge: "none",
+      };
+      if (cleanCurp) userPayload.curp = cleanCurp;
+
       const newUserRes = await fetch(`${SUPA_URL}/rest/v1/users`, {
         method: "POST",
         headers: {
@@ -99,11 +115,7 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
           Prefer: "return=representation",
         },
-        body: JSON.stringify({
-          phone,
-          display_name: name,
-          trust_badge: "none",
-        }),
+        body: JSON.stringify(userPayload),
       });
       if (!newUserRes.ok) {
         const err = await newUserRes.json();
@@ -141,6 +153,9 @@ export async function POST(req: NextRequest) {
       shipping_available: false,
       negotiable:         true,
       photo_urls:         [],
+      payment_methods:    Array.isArray(payment_methods) && payment_methods.length > 0
+                            ? payment_methods
+                            : ["efectivo", "whatsapp"],
       expires_at:         new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
@@ -163,8 +178,8 @@ export async function POST(req: NextRequest) {
     // 3. Notify admin via WhatsApp (non-blocking)
     notifyAdmin({
       name, whatsapp, service_label,
-      price, city, description,
-      accepted_at,
+      price, city, colonia, description,
+      accepted_at, curp: cleanCurp,
     }).catch(() => {});
 
     return NextResponse.json({ ok: true });

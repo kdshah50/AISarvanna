@@ -1,7 +1,7 @@
 "use client";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { COLONIAS, COLONIA_KEYS } from "@/lib/colonias";
+import { COLONIAS, COLONIA_KEYS, detectColoniaInQuery, coloniaLabel } from "@/lib/colonias";
 
 const T = {
   es: {
@@ -9,20 +9,20 @@ const T = {
     line1: "eCommerce",
     line2: "con Confianza",
     sub: "Servicios locales verificados en código postal 37745.",
-    placeholder: "Busca un servicio... ej. plomero, dentista",
+    placeholder: "Ej. plomero en Centro, dentista en Aurora...",
     btn: "Buscar",
     near: "Cerca de mí",
-    zipNote: "Búsqueda limitada a CP 37745",
+    chipLabel: "Buscar por colonia:",
   },
   en: {
     badge: "ZIP 37745 • SERVICES",
     line1: "eCommerce",
     line2: "with Confidence",
     sub: "Verified local services in ZIP code 37745.",
-    placeholder: "Search a service... e.g. plumber, dentist",
+    placeholder: "E.g. plumber in Centro, dentist in Aurora...",
     btn: "Search",
     near: "Near me",
-    zipNote: "Search limited to ZIP 37745",
+    chipLabel: "Search by colonia:",
   },
 };
 
@@ -37,8 +37,21 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
 
   const go = (q: string, extra: Record<string, string> = {}) => {
     const p = new URLSearchParams(params.toString());
-    p.set("category", "services"); // always locked to Services
-    if (q.trim()) p.set("q", q.trim()); else p.delete("q");
+    p.set("category", "services");
+
+    let finalQ = q.trim();
+    if (finalQ && !extra.colonia) {
+      const detected = detectColoniaInQuery(finalQ);
+      if (detected) {
+        const c = COLONIAS[detected.coloniaKey];
+        p.set("colonia", detected.coloniaKey);
+        p.set("lat", String(c.lat));
+        p.set("lng", String(c.lng));
+        finalQ = detected.cleanedQuery;
+      }
+    }
+
+    if (finalQ) p.set("q", finalQ); else p.delete("q");
     Object.entries(extra).forEach(([k, v]) => v ? p.set(k, v) : p.delete(k));
     router.push(`/?${p.toString()}`);
   };
@@ -115,6 +128,11 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
         </div>
 
         {/* Colonia chips */}
+        <div className="mt-1 mb-2">
+          <span className="text-white/50 text-[11px] font-medium tracking-wide uppercase">
+            {t.chipLabel}
+          </span>
+        </div>
         <div className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
           {COLONIA_KEYS.map((key) => {
             const c = COLONIAS[key];
@@ -125,11 +143,11 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
                 onClick={() => handleColonia(key)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                   active
-                    ? "bg-[#D4A017] text-[#1B4332] shadow-md"
+                    ? "bg-[#D4A017] text-[#1B4332] shadow-md scale-105"
                     : "bg-white/10 text-white/80 hover:bg-white/20 border border-white/20"
                 }`}
               >
-                {c.label}
+                📍 {coloniaLabel(key, lang)}
               </button>
             );
           })}

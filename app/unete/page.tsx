@@ -1,5 +1,14 @@
 "use client";
 import { useState } from "react";
+import { ALL_COLONIA_KEYS, COLONIAS as COLONIAS_MAP, coloniaLabel } from "@/lib/colonias";
+
+const COLONIAS_LIST = ALL_COLONIA_KEYS.map(key => ({
+  value: key,
+  es: COLONIAS_MAP[key].label,
+  en: COLONIAS_MAP[key].label_en,
+  lat: COLONIAS_MAP[key].lat,
+  lng: COLONIAS_MAP[key].lng,
+}));
 
 const SERVICES = [
   { value: "plomero",         es: "Plomero",                    en: "Plumber" },
@@ -27,25 +36,6 @@ const SERVICES = [
   { value: "otro",            es: "Otro servicio",              en: "Other service" },
 ];
 
-const COLONIAS = [
-  { value: "centro",        es: "Centro Histórico",          en: "Centro Histórico",          lat: 20.9146, lng: -100.7439 },
-  { value: "guadalupe",     es: "Colonia Guadalupe",         en: "Colonia Guadalupe",         lat: 20.9168, lng: -100.7465 },
-  { value: "san_antonio",   es: "San Antonio",               en: "San Antonio",               lat: 20.9120, lng: -100.7468 },
-  { value: "aurora",        es: "Colonia Aurora",            en: "Colonia Aurora",            lat: 20.9188, lng: -100.7442 },
-  { value: "olimpo",        es: "El Olimpo",                 en: "El Olimpo",                 lat: 20.9158, lng: -100.7420 },
-  { value: "ojo_agua",      es: "Ojo de Agua",               en: "Ojo de Agua",               lat: 20.9200, lng: -100.7480 },
-  { value: "balcones",      es: "Los Balcones",              en: "Los Balcones",              lat: 20.9080, lng: -100.7510 },
-  { value: "lindavista",    es: "Linda Vista",               en: "Linda Vista",               lat: 20.9050, lng: -100.7490 },
-  { value: "insurgentes",   es: "Insurgentes",               en: "Insurgentes",               lat: 20.9130, lng: -100.7500 },
-  { value: "atascadero",    es: "Atascadero",                en: "Atascadero",                lat: 20.9240, lng: -100.7430 },
-  { value: "la_lejona",     es: "La Lejona",                 en: "La Lejona",                 lat: 20.8980, lng: -100.7450 },
-  { value: "fracc_paloma",  es: "Fracc. La Paloma",          en: "Fracc. La Paloma",          lat: 20.9100, lng: -100.7420 },
-  { value: "pedregal",      es: "Pedregal de Lindavista",    en: "Pedregal de Lindavista",    lat: 20.9060, lng: -100.7470 },
-  { value: "guadiana",      es: "Guadiana",                  en: "Guadiana",                  lat: 20.9170, lng: -100.7500 },
-  { value: "colinas_san_j", es: "Colinas de San Javier",     en: "Colinas de San Javier",     lat: 20.9220, lng: -100.7510 },
-  { value: "la_canada",     es: "La Cañada",                 en: "La Cañada",                 lat: 20.9000, lng: -100.7480 },
-  { value: "otro",          es: "Otra colonia / Otro lugar", en: "Other area",                lat: 20.9153, lng: -100.7439 },
-];
 
 const T = {
   es: {
@@ -58,11 +48,15 @@ const T = {
     name:         "Nombre completo",
     whatsapp:     "WhatsApp (con código de país)",
     whatsappPh:   "+52 415 000 0000",
+    curp:         "CURP (opcional)",
+    curpPh:       "Ej. GAMA850101HDFRRL09",
+    curpHelp:     "Tu CURP nos ayuda a verificar tu identidad. Aparecerás como proveedor verificado.",
     service:      "¿Qué servicio ofreces?",
     desc:         "Describe tu servicio",
     descPh:       "Experiencia, zona de cobertura, horarios, especialidades...",
     price:        "Precio aproximado (MXN)",
     pricePh:      "Ej. $500 por visita",
+    payment:      "¿Cómo aceptas pago?",
     city:         "Ciudad / Colonia",
     colonia:      "Colonia / Barrio",
     address:      "Dirección de referencia (opcional)",
@@ -102,11 +96,15 @@ const T = {
     name:         "Full name",
     whatsapp:     "WhatsApp (with country code)",
     whatsappPh:   "+52 415 000 0000",
+    curp:         "CURP (optional)",
+    curpPh:       "E.g. GAMA850101HDFRRL09",
+    curpHelp:     "Your CURP helps us verify your identity. You'll appear as a verified provider.",
     service:      "What service do you offer?",
     desc:         "Describe your service",
     descPh:       "Experience, coverage area, hours, specialties...",
     price:        "Approximate price (MXN)",
     pricePh:      "e.g. $500 per visit",
+    payment:      "How do you accept payment?",
     city:         "City / Neighborhood",
     colonia:      "Neighborhood / Colonia",
     address:      "Reference address (optional)",
@@ -148,8 +146,9 @@ export default function UnetePage() {
 
   const [form, setForm] = useState({
     name: "", whatsapp: "", service: "",
-    description: "", price: "",
+    description: "", price: "", curp: "",
     city: "San Miguel de Allende",
+    payment_methods: ["efectivo", "whatsapp"] as string[],
     acceptTerms: false,
     acceptPricing: false,
   });
@@ -269,7 +268,7 @@ export default function UnetePage() {
                 <select value={form.colonia} onChange={e => set("colonia", e.target.value)}
                   className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors bg-white">
                   <option value="">— {lang === "es" ? "Selecciona tu colonia" : "Select your neighborhood"} —</option>
-                  {COLONIAS.map(c => (
+                  {COLONIAS_LIST.map(c => (
                     <option key={c.value} value={c.value}>{c[lang]}</option>
                   ))}
                 </select>
@@ -281,6 +280,15 @@ export default function UnetePage() {
                   placeholder={t.addressPh} />
                 <p className="text-xs text-[#A8A095] mt-1">
                   {lang === "es" ? "No se mostrará públicamente — solo para coordenadas de búsqueda." : "Not shown publicly — used only for search location."}
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.curp}</label>
+                <input value={form.curp ?? ""} onChange={e => set("curp", e.target.value.toUpperCase())}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors font-mono tracking-wide"
+                  placeholder={t.curpPh} maxLength={18} />
+                <p className="text-xs text-[#059669] mt-1 flex items-center gap-1">
+                  🛡️ {t.curpHelp}
                 </p>
               </div>
               <button onClick={() => setStep(2)}
@@ -315,6 +323,33 @@ export default function UnetePage() {
                 <input value={form.price} onChange={e => set("price", e.target.value)}
                   className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors"
                   placeholder={t.pricePh} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.payment}</label>
+                <div className="flex flex-col gap-2">
+                  {([
+                    ["efectivo", "💵", lang === "es" ? "Efectivo" : "Cash"],
+                    ["spei", "🏦", "SPEI"],
+                    ["oxxo", "🏪", "OXXO Pay"],
+                    ["mercadopago", "💳", "Mercado Pago"],
+                    ["whatsapp", "💬", lang === "es" ? "Acordar por WhatsApp" : "Arrange via WhatsApp"],
+                  ] as const).map(([val, icon, label]) => {
+                    const checked = form.payment_methods.includes(val);
+                    return (
+                      <label key={val} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${checked ? "border-[#1B4332] bg-[#ECFDF5]" : "border-[#E5E0D8] hover:border-[#1B4332]"}`}>
+                        <input type="checkbox" checked={checked}
+                          onChange={() => {
+                            const next = checked
+                              ? form.payment_methods.filter(m => m !== val)
+                              : [...form.payment_methods, val];
+                            set("payment_methods", next);
+                          }}
+                          className="accent-[#1B4332] w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm">{icon} {label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setStep(1)}
@@ -399,7 +434,12 @@ export default function UnetePage() {
                   ["WhatsApp", form.whatsapp],
                   [t.service,  SERVICES.find(s => s.value === form.service)?.[lang] ?? form.service],
                   [t.price,    `$${form.price} MXN`],
-                  [t.colonia,  COLONIAS.find(c => c.value === form.colonia)?.[lang] ?? form.colonia],
+                  [t.colonia,  COLONIAS_LIST.find(c => c.value === form.colonia)?.[lang] ?? form.colonia],
+                  ...(form.curp ? [[t.curp.replace(" (opcional)", "").replace(" (optional)", ""), form.curp]] : []),
+                  [t.payment, form.payment_methods.map(m => {
+                    const labels: Record<string, string> = { efectivo: "💵 Efectivo", spei: "🏦 SPEI", oxxo: "🏪 OXXO", mercadopago: "💳 M.Pago", whatsapp: "💬 WhatsApp" };
+                    return labels[m] ?? m;
+                  }).join(", ")],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-[#6B7280] font-medium">{label}</span>

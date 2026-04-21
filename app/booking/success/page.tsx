@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReviewForm } from "@/components/SellerReviews";
+import GuaranteeBadge from "@/components/GuaranteeBadge";
 
 type BookingData = {
   id: string;
@@ -191,12 +192,18 @@ function BookingSuccessContent() {
           )}
 
           {/* Footer */}
-          <div className="px-6 py-4 bg-[#F4F0EB] flex justify-between items-center">
+          <div className="px-6 py-4 bg-[#F4F0EB] flex justify-between items-center flex-wrap gap-2">
             <Link
               href={`/listing/${data.listingId}`}
               className="text-sm text-[#1B4332] font-semibold hover:underline"
             >
               ← Volver al anuncio
+            </Link>
+            <Link
+              href="/my-bookings"
+              className="text-sm text-[#1B4332] font-semibold hover:underline"
+            >
+              Mis reservas
             </Link>
             <Link
               href="/messages"
@@ -210,6 +217,18 @@ function BookingSuccessContent() {
         {isPaid && (
           <div className="mt-6">
             <ReviewForm bookingId={data.id} />
+          </div>
+        )}
+
+        {isPaid && (
+          <div className="mt-6">
+            <GuaranteeBadge />
+            <p className="text-center text-xs text-[#6B7280] mt-3">
+              ¿Problemas con el servicio?{" "}
+              <a href="/claims" className="text-[#1B4332] font-semibold hover:underline">
+                Solicita un reembolso
+              </a>
+            </p>
           </div>
         )}
 

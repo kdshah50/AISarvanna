@@ -6,6 +6,8 @@ import ServiceBookingBlock from "@/components/ServiceBookingBlock";
 import WhatsAppCTA from "@/components/WhatsAppCTA";
 import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
 import ReportButton from "@/components/ReportButton";
+import GuaranteeBadge from "@/components/GuaranteeBadge";
+import { PAYMENT_METHODS_MX } from "@/lib/types";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY =
@@ -122,6 +124,9 @@ export default async function ListingPage({
         )}
 
         {listing.description_es && <p className="text-[#374151] leading-relaxed mb-6">{listing.description_es}</p>}
+
+        {/* Payment methods section — hidden until commission collection is enabled via Stripe */}
+
         {seller && (
           <Link href={`/seller/${seller.id}`} className="block hover:opacity-90 transition-opacity">
             <div className="bg-[#F4F0EB] rounded-xl p-4 mb-6 flex items-center gap-3">
@@ -149,6 +154,12 @@ export default async function ListingPage({
             />
           </div>
         </div>
+
+        {isServiceListing && (
+          <div className="mt-6">
+            <GuaranteeBadge />
+          </div>
+        )}
 
         {sellerId && (
           <div className="mt-8">

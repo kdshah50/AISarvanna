@@ -2,7 +2,7 @@ import ListingGrid from "@/components/listings/ListingGrid";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
-import { COLONIAS } from "@/lib/colonias";
+import { COLONIAS, COLONIA_RADIUS_KM, nearestColonia, coloniaLabel } from "@/lib/colonias";
 
 export const dynamic = "force-dynamic";
 
@@ -31,13 +31,12 @@ export default async function HomePage({ searchParams }: Props) {
   const query       = searchParams?.q ?? "";
   const lang        = searchParams?.lang ?? "es";
   const coloniaKey  = searchParams?.colonia ?? "";
-  const coloniaData = coloniaKey ? COLONIAS[coloniaKey] : null;
+  let coloniaData   = coloniaKey ? COLONIAS[coloniaKey] : null;
   const userLat     = parseFloat(searchParams?.lat ?? "NaN");
   const userLng     = parseFloat(searchParams?.lng ?? "NaN");
   const hasGeo      = !isNaN(userLat) && !isNaN(userLng);
   const refLat      = hasGeo ? userLat : SMA_LAT;
   const refLng      = hasGeo ? userLng : SMA_LNG;
-  const COLONIA_RADIUS_KM = 2.0;
 
   let cards: any[] = [];
   let searchMode = "sparse";
@@ -52,19 +51,30 @@ export default async function HomePage({ searchParams }: Props) {
       if (res.ok) {
         const data = await res.json();
         searchMode = data.mode ?? "sparse";
-        cards = (data.results ?? []).map((row: any) => ({
-          id: row.id, title: row.title_es, price_mxn: row.price_mxn,
-          price_display: fmtMXN(row.price_mxn),
-          category_id: row.category_id, condition: row.condition,
-          location_city: row.location_city ?? "San Miguel de Allende",
-          photo_url: row.photo_urls?.[0] ?? null,
-          shipping_available: row.shipping_available, negotiable: row.negotiable,
-          seller_name: row.users?.display_name ?? "Proveedor",
-          seller_badge: row.users?.trust_badge ?? "none",
-          seller_verified: false,
-          _dist_km: row._dist_km ?? null,
-          _mode: row._mode,
-        }));
+        const detectedColonia = data.colonia ?? null;
+        cards = (data.results ?? []).map((row: any) => {
+          const rLat = row.location_lat ?? SMA_LAT;
+          const rLng = row.location_lng ?? SMA_LNG;
+          const near = nearestColonia(rLat, rLng);
+          return {
+            id: row.id, title: row.title_es, price_mxn: row.price_mxn,
+            price_display: fmtMXN(row.price_mxn),
+            category_id: row.category_id, condition: row.condition,
+            location_city: row.location_city ?? "San Miguel de Allende",
+            colonia_label: near?.label ?? null,
+            photo_url: row.photo_urls?.[0] ?? null,
+            shipping_available: row.shipping_available, negotiable: row.negotiable,
+            seller_name: row.users?.display_name ?? "Proveedor",
+            seller_badge: row.users?.trust_badge ?? "none",
+            seller_verified: false,
+            payment_methods: row.payment_methods ?? null,
+            _dist_km: row._dist_km ?? null,
+            _mode: row._mode,
+          };
+        });
+        if (detectedColonia && !coloniaData) {
+          coloniaData = COLONIAS[detectedColonia.key] ?? null;
+        }
       }
     } else {
       // ── No query: show all CP 37745 services sorted by distance ───────────
@@ -86,17 +96,22 @@ export default async function HomePage({ searchParams }: Props) {
         }
 
         cards = rows.map((row: any) => {
-          const km = distKm(refLat, refLng, row.location_lat ?? SMA_LAT, row.location_lng ?? SMA_LNG);
+          const rLat = row.location_lat ?? SMA_LAT;
+          const rLng = row.location_lng ?? SMA_LNG;
+          const km = distKm(refLat, refLng, rLat, rLng);
+          const near = nearestColonia(rLat, rLng);
           return {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
             price_display: fmtMXN(row.price_mxn),
             category_id: row.category_id, condition: row.condition,
             location_city: row.location_city ?? "San Miguel de Allende",
+            colonia_label: near?.label ?? null,
             photo_url: row.photo_urls?.[0] ?? null,
             shipping_available: row.shipping_available, negotiable: row.negotiable,
             seller_name: row.users?.display_name ?? "Proveedor",
             seller_badge: row.users?.trust_badge ?? "none",
             seller_verified: row.users?.ine_verified ?? false,
+            payment_methods: row.payment_methods ?? null,
             _dist_km: Math.round(km * 10) / 10,
           };
         }).sort((a: any, b: any) => a._dist_km - b._dist_km);
@@ -104,11 +119,13 @@ export default async function HomePage({ searchParams }: Props) {
     }
   } catch (e) { console.error("Search error:", e); }
 
-  const heading = query
-    ? (lang === "en" ? `Results for "${query}"` : `Resultados para "${query}"`)
-    : coloniaData
-      ? (lang === "en" ? `Services in ${coloniaData.label}` : `Servicios en ${coloniaData.label}`)
-      : (lang === "en" ? "Local Services — San Miguel de Allende" : "Servicios locales — San Miguel de Allende");
+  const heading = query && coloniaData
+    ? (lang === "en" ? `"${query}" in ${coloniaData.label}` : `"${query}" en ${coloniaData.label}`)
+    : query
+      ? (lang === "en" ? `Results for "${query}"` : `Resultados para "${query}"`)
+      : coloniaData
+        ? (lang === "en" ? `Services in ${coloniaData.label}` : `Servicios en ${coloniaData.label}`)
+        : (lang === "en" ? "Local Services — San Miguel de Allende" : "Servicios locales — San Miguel de Allende");
 
   const isHybrid = searchMode === "hybrid";
 
@@ -135,8 +152,8 @@ export default async function HomePage({ searchParams }: Props) {
                 📍 {coloniaData.label}
               </span>
             )}
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
-              📮 CP {SMA_ZIP}
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#F4F0EB] text-[#6B7280] border border-[#E5E0D8]">
+              San Miguel de Allende
             </span>
             <span className="text-xs px-3 py-1.5 rounded-full bg-[#F4F0EB] text-[#6B7280]">
               {cards.length} {lang === "en" ? "services" : "servicios"}

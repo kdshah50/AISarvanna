@@ -11,11 +11,24 @@ export async function GET(req: NextRequest) {
 
     const supabase = createAdminSupabase();
 
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at")
-      .eq("id", userId)
-      .maybeSingle();
+    let user: any = null;
+    let userError: any = null;
+
+    const fullSelect = "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,created_at";
+    const midSelect = "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,created_at";
+    const baseSelect = "id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at";
+
+    ({ data: user, error: userError } = await supabase
+      .from("users").select(fullSelect).eq("id", userId).maybeSingle());
+
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await supabase
+        .from("users").select(midSelect).eq("id", userId).maybeSingle());
+    }
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await supabase
+        .from("users").select(baseSelect).eq("id", userId).maybeSingle());
+    }
 
     if (userError) {
       console.error("[auth/me] user", userError);
@@ -57,12 +70,26 @@ export async function PATCH(req: NextRequest) {
     }
 
     const supabase = createAdminSupabase();
-    const { data, error } = await supabase
-      .from("users")
-      .update({ display_name: displayName })
-      .eq("id", userId)
-      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at")
-      .maybeSingle();
+    let data: any = null;
+    let error: any = null;
+
+    ({ data, error } = await supabase
+      .from("users").update({ display_name: displayName }).eq("id", userId)
+      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,created_at")
+      .maybeSingle());
+
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await supabase
+        .from("users").update({ display_name: displayName }).eq("id", userId)
+        .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,created_at")
+        .maybeSingle());
+    }
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await supabase
+        .from("users").update({ display_name: displayName }).eq("id", userId)
+        .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at")
+        .maybeSingle());
+    }
 
     if (error || !data) {
       console.error("[auth/me] PATCH", error);

@@ -16,9 +16,10 @@ const PRICE_FLOORS: Record<string, number> = {
 };
 
 export async function GET() {
-  const res = await fetch(
+  const h = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` };
+  let res = await fetch(
     `${SUPA_URL}/rest/v1/listings?select=*,users!fk_listings_seller(display_name,trust_badge)&status=eq.active&is_verified=eq.true&order=created_at.desc&limit=24`,
-    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+    { headers: h }
   );
   return NextResponse.json(await res.json());
 }
@@ -65,6 +66,9 @@ export async function POST(req: NextRequest) {
       shipping_available: body.shipping_available ?? body.shipping ?? false,
       negotiable:         body.negotiable ?? false,
       photo_urls:         body.photo_urls ?? [],
+      payment_methods:    Array.isArray(body.payment_methods) && body.payment_methods.length > 0
+                            ? body.payment_methods
+                            : ["efectivo", "whatsapp"],
       expires_at:         new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
     };
 

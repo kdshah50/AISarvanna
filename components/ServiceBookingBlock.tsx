@@ -43,6 +43,7 @@ export default function ServiceBookingBlock({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [loyaltyHint, setLoyaltyHint] = useState<{ bookingsUntil: number; discountPct: number } | null>(null);
 
   const load = useCallback(async () => {
     if (!isService) {
@@ -62,6 +63,19 @@ export default function ServiceBookingBlock({
     const data = res.ok ? await res.json() : null;
     setBooking(data as BookingState | null);
     setLoading(false);
+
+    // Fetch loyalty info (non-blocking)
+    fetch("/api/loyalty", { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.reward) {
+          setLoyaltyHint({
+            bookingsUntil: d.reward.bookingsUntilReward,
+            discountPct: d.reward.discountPct,
+          });
+        }
+      })
+      .catch(() => {});
   }, [listingId, isService]);
 
   useEffect(() => {
@@ -270,6 +284,21 @@ export default function ServiceBookingBlock({
           <p className="text-center text-xs text-[#6B7280]">
             Pago seguro con Stripe. Al pagar recibirás el WhatsApp/teléfono del proveedor.
           </p>
+
+          {loyaltyHint && (
+            <div className="bg-gradient-to-r from-[#1B4332] to-[#2D6A4F] rounded-xl p-3 text-center">
+              {loyaltyHint.bookingsUntil === 0 ? (
+                <p className="text-xs font-semibold text-white">
+                  🎉 ¡Esta reserva tiene {loyaltyHint.discountPct}% de descuento por tu lealtad!
+                </p>
+              ) : (
+                <p className="text-xs text-white/90">
+                  ⭐ {loyaltyHint.bookingsUntil} reserva{loyaltyHint.bookingsUntil !== 1 ? "s" : ""} más
+                  para obtener {loyaltyHint.discountPct}% de descuento
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

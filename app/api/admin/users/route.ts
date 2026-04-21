@@ -12,10 +12,26 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminSupabase();
-  const { data, error } = await supabase
+  let data: any[] | null = null;
+  let error: any = null;
+
+  ({ data, error } = await supabase
     .from("users")
-    .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at")
-    .order("created_at", { ascending: false });
+    .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,created_at")
+    .order("created_at", { ascending: false }));
+
+  if (error?.message?.includes("does not exist")) {
+    ({ data, error } = await supabase
+      .from("users")
+      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,created_at")
+      .order("created_at", { ascending: false }));
+  }
+  if (error?.message?.includes("does not exist")) {
+    ({ data, error } = await supabase
+      .from("users")
+      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at")
+      .order("created_at", { ascending: false }));
+  }
 
   if (error) {
     console.error("[admin/users]", error);

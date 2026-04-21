@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ListingCard } from "@/lib/types";
+import { ListingCard, PAYMENT_METHODS_MX } from "@/lib/types";
 import { WhatsAppBadgeLocked } from "@/components/WhatsAppCTA";
 
 function fmtMXN(centavos: number) {
@@ -46,9 +46,9 @@ export default function ListingGrid({ listings }: { listings: ListingCard[] }) {
                   📦
                 </div>
               )}
-              {listing.location_city && (
+              {(listing.colonia_label || listing.location_city) && (
                 <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-1 rounded-full bg-white/90 text-[#374151] backdrop-blur-sm">
-                  📍 {listing.location_city}
+                  📍 {listing.colonia_label ?? listing.location_city}
                 </span>
               )}
             </div>

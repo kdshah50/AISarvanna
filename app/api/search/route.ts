@@ -3,14 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 
-import { COLONIAS } from "@/lib/colonias";
+import { COLONIAS, detectColoniaInQuery, COLONIA_RADIUS_KM } from "@/lib/colonias";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const SMA_ZIP = "37745";
 
 const ABS_THRESHOLD = 0.20;
 const REL_FACTOR    = 0.60;
-const COLONIA_RADIUS_KM = 2.0;
 
 async function embedQuery(text: string): Promise<number[] | null> {
   if (!OPENAI_KEY) return null;
@@ -40,30 +39,44 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
 
-const SELECT_COLS = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)";
+const SELECT_COLS_FULL = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified)";
+const SELECT_COLS_BASE = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)";
 
 export async function GET(req: NextRequest) {
   const headers = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
   const { searchParams } = new URL(req.url);
-  const query      = (searchParams.get("q") ?? "").trim();
+  let query        = (searchParams.get("q") ?? "").trim();
   const category   = searchParams.get("category") ?? "services";
-  const coloniaKey = searchParams.get("colonia") ?? "";
-  const coloniaRef = coloniaKey ? COLONIAS[coloniaKey] : null;
+  let coloniaKey   = searchParams.get("colonia") ?? "";
   const lat        = parseFloat(searchParams.get("lat") ?? "NaN");
   const lng        = parseFloat(searchParams.get("lng") ?? "NaN");
-  const hasGeo     = !isNaN(lat) && !isNaN(lng);
+  let hasGeo       = !isNaN(lat) && !isNaN(lng);
+
+  if (!coloniaKey && query) {
+    const detected = detectColoniaInQuery(query);
+    if (detected) {
+      coloniaKey = detected.coloniaKey;
+      query = detected.cleanedQuery || query;
+    }
+  }
+
+  const coloniaRef = coloniaKey ? COLONIAS[coloniaKey] : null;
 
   let sparseRows: any[] = [];
   let denseRows:  any[] = [];
 
+  async function fetchWithFallback(url: string, selectFull: string, selectBase: string) {
+    let res = await fetch(url.replace(selectFull, selectFull), { headers, cache: "no-store" });
+    if (res.ok) return res.json();
+    res = await fetch(url.replace(selectFull, selectBase), { headers, cache: "no-store" });
+    return res.ok ? res.json() : [];
+  }
+
   if (query) {
     // ── Layer 1: Sparse keyword search ──────────────────────────────────────
     try {
-      const sr = await fetch(
-        `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(query)}*&select=${SELECT_COLS}&limit=20`,
-        { headers, cache: "no-store" }
-      );
-      if (sr.ok) sparseRows = await sr.json();
+      const baseUrl = `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(query)}*&select=${SELECT_COLS_FULL}&limit=20`;
+      sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
     } catch {}
 
     // ── Layer 2: Dense semantic search ──────────────────────────────────────
@@ -87,11 +100,8 @@ export async function GET(req: NextRequest) {
   } else {
     // No query — return all active services
     try {
-      const fr = await fetch(
-        `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS}&order=created_at.desc&limit=24`,
-        { headers, cache: "no-store" }
-      );
-      if (fr.ok) sparseRows = await fr.json();
+      const baseUrl = `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
+      sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
     } catch {}
   }
 
@@ -139,5 +149,8 @@ export async function GET(req: NextRequest) {
   const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
   const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length };
 
-  return NextResponse.json({ results, mode, query, total: results.length, debug });
+  return NextResponse.json({
+    results, mode, query, total: results.length, debug,
+    colonia: coloniaRef ? { key: coloniaKey, label: coloniaRef.label } : null,
+  });
 }

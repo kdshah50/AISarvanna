@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getTianguisTokenFromCookie } from "@/lib/client-auth";
+import LoyaltyCard from "@/components/LoyaltyCard";
 
 type User = {
   id: string;
@@ -11,6 +12,8 @@ type User = {
   trust_badge: string;
   phone_verified: boolean;
   ine_verified: boolean;
+  curp: string | null;
+  ine_photo_url: string | null;
   created_at: string | null;
 };
 
@@ -48,6 +51,8 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [saving, setSaving] = useState(false);
   const [lang, setLang] = useState<"es" | "en">("es");
+  const [ineUploading, setIneUploading] = useState(false);
+  const [ineMsg, setIneMsg] = useState("");
 
   const t = {
     es: {
@@ -143,6 +148,26 @@ export default function ProfilePage() {
   const handleLogout = () => {
     document.cookie = "tianguis_token=; path=/; max-age=0";
     router.push("/");
+  };
+
+  const handleIneUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIneUploading(true);
+    setIneMsg("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload-ine", { method: "POST", credentials: "same-origin", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      setIneMsg(lang === "es" ? "✓ INE subida correctamente. Revisaremos tu documento." : "✓ INE uploaded. We'll review your document.");
+      if (user) setUser({ ...user, ine_photo_url: data.url });
+    } catch (err: any) {
+      setIneMsg(err.message ?? "Error");
+    } finally {
+      setIneUploading(false);
+    }
   };
 
   if (loading) return (
@@ -250,6 +275,58 @@ export default function ProfilePage() {
           ))}
         </div>
 
+        {/* INE Verification */}
+        <div className="bg-white rounded-3xl border border-[#E5E0D8] p-6 mb-5 shadow-sm">
+          <h2 className="font-serif text-lg font-bold text-[#1C1917] mb-3">
+            🪪 {lang === "es" ? "Verificación de identidad" : "Identity verification"}
+          </h2>
+
+          {user.ine_verified ? (
+            <div className="bg-[#ECFDF5] rounded-xl p-4 text-sm text-[#065F46] font-medium flex items-center gap-2">
+              ✓ {lang === "es" ? "Tu identidad ha sido verificada" : "Your identity has been verified"}
+            </div>
+          ) : user.ine_photo_url ? (
+            <div className="bg-[#FEF3C7] rounded-xl p-4 text-sm text-[#92400E] font-medium flex items-center gap-2">
+              ⏳ {lang === "es" ? "Tu INE está en revisión. Te notificaremos por WhatsApp." : "Your INE is under review. We'll notify you via WhatsApp."}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-[#6B7280] leading-relaxed">
+                {lang === "es"
+                  ? "Sube una foto de tu INE para aparecer como proveedor verificado. Tu documento será revisado por nuestro equipo."
+                  : "Upload a photo of your INE to appear as a verified provider. Your document will be reviewed by our team."}
+              </p>
+              <label className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-colors ${
+                ineUploading ? "bg-[#E5E0D8] text-[#6B7280]" : "bg-[#1B4332] text-white hover:bg-[#2D6A4F]"
+              }`}>
+                {ineUploading
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === "es" ? "Subiendo..." : "Uploading..."}</>
+                  : <>📸 {lang === "es" ? "Subir foto de INE" : "Upload INE photo"}</>
+                }
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleIneUpload} className="hidden" disabled={ineUploading} />
+              </label>
+              <p className="text-[11px] text-[#9CA3AF]">
+                {lang === "es" ? "JPEG, PNG o WebP · Máximo 5 MB · Tu foto no se muestra públicamente" : "JPEG, PNG, or WebP · Max 5 MB · Your photo is not shown publicly"}
+              </p>
+            </div>
+          )}
+
+          {user.curp && (
+            <div className="mt-3 bg-[#F4F0EB] rounded-xl px-4 py-2 text-xs">
+              <span className="text-[#6B7280] font-medium">CURP: </span>
+              <span className="font-mono text-[#1C1917] tracking-wide">{user.curp}</span>
+            </div>
+          )}
+
+          {ineMsg && (
+            <p className={`mt-3 text-xs rounded-xl px-4 py-2 ${
+              ineMsg.startsWith("✓") ? "bg-[#ECFDF5] text-[#065F46]" : "bg-red-50 text-red-600"
+            }`}>
+              {ineMsg}
+            </p>
+          )}
+        </div>
+
         {/* My services */}
         <div className="bg-white rounded-3xl border border-[#E5E0D8] p-6 mb-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -290,6 +367,54 @@ export default function ProfilePage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Loyalty card */}
+        <div className="mb-5">
+          <LoyaltyCard lang={lang} />
+        </div>
+
+        {/* My Bookings link */}
+        <Link href="/my-bookings" className="block mb-3">
+          <div className="bg-white rounded-2xl border border-[#E5E0D8] p-4 hover:border-[#1B4332] transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📋</span>
+                <div>
+                  <p className="text-sm font-bold text-[#1C1917]">
+                    {lang === "es" ? "Mis reservas" : "My bookings"}
+                  </p>
+                  <p className="text-xs text-[#6B7280]">
+                    {lang === "es" ? "Historial y volver a reservar" : "History and rebook"}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[#6B7280] text-sm">→</span>
+            </div>
+          </div>
+        </Link>
+
+        {/* Guarantee link */}
+        <div className="bg-gradient-to-r from-emerald-50 to-[#ECFDF5] rounded-2xl border border-emerald-200 p-4 mb-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#065F46" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+              <div>
+                <p className="text-sm font-bold text-emerald-900">Garantía NaranjoGo</p>
+                <p className="text-xs text-emerald-700">
+                  {lang === "es"
+                    ? "¿Problemas con un servicio? Solicita un reembolso."
+                    : "Issues with a service? Request a refund."}
+                </p>
+              </div>
+            </div>
+            <Link href="/claims" className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+              {lang === "es" ? "Ver" : "View"} →
+            </Link>
+          </div>
         </div>
 
         {/* Coming soon banner */}
