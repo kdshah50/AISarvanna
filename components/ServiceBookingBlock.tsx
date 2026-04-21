@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type BookingState = {
   isService: boolean;
@@ -44,6 +44,8 @@ export default function ServiceBookingBlock({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [loyaltyHint, setLoyaltyHint] = useState<{ bookingsUntil: number; discountPct: number } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const prevContacted = useRef(false);
 
   const load = useCallback(async () => {
     if (!isService) {
@@ -88,6 +90,35 @@ export default function ServiceBookingBlock({
     window.addEventListener("tianguis:listing-contact", onContact);
     return () => window.removeEventListener("tianguis:listing-contact", onContact);
   }, [load, isService]);
+
+  // Refetch when user returns to the tab (fixes stale state after sending a message)
+  useEffect(() => {
+    if (!isService) return;
+    const onVis = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [load, isService]);
+
+  // When step 1 completes, scroll the pay section into view
+  useEffect(() => {
+    const contacted = Boolean(booking?.contactedInApp || booking?.whatsappAcked);
+    if (contacted && !prevContacted.current) {
+      const el = document.getElementById("booking-section");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    prevContacted.current = contacted;
+  }, [booking?.contactedInApp, booking?.whatsappAcked]);
+
+  const manualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const startCheckout = async () => {
     if (busy) return;
@@ -205,7 +236,8 @@ export default function ServiceBookingBlock({
       <div className="px-4 py-3 border-b border-[#E5E0D8] bg-[#F4F0EB]">
         <h3 className="text-sm font-bold text-[#1C1917]">Reservar servicio</h3>
         <p className="text-xs text-[#6B7280] mt-1">
-          Platica con el proveedor, paga la tarifa de servicio y recibe su contacto directo.
+          El precio del anuncio (ej. $52) lo acuerdas con el proveedor. Aquí solo pagas la{" "}
+          <strong>tarifa de la plataforma</strong> (~comisión, mín. $5 MXN) para desbloquear su WhatsApp.
         </p>
       </div>
 
@@ -237,13 +269,23 @@ export default function ServiceBookingBlock({
 
       {/* STEP 1: Not yet contacted — tell buyer to use chat above */}
       {!contacted && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 space-y-3">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-            <p className="text-xs text-blue-800">
-              <strong>Paso 1:</strong> Usa el chat de arriba para escribirle al proveedor.
-              Acuerda los detalles del servicio antes de reservar.
+            <p className="text-xs text-blue-800 leading-relaxed">
+              <strong>Paso 1:</strong> En <strong>Mensajes en la app</strong> (recuadro de arriba), escribe al
+              proveedor y envía el mensaje. <strong>Después de enviarlo</strong>, aparece aquí abajo el botón verde{" "}
+              <strong>Pagar … y obtener contacto</strong> (no pagas los $52 del anuncio en Stripe — solo la tarifa
+              indicada en el paso 2).
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => void manualRefresh()}
+            disabled={refreshing || loading}
+            className="w-full py-2.5 rounded-xl border border-[#1B4332] text-[#1B4332] text-xs font-semibold hover:bg-[#ECFDF5] disabled:opacity-50"
+          >
+            {refreshing ? "Actualizando…" : "Ya envié mi mensaje — actualizar"}
+          </button>
         </div>
       )}
 
