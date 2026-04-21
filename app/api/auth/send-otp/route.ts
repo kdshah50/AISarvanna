@@ -87,6 +87,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Demasiados intentos. Espera 15 minutos.", requestId }, { status: 429 });
     }
 
+    const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: token, TWILIO_WHATSAPP_FROM: from } = process.env;
+    const twilioConfigured = Boolean(sid && token && from);
+    if (process.env.NODE_ENV === "production" && !twilioConfigured) {
+      console.error("[send-otp] production requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM", {
+        requestId,
+      });
+      return NextResponse.json(
+        {
+          error:
+            "Verificación por WhatsApp no está configurada en el servidor. Revisa TWILIO_* en el despliegue.",
+          requestId,
+          step: "twilio_config",
+        },
+        { status: 503 }
+      );
+    }
+
     step = "insert";
     const code = generateOTP();
     const { error: insertError } = await supabase.from("otp_codes").insert({
@@ -106,13 +123,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: token, TWILIO_WHATSAPP_FROM: from } = process.env;
-    if (sid && token && from) {
+    if (twilioConfigured) {
       step = "twilio";
-      const fromAddress = asWhatsappAddress(from);
+      const fromAddress = asWhatsappAddress(from!);
       const msgBody = `Tu código de Naranjogo es: *${code}*\nVálido 5 minutos. No lo compartas.`;
-      const authHeader = "Basic " + Buffer.from(`${sid}:${token}`).toString("base64");
-      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
+      const authHeader = "Basic " + Buffer.from(`${sid!}:${token!}`).toString("base64");
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${sid!}/Messages.json`;
 
       // MX numbers: send to both +52 and +521 formats simultaneously.
       // WhatsApp may register the user under either format; one will
@@ -140,16 +156,25 @@ export async function POST(req: NextRequest) {
       const anyOk = results.some((r) => r.ok);
       if (!anyOk) {
         let twilioError = "";
+        let twilioCode: number | undefined;
         try {
           const parsed = JSON.parse(results[0].body);
           twilioError = parsed?.message || parsed?.error_message || "";
-        } catch { /* not json */ }
+          twilioCode = typeof parsed?.code === "number" ? parsed.code : undefined;
+        } catch {
+          /* not json */
+        }
+        const sandboxHint =
+          twilioCode === 63016 || /63016|not a valid WhatsApp user|join.*sandbox/i.test(twilioError)
+            ? " Si usas el sandbox de Twilio, envía primero el mensaje de unión al número de prueba."
+            : "";
         return NextResponse.json(
           {
-            error: `No se pudo enviar el código OTP${twilioError ? `: ${twilioError}` : ""}`,
+            error: `No se pudo enviar el código OTP${twilioError ? `: ${twilioError}` : ""}${sandboxHint}`,
             requestId,
             step: "twilio",
             twilioStatus: results[0].status,
+            twilioCode,
           },
           { status: 500 }
         );
