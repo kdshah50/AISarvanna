@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
 import { getStripe, computeCommissionCents, DEFAULT_COMMISSION_PCT } from "@/lib/stripe";
 import { getNextBookingDiscount, redeemDiscount } from "@/lib/loyalty";
+import { isServicesListing } from "@/lib/listing-category";
+import { buyerHasSentInAppMessage, ensureContactGateFromMessages } from "@/lib/contact-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (!listing) {
       return NextResponse.json({ error: "Anuncio no encontrado" }, { status: 404 });
     }
-    if (listing.category_id !== "services") {
+    if (!isServicesListing(listing)) {
       return NextResponse.json({ error: "Solo aplica a servicios" }, { status: 400 });
     }
     if (listing.status !== "active") {
@@ -55,7 +57,15 @@ export async function POST(req: NextRequest) {
       .eq("buyer_id", userId)
       .maybeSingle();
 
-    if (!gate?.contacted_in_app && !gate?.whatsapp_ack_at) {
+    let contactOk = Boolean(gate?.contacted_in_app || gate?.whatsapp_ack_at);
+    if (!contactOk) {
+      const sent = await buyerHasSentInAppMessage(supabase, listingId, userId);
+      if (sent) {
+        await ensureContactGateFromMessages(supabase, listingId, userId);
+        contactOk = true;
+      }
+    }
+    if (!contactOk) {
       return NextResponse.json(
         { error: "Primero contacta al proveedor por mensajes en la app." },
         { status: 400 }

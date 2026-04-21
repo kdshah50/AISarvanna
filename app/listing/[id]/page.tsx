@@ -7,6 +7,7 @@ import WhatsAppCTA from "@/components/WhatsAppCTA";
 import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
 import ReportButton from "@/components/ReportButton";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
+import { isServicesListing } from "@/lib/listing-category";
 import { PAYMENT_METHODS_MX } from "@/lib/types";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
@@ -90,7 +91,7 @@ export default async function ListingPage({
 
   const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(listing.price_mxn / 100);
   const seller = listing.users as any;
-  const isServiceListing = listing.category_id === "services";
+  const isServiceListing = isServicesListing(listing);
 
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
@@ -149,7 +150,7 @@ export default async function ListingPage({
           <div id="booking-section">
             <ServiceBookingBlock
               listingId={params.id}
-              isService={listing.category_id === "services"}
+              isService={isServiceListing}
               sellerId={listing.seller_id ?? null}
             />
           </div>

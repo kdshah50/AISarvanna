@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { isServicesListing } from "@/lib/listing-category";
+import { buyerHasSentInAppMessage, ensureContactGateFromMessages } from "@/lib/contact-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: "Anuncio no encontrado" }, { status: 404 });
     }
 
-    const isService = listing.category_id === "services";
+    const isService = isServicesListing(listing);
     const sellerId = listing.seller_id as string | null;
 
     const userId = await getUserIdFromRequest(req);
@@ -63,8 +65,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       .eq("buyer_id", userId)
       .maybeSingle();
 
-    const contactedInApp = Boolean(gate?.contacted_in_app);
+    let contactedInApp = Boolean(gate?.contacted_in_app);
     const whatsappAcked = Boolean(gate?.whatsapp_ack_at);
+
+    if (!contactedInApp && !whatsappAcked) {
+      const sent = await buyerHasSentInAppMessage(supabase, listingId, userId);
+      if (sent) {
+        contactedInApp = true;
+        await ensureContactGateFromMessages(supabase, listingId, userId);
+      }
+    }
+
     const hasContacted = contactedInApp || whatsappAcked;
 
     const { data: paidBookings } = await supabase
@@ -156,7 +167,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Anuncio no encontrado" }, { status: 404 });
     }
 
-    if (listing.category_id !== "services") {
+    if (!isServicesListing(listing)) {
       return NextResponse.json({ error: "Solo aplica a servicios" }, { status: 400 });
     }
 
