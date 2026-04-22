@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
+import {
+  createAdminSupabase,
+  getUserIdFromRequest,
+  idMatchVariantsForIn,
+  isSameUserId,
+} from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -35,18 +40,19 @@ export async function GET(req: NextRequest) {
     console.log("[conversations] GET userId:", userId, "sellerId:", sellerId, "listingId:", listingId);
 
     if (isSameUserId(sellerId, userId)) {
-      const { data: convs, error: convErr } = await supabase
+      const { data: convsRaw, error: convErr } = await supabase
         .from("listing_conversations")
         .select("id,buyer_id,updated_at,created_at")
         .eq("listing_id", listingId)
-        .eq("seller_id", userId)
-        .neq("buyer_id", userId)
+        .in("seller_id", idMatchVariantsForIn(userId))
         .order("updated_at", { ascending: false });
 
       if (convErr) {
         console.error("[conversations] seller list", convErr);
         return NextResponse.json({ error: "No se pudo cargar conversaciones" }, { status: 500 });
       }
+
+      const convs = (convsRaw ?? []).filter((c) => !isSameUserId(c.buyer_id, userId));
 
       const buyerIds = [...new Set((convs ?? []).map((c) => c.buyer_id))];
       const buyerMap: Record<string, { display_name: string | null; phone: string | null }> = {};
@@ -90,7 +96,7 @@ export async function GET(req: NextRequest) {
       .from("listing_conversations")
       .select("id")
       .eq("listing_id", listingId)
-      .eq("buyer_id", userId)
+      .in("buyer_id", idMatchVariantsForIn(userId))
       .maybeSingle();
 
     if (convErr) {
@@ -167,7 +173,7 @@ export async function POST(req: NextRequest) {
       .from("listing_conversations")
       .select("id")
       .eq("listing_id", listingId)
-      .eq("buyer_id", userId)
+      .in("buyer_id", idMatchVariantsForIn(userId))
       .maybeSingle();
 
     if (existing) {
@@ -190,7 +196,7 @@ export async function POST(req: NextRequest) {
           .from("listing_conversations")
           .select("id")
           .eq("listing_id", listingId)
-          .eq("buyer_id", userId)
+          .in("buyer_id", idMatchVariantsForIn(userId))
           .maybeSingle();
         if (row) return NextResponse.json({ conversationId: row.id });
       }

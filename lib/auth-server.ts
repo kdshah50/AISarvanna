@@ -17,6 +17,13 @@ export function isSameUserId(
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+/** For PostgREST `.in()` on TEXT uuid columns — `.eq` is case-sensitive vs normalized JWT sub. */
+export function idMatchVariantsForIn(id: string): string[] {
+  const t = id.trim();
+  if (!t) return [];
+  return Array.from(new Set([t, t.toLowerCase(), t.toUpperCase()]));
+}
+
 export async function getUserIdFromRequest(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get(TIANGUIS_TOKEN_COOKIE)?.value;
   if (!token) return null;

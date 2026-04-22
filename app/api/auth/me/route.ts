@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { createAdminSupabase, getUserIdFromRequest, idMatchVariantsForIn } from "@/lib/auth-server";
 
 /** Session + profile payload for /profile (bypasses RLS that blocks anon reads on users/listings). */
 export async function GET(req: NextRequest) {
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     const { data: listings, error: listingsError } = await supabase
       .from("listings")
       .select("id,title_es,price_mxn,status,is_verified,category_id,location_city,created_at")
-      .eq("seller_id", userId)
+      .in("seller_id", idMatchVariantsForIn(userId))
       .order("created_at", { ascending: false });
 
     if (listingsError) {

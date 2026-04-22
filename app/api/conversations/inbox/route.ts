@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
+import { createAdminSupabase, getUserIdFromRequest, idMatchVariantsForIn, isSameUserId } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -28,17 +28,18 @@ export async function GET(req: NextRequest) {
 
     const supabase = createAdminSupabase();
 
+    const idVars = idMatchVariantsForIn(userId);
     const [{ data: asBuyer, error: e1 }, { data: asSeller, error: e2 }] = await Promise.all([
       supabase
         .from("listing_conversations")
         .select("id,listing_id,buyer_id,seller_id,updated_at")
-        .eq("buyer_id", userId)
+        .in("buyer_id", idVars)
         .order("updated_at", { ascending: false })
         .limit(50),
       supabase
         .from("listing_conversations")
         .select("id,listing_id,buyer_id,seller_id,updated_at")
-        .eq("seller_id", userId)
+        .in("seller_id", idVars)
         .order("updated_at", { ascending: false })
         .limit(50),
     ]);
@@ -65,11 +66,18 @@ export async function GET(req: NextRequest) {
       for (const l of listings ?? []) listingMap[l.id] = { title_es: l.title_es };
     }
 
-    const userMap: Record<string, { display_name: string | null; phone: string | null }> = {};
+    let otherUsers: { id: string; display_name: string | null; phone: string | null }[] = [];
     if (userIds.length > 0) {
-      const { data: users } = await supabase.from("users").select("id,display_name,phone").in("id", userIds);
-      for (const u of users ?? []) userMap[u.id] = { display_name: u.display_name, phone: u.phone };
+      const idUnion = Array.from(
+        new Set(userIds.flatMap((id) => idMatchVariantsForIn(id)))
+      );
+      const { data: users } = await supabase
+        .from("users")
+        .select("id,display_name,phone")
+        .in("id", idUnion);
+      otherUsers = users ?? [];
     }
+    const userById = (id: string) => otherUsers.find((u) => isSameUserId(u.id, id));
 
     const enriched = await Promise.all(
       all.map(async (r) => {
@@ -89,7 +97,7 @@ export async function GET(req: NextRequest) {
           listing_title: listingMap[r.listing_id]?.title_es ?? "Anuncio",
           role: isBuyer ? ("buyer" as const) : ("seller" as const),
           other_user_id: otherId,
-          other_name: labelUser(userMap[otherId]),
+          other_name: labelUser(userById(otherId)),
           last_body: last?.body ?? "",
           last_at: last?.created_at ?? r.updated_at,
         };
