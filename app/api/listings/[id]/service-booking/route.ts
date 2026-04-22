@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
 import { isServicesListing } from "@/lib/listing-category";
 import { buyerHasSentInAppMessage, ensureContactGateFromMessages } from "@/lib/contact-gate";
 import { MIN_COMMISSION_CENTS_MXN } from "@/lib/stripe";
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       });
     }
 
-    if (sellerId && userId === sellerId) {
+    if (sellerId && isSameUserId(userId, sellerId)) {
       return NextResponse.json({
         isService,
         isSeller: true,
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!sellerId) {
       return NextResponse.json({ error: "Anuncio sin proveedor" }, { status: 400 });
     }
-    if (sellerId === userId) {
+    if (isSameUserId(sellerId, userId)) {
       return NextResponse.json({ error: "No puedes reservar tu propio anuncio" }, { status: 400 });
     }
 

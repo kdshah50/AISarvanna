@@ -209,7 +209,7 @@ export default function ListingChat({
       const { message } = await res.json();
       setDraft("");
       setMessages((m) => [...m, message as Msg]);
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && role !== "seller") {
         window.dispatchEvent(new CustomEvent("tianguis:listing-contact"));
       }
     } catch (e: unknown) {

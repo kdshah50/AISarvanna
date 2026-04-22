@@ -28,6 +28,12 @@ function formatMXN(cents: number): string {
   }).format(cents / 100);
 }
 
+/** Match auth-server: JWT sub is lowercased; `users.id` in DB can differ in letter case. */
+function sameUserId(a: string | null | undefined, b: string | null | undefined) {
+  if (a == null || b == null) return false;
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 export default function ServiceBookingBlock({
   listingId,
   isService,
@@ -101,15 +107,16 @@ export default function ServiceBookingBlock({
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [load, isService]);
 
-  // When step 1 completes, scroll the pay section into view
+  // When step 1 completes, scroll the pay section into view (buyers only — not the seller on their own ad)
   useEffect(() => {
+    if (sellerId && meId && sameUserId(meId, sellerId)) return;
     const contacted = Boolean(booking?.contactedInApp || booking?.whatsappAcked);
     if (contacted && !prevContacted.current) {
       const el = document.getElementById("booking-section");
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     prevContacted.current = contacted;
-  }, [booking?.contactedInApp, booking?.whatsappAcked]);
+  }, [booking?.contactedInApp, booking?.whatsappAcked, meId, sellerId]);
 
   const manualRefresh = async () => {
     setRefreshing(true);
@@ -157,7 +164,7 @@ export default function ServiceBookingBlock({
     );
   }
 
-  if (sellerId && meId === sellerId) {
+  if (sellerId && meId && sameUserId(meId, sellerId)) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         <p className="font-semibold mb-1">Tu servicio</p>
