@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 
-const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
-const SVC_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? SUPA_KEY;
-
-const headers = (key: string) => ({
-  apikey: key,
-  Authorization: `Bearer ${key}`,
-  "Content-Type": "application/json",
-});
+const hJson = () => ({ ...getServiceRoleRestHeaders(), "Content-Type": "application/json" as const });
 
 // GET /api/listings/[id]
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&select=*,users!fk_listings_seller(display_name,avatar_url,trust_badge,ine_verified,created_at)`,
-      { headers: headers(SUPA_KEY), cache: "no-store" }
+      `${getSupabaseUrl()}/rest/v1/listings?id=eq.${params.id}&select=*,users!fk_listings_seller(display_name,avatar_url,trust_badge,ine_verified,created_at)`,
+      { headers: hJson(), cache: "no-store" }
     );
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) {
@@ -32,10 +25,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     const body = await req.json();
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}`,
+      `${getSupabaseUrl()}/rest/v1/listings?id=eq.${params.id}`,
       {
         method: "PATCH",
-        headers: { ...headers(SVC_KEY), Prefer: "return=representation" },
+        headers: { ...hJson(), Prefer: "return=representation" },
         body: JSON.stringify(body),
       }
     );
@@ -51,10 +44,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}`,
+      `${getSupabaseUrl()}/rest/v1/listings?id=eq.${params.id}`,
       {
         method: "PATCH",
-        headers: { ...headers(SVC_KEY), Prefer: "return=representation" },
+        headers: { ...hJson(), Prefer: "return=representation" },
         body: JSON.stringify({ status: "archived" }),
       }
     );

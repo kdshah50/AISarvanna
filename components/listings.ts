@@ -2,9 +2,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
-
 const DEMO_SELLER = "a1000000-0000-0000-0000-000000000001";
 
 const CATEGORIES = [
@@ -34,14 +31,9 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
     setError("");
     try {
-      const res = await fetch(`${SUPA_URL}/rest/v1/listings`, {
+      const res = await fetch("/api/listings", {
         method: "POST",
-        headers: {
-          apikey: SUPA_KEY,
-          Authorization: `Bearer ${SUPA_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "return=representation",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           seller_id: DEMO_SELLER,
           title_es: title,

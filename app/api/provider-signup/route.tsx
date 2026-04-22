@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
-
+import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { COLONIAS } from "@/lib/colonias";
 
 const ADMIN_WHATSAPP = process.env.ADMIN_WHATSAPP_NUMBER ?? "";
@@ -54,6 +50,8 @@ async function notifyAdmin(form: any) {
 
 export async function POST(req: NextRequest) {
   try {
+    const SUPA_URL = getSupabaseUrl();
+    const h = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" as const };
     const body = await req.json();
     const {
       name, whatsapp, service, service_label,
@@ -80,7 +78,7 @@ export async function POST(req: NextRequest) {
     // 1. Find existing user by phone or create new one
     const userRes = await fetch(
       `${SUPA_URL}/rest/v1/users?phone=eq.${encodeURIComponent(phone)}&select=id`,
-      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+      { headers: h }
     );
     const existingUsers = userRes.ok ? await userRes.json() : [];
     let sellerId: string;
@@ -94,7 +92,7 @@ export async function POST(req: NextRequest) {
           `${SUPA_URL}/rest/v1/users?id=eq.${sellerId}`,
           {
             method: "PATCH",
-            headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" },
+            headers: h,
             body: JSON.stringify({ curp: cleanCurp }),
           }
         ).catch(() => {});
@@ -110,9 +108,7 @@ export async function POST(req: NextRequest) {
       const newUserRes = await fetch(`${SUPA_URL}/rest/v1/users`, {
         method: "POST",
         headers: {
-          apikey: SUPA_KEY,
-          Authorization: `Bearer ${SUPA_KEY}`,
-          "Content-Type": "application/json",
+          ...h,
           Prefer: "return=representation",
         },
         body: JSON.stringify(userPayload),
@@ -162,9 +158,7 @@ export async function POST(req: NextRequest) {
     const listingRes = await fetch(`${SUPA_URL}/rest/v1/listings`, {
       method: "POST",
       headers: {
-        apikey: SUPA_KEY,
-        Authorization: `Bearer ${SUPA_KEY}`,
-        "Content-Type": "application/json",
+        ...h,
         Prefer: "return=representation",
       },
       body: JSON.stringify(listing),

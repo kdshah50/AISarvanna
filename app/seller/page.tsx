@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
-
-const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 import Link from "next/link";
+import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import Image from "next/image";
 import type { Metadata } from "next";
 
@@ -39,9 +37,11 @@ function StatCard({ value, label }: { value: string | number; label: string }) {
 }
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const supaUrl = getSupabaseUrl();
+  const h = getServiceRoleRestHeaders();
   const res = await fetch(
-    `${SUPA_URL}/rest/v1/users?id=eq.${params.id}&select=display_name,trust_badge`,
-    { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
+    `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=display_name,trust_badge`,
+    { headers: h, cache: "no-store" }
   );
   const [user] = res.ok ? await res.json() : [];
   if (!user) return { title: "Vendedor — Tianguis" };
@@ -52,11 +52,12 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 export default async function SellerPage({ params }: { params: { id: string } }) {
-  const h = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` };
+  const supaUrl = getSupabaseUrl();
+  const h = getServiceRoleRestHeaders();
 
   // Fetch seller info
   const sellerRes = await fetch(
-    `${SUPA_URL}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,ine_verified,phone_verified,created_at`,
+    `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,ine_verified,phone_verified,created_at`,
     { headers: h, cache: "no-store" }
   );
   const [seller] = sellerRes.ok ? await sellerRes.json() : [];
@@ -64,14 +65,14 @@ export default async function SellerPage({ params }: { params: { id: string } })
 
   // Fetch seller's active listings
   const listingsRes = await fetch(
-    `${SUPA_URL}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.active&order=created_at.desc&select=id,title_es,price_mxn,category_id,condition,location_city,photo_urls,shipping_available,negotiable`,
+    `${supaUrl}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.active&order=created_at.desc&select=id,title_es,price_mxn,category_id,condition,location_city,photo_urls,shipping_available,negotiable`,
     { headers: h, cache: "no-store" }
   );
   const listings = listingsRes.ok ? await listingsRes.json() : [];
 
   // Fetch sold listings count
   const soldRes = await fetch(
-    `${SUPA_URL}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.sold&select=id`,
+    `${supaUrl}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.sold&select=id`,
     { headers: h, cache: "no-store" }
   );
   const sold = soldRes.ok ? await soldRes.json() : [];

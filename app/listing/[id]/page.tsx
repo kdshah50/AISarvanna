@@ -9,15 +9,13 @@ import ReportButton from "@/components/ReportButton";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
 import { isServicesListing } from "@/lib/listing-category";
 import { PAYMENT_METHODS_MX } from "@/lib/types";
-
-const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
+import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const res = await fetch(`${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&select=title_es,description_es,photo_urls,price_mxn`, {
-    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
+  const supaUrl = getSupabaseUrl();
+  const h = getServiceRoleRestHeaders();
+  const res = await fetch(`${supaUrl}/rest/v1/listings?id=eq.${params.id}&select=title_es,description_es,photo_urls,price_mxn`, {
+    headers: h,
     cache: "no-store",
   });
   const [data] = res.ok ? await res.json() : [];
@@ -58,17 +56,18 @@ export default async function ListingPage({
   params: { id: string };
   searchParams?: { chat?: string };
 }) {
-  const h = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` };
+  const supaUrl = getSupabaseUrl();
+  const h = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
   const res = await fetch(
-    `${SUPA_URL}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users!fk_listings_seller(id,display_name,avatar_url,trust_badge,ine_verified,phone,whatsapp_optin,created_at)`,
+    `${supaUrl}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users!fk_listings_seller(id,display_name,avatar_url,trust_badge,ine_verified,phone,whatsapp_optin,created_at)`,
     { headers: h, cache: "no-store" }
   );
   const [listing] = res.ok ? await res.json() : [];
   if (!listing) notFound();
 
-  fetch(`${SUPA_URL}/rest/v1/rpc/increment_view_count`, {
+  fetch(`${supaUrl}/rest/v1/rpc/increment_view_count`, {
     method: "POST",
-    headers: { ...h, "Content-Type": "application/json" },
+    headers: h,
     body: JSON.stringify({ listing_id: params.id }),
   }).catch(() => {});
 
@@ -78,7 +77,7 @@ export default async function ListingPage({
   let avgRating = 0;
   if (sellerId) {
     const revRes = await fetch(
-      `${SUPA_URL}/rest/v1/seller_reviews?seller_id=eq.${sellerId}&select=rating`,
+      `${supaUrl}/rest/v1/seller_reviews?seller_id=eq.${sellerId}&select=rating`,
       { headers: h, cache: "no-store" }
     );
     const revRows: { rating: number }[] = revRes.ok ? await revRes.json() : [];

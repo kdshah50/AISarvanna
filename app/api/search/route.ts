@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const SUPA_URL = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
-
+import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { COLONIAS, detectColoniaInQuery, COLONIA_RADIUS_KM } from "@/lib/colonias";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
@@ -43,7 +40,8 @@ const SELECT_COLS_FULL = "id,title_es,price_mxn,category_id,condition,location_c
 const SELECT_COLS_BASE = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)";
 
 export async function GET(req: NextRequest) {
-  const headers = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" };
+  const supaUrl = getSupabaseUrl();
+  const headers = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
   const { searchParams } = new URL(req.url);
   let query        = (searchParams.get("q") ?? "").trim();
   const category   = searchParams.get("category") ?? "services";
@@ -75,7 +73,7 @@ export async function GET(req: NextRequest) {
   if (query) {
     // ── Layer 1: Sparse keyword search ──────────────────────────────────────
     try {
-      const baseUrl = `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(query)}*&select=${SELECT_COLS_FULL}&limit=20`;
+      const baseUrl = `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(query)}*&select=${SELECT_COLS_FULL}&limit=20`;
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
     } catch {}
 
@@ -83,7 +81,7 @@ export async function GET(req: NextRequest) {
     try {
       const vec = await embedQuery(query);
       if (vec) {
-        const dr = await fetch(`${SUPA_URL}/rest/v1/rpc/search_listings_dense`, {
+        const dr = await fetch(`${supaUrl}/rest/v1/rpc/search_listings_dense`, {
           method: "POST", headers,
           body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 20 }),
           cache: "no-store",
@@ -100,7 +98,7 @@ export async function GET(req: NextRequest) {
   } else {
     // No query — return all active services
     try {
-      const baseUrl = `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
+      const baseUrl = `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
     } catch {}
   }

@@ -3,11 +3,10 @@ import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
 import { COLONIAS, COLONIA_RADIUS_KM, nearestColonia, coloniaLabel } from "@/lib/colonias";
+import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 
 export const dynamic = "force-dynamic";
 
-const SUPA_URL  = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 const SMA_ZIP   = "37745";
 const SMA_LAT   = 20.91528;
 const SMA_LNG   = -100.74389;
@@ -40,6 +39,8 @@ export default async function HomePage({ searchParams }: Props) {
 
   let cards: any[] = [];
   let searchMode = "sparse";
+  const supaHeaders = getServiceRoleRestHeaders();
+  const supaUrl = getSupabaseUrl();
 
   try {
     if (query) {
@@ -79,10 +80,10 @@ export default async function HomePage({ searchParams }: Props) {
     } else {
       // ── No query: show all CP 37745 services sorted by distance ───────────
       const res = await fetch(
-        `${SUPA_URL}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.services`
+        `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.services`
         + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)`
         + `&order=created_at.desc&limit=24`,
-        { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }, cache: "no-store" }
+        { headers: supaHeaders, cache: "no-store" }
       );
       if (res.ok) {
         const data = await res.json();

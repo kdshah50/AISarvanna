@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 
-const SUPA_URL  = "https://erfsvaddrspmlavvulne.supabase.co";
-const SUPA_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyZnN2YWRkcnNwbWxhdnZ1bG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODgwNDUsImV4cCI6MjA4OTc2NDA0NX0.TeroMLcgJm2zKqYEPYP9PaIw4DCk79d7fPZqsERGu20";
 const DEMO_SELLER = "a1000000-0000-0000-0000-000000000001";
 
 const PRICE_FLOORS: Record<string, number> = {
@@ -16,9 +15,9 @@ const PRICE_FLOORS: Record<string, number> = {
 };
 
 export async function GET() {
-  const h = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` };
-  let res = await fetch(
-    `${SUPA_URL}/rest/v1/listings?select=*,users!fk_listings_seller(display_name,trust_badge)&status=eq.active&is_verified=eq.true&order=created_at.desc&limit=24`,
+  const h = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
+  const res = await fetch(
+    `${getSupabaseUrl()}/rest/v1/listings?select=*,users!fk_listings_seller(display_name,trust_badge)&status=eq.active&is_verified=eq.true&order=created_at.desc&limit=24`,
     { headers: h }
   );
   return NextResponse.json(await res.json());
@@ -72,11 +71,11 @@ export async function POST(req: NextRequest) {
       expires_at:         new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
-    const res = await fetch(`${SUPA_URL}/rest/v1/listings`, {
+    const h = getServiceRoleRestHeaders();
+    const res = await fetch(`${getSupabaseUrl()}/rest/v1/listings`, {
       method: "POST",
       headers: {
-        apikey: SUPA_KEY,
-        Authorization: `Bearer ${SUPA_KEY}`,
+        ...h,
         "Content-Type": "application/json",
         Prefer: "return=representation",
       },

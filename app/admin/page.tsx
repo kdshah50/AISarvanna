@@ -1,9 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://erfsvaddrspmlavvulne.supabase.co";
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
 type Listing = {
   id: string;
   title_es: string;
@@ -104,25 +101,15 @@ export default function AdminPage() {
   const [reportFilter, setReportFilter] = useState<"open" | "all">("open");
   const [reportSaving, setReportSaving] = useState<string | null>(null);
 
-  const headers = {
-    apikey: ANON_KEY,
-    Authorization: `Bearer ${ANON_KEY}`,
-    "Content-Type": "application/json",
-    Prefer: "return=representation",
-  };
-
   const load = async () => {
     setLoading(true);
-    const query = filter === "pending"
-      ? "is_verified=eq.false&status=eq.active"
-      : filter === "verified"
-      ? "is_verified=eq.true&status=eq.active"
-      : "status=eq.active";
+    const f = filter === "pending" ? "pending" : filter === "verified" ? "verified" : "all";
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/listings?${query}&category_id=eq.services&select=id,title_es,description_es,price_mxn,category_id,is_verified,status,location_city,commission_pct,created_at,users!fk_listings_seller(display_name,phone)&order=created_at.desc&limit=50`,
-      { headers }
+      `/api/admin/listing-queue?pin=${encodeURIComponent(pin.trim())}&filter=${f}`,
+      { credentials: "same-origin" }
     );
-    const data = await res.json();
+    const json = res.ok ? await res.json() : { listings: [] };
+    const data = (json as { listings?: unknown }).listings;
     setListings(Array.isArray(data) ? data : []);
     // Init commission inputs
     const c: Record<string, string> = {};
