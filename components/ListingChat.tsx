@@ -96,6 +96,14 @@ export default function ListingChat({
     void loadConversation(initialConversationId);
   }, [initialConversationId, loadConversation]);
 
+  // Sellers otherwise see an empty message pane until they click a buyer; they may think no message arrived.
+  useEffect(() => {
+    if (role !== "seller" || threads.length === 0) return;
+    if (selectedId) return;
+    if (initialConversationId) return;
+    void loadConversation(threads[0].conversationId);
+  }, [role, threads, selectedId, initialConversationId, loadConversation]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
