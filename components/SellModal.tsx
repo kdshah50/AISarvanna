@@ -2,8 +2,6 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-const DEMO_SELLER = "a1000000-0000-0000-0000-000000000001";
-
 const CATEGORIES = [
   { id: "electronics", icon: "📱", label: "Electrónica" },
   { id: "vehicles",    icon: "🚗", label: "Vehículos" },
@@ -86,9 +84,9 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
     try {
       const res = await fetch("/api/listings", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          seller_id: DEMO_SELLER,
           title_es: title,
           title_en: title,
           description_es: desc || title,
@@ -108,8 +106,12 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
         setDone(true);
         setTimeout(() => { onClose(); router.refresh(); }, 2500);
       } else {
-        const err = await res.json();
-        setError(err.message || err.error || "Error al publicar");
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          setError("Inicia sesión para publicar (arriba: Entrar).");
+        } else {
+          setError((err as { message?: string; error?: string }).message || (err as { error?: string }).error || "Error al publicar");
+        }
       }
     } catch (e: any) {
       setError(e.message);

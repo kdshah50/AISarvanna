@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
-
-const DEMO_SELLER = "a1000000-0000-0000-0000-000000000001";
+import { getUserIdFromRequest } from "@/lib/auth-server";
 
 const PRICE_FLOORS: Record<string, number> = {
   electronics:  50000,
@@ -25,6 +24,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromRequest(req);
+    if (!userId) {
+      return NextResponse.json({ error: "Inicia sesión para publicar" }, { status: 401 });
+    }
+
     const body = await req.json();
 
     const price_mxn = body.price_mxn ?? Math.round((parseFloat(body.price) || 0) * 100);
@@ -48,8 +52,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Precio inválido. Verifica el monto." }, { status: 400 });
     }
 
+    // Always bind listing to the signed-in user — never trust client seller_id (old clients sent a demo uuid).
     const listing = {
-      seller_id:          body.seller_id ?? DEMO_SELLER,
+      seller_id:          userId,
       title_es:           body.title_es ?? body.title ?? "Sin título",
       title_en:           body.title_es ?? body.title ?? "Untitled",
       description_es:     body.description_es ?? body.description ?? "",
