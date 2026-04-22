@@ -8,13 +8,23 @@ export function getJwtSecretBytes() {
   return new TextEncoder().encode(process.env.JWT_SECRET ?? "tianguis_dev_secret_change_in_production");
 }
 
+/** JWT sub vs Supabase uuids may differ in letter casing; never use raw `===` for identity. */
+export function isSameUserId(
+  a: string | null | undefined,
+  b: string | null | undefined
+): boolean {
+  if (a == null || b == null) return false;
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 export async function getUserIdFromRequest(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get(TIANGUIS_TOKEN_COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getJwtSecretBytes());
     const sub = payload.sub;
-    return typeof sub === "string" && sub.length > 0 ? sub : null;
+    if (typeof sub !== "string" || sub.length === 0) return null;
+    return sub.trim().toLowerCase();
   } catch {
     return null;
   }

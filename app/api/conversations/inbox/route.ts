@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     const merged = [...(asBuyer ?? []), ...(asSeller ?? [])] as Row[];
     const all = merged.filter((r) => {
       if (seen.has(r.id)) return false;
-      if (r.buyer_id === r.seller_id) return false;
+      if (isSameUserId(r.buyer_id, r.seller_id)) return false;
       seen.add(r.id);
       return true;
     });
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
           .limit(1)
           .maybeSingle();
 
-        const isBuyer = r.buyer_id === userId;
+        const isBuyer = isSameUserId(r.buyer_id, userId);
         const otherId = isBuyer ? r.seller_id : r.buyer_id;
         return {
           conversationId: r.id,

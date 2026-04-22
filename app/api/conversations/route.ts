@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     console.log("[conversations] GET userId:", userId, "sellerId:", sellerId, "listingId:", listingId);
 
-    if (sellerId === userId) {
+    if (isSameUserId(sellerId, userId)) {
       const { data: convs, error: convErr } = await supabase
         .from("listing_conversations")
         .select("id,buyer_id,updated_at,created_at")
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
     if (!sellerId) {
       return NextResponse.json({ error: "Anuncio sin vendedor" }, { status: 400 });
     }
-    if (sellerId === userId) {
+    if (isSameUserId(sellerId, userId)) {
       return NextResponse.json({ error: "No puedes chatear contigo mismo" }, { status: 400 });
     }
 

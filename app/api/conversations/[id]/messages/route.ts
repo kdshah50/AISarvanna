@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
 import { sendWhatsApp } from "@/lib/twilio";
 import { isServicesListing } from "@/lib/listing-category";
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
     }
 
-    if (conv.buyer_id !== userId && conv.seller_id !== userId) {
+    if (!isSameUserId(conv.buyer_id, userId) && !isSameUserId(conv.seller_id, userId)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -82,10 +82,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     // Notify the other party via WhatsApp (awaited so Vercel doesn't kill it)
-    const recipientId = userId === conv.buyer_id ? conv.seller_id : conv.buyer_id;
+    const recipientId = isSameUserId(userId, conv.buyer_id) ? conv.seller_id : conv.buyer_id;
     console.log("[notify] sender:", userId, "recipient:", recipientId, "conv:", conversationId,
       "buyer_id:", conv.buyer_id, "seller_id:", conv.seller_id);
-    if (recipientId === userId) {
+    if (recipientId && isSameUserId(recipientId, userId)) {
       console.warn("[notify] skipping self-notification (buyer_id === seller_id)");
       return NextResponse.json({ message: inserted });
     }

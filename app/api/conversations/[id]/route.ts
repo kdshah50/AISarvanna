@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
     }
 
-    if (conv.buyer_id !== userId && conv.seller_id !== userId) {
+    if (!isSameUserId(conv.buyer_id, userId) && !isSameUserId(conv.seller_id, userId)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: "No se pudo cargar mensajes" }, { status: 500 });
     }
 
-    const isSeller = conv.seller_id === userId;
+    const isSeller = isSameUserId(conv.seller_id, userId);
     const otherId = isSeller ? conv.buyer_id : conv.seller_id;
     let otherName = "";
     if (otherId) {
