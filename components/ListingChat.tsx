@@ -30,11 +30,20 @@ export default function ListingChat({
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  /** Which listing `selectedId` belongs to. If it differs from `listingId`, do not use `selectedId` for sends. */
+  const conversationListingIdRef = useRef<string | null>(null);
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 
   const loadListingScope = useCallback(async () => {
     setError("");
+    // Avoid stale thread/messages from another anuncio (SPA navigation) or a buyer id from another listing
+    setLoading(true);
+    setSelectedId(null);
+    setMessages([]);
+    setThreads([]);
+    conversationListingIdRef.current = null;
+
     const res = await fetch(`/api/conversations?listingId=${encodeURIComponent(listingId)}`, {
       credentials: "same-origin",
     });
@@ -54,31 +63,44 @@ export default function ListingChat({
     if (data.role === "seller") {
       setThreads(data.threads ?? []);
     } else {
-      setThreads([]);
       if (data.conversation?.id) {
         setSelectedId(data.conversation.id);
         setMessages(data.messages ?? []);
+        conversationListingIdRef.current = listingId;
       }
     }
     setLoading(false);
   }, [listingId]);
 
-  const loadConversation = useCallback(async (conversationId: string) => {
-    setSelectedId(conversationId);
-    setError("");
-    try {
-      const res = await fetch(`/api/conversations/${conversationId}`, { credentials: "same-origin" });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        setError((d as { error?: string }).error ?? "No se pudo cargar");
-        return;
+  const loadConversation = useCallback(
+    async (conversationId: string) => {
+      setSelectedId(conversationId);
+      setError("");
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}`, { credentials: "same-origin" });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          setError((d as { error?: string }).error ?? "No se pudo cargar");
+          setSelectedId(null);
+          conversationListingIdRef.current = null;
+          return;
+        }
+        const data = await res.json();
+        setMessages(data.messages ?? []);
+        const conv = data.conversation as { listing_id?: string } | undefined;
+        if (conv?.listing_id === listingId) {
+          conversationListingIdRef.current = listingId;
+        } else {
+          conversationListingIdRef.current = null;
+        }
+      } catch {
+        setError("Error de conexión");
+        setSelectedId(null);
+        conversationListingIdRef.current = null;
       }
-      const data = await res.json();
-      setMessages(data.messages ?? []);
-    } catch {
-      setError("Error de conexión");
-    }
-  }, []);
+    },
+    [listingId]
+  );
 
   useEffect(() => {
     void (async () => {
@@ -136,12 +158,12 @@ export default function ListingChat({
           setThreads(data.threads);
         }
       } catch { /* silent */ }
-    }, 8000);
+    }, 4000);
     return () => clearInterval(poll);
   }, [role, listingId]);
 
+  /** Always resolves the thread for this `listingId` (idempotent). Do not short-circuit on selectedId — it may belong to another anuncio. */
   const ensureConversation = async (): Promise<string | null> => {
-    if (selectedId) return selectedId;
     const res = await fetch("/api/conversations", {
       method: "POST",
       credentials: "same-origin",
@@ -162,11 +184,16 @@ export default function ListingChat({
     setSending(true);
     setError("");
     try {
-      let cid = selectedId;
-      if (role === "buyer" && !cid) {
-        cid = await ensureConversation();
-        if (!cid) throw new Error("Sin conversación");
-        setSelectedId(cid);
+      let cid: string | null = role === "buyer" ? null : selectedId;
+      if (role === "buyer") {
+        if (conversationListingIdRef.current === listingId && selectedId) {
+          cid = selectedId;
+        } else {
+          cid = await ensureConversation();
+          if (!cid) throw new Error("Sin conversación");
+          conversationListingIdRef.current = listingId;
+          setSelectedId(cid);
+        }
       }
       if (!cid) throw new Error("Selecciona una conversación");
       const res = await fetch(`/api/conversations/${cid}/messages`, {
