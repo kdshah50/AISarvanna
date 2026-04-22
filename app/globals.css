@@ -2,22 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* App is light-themed; do not follow OS dark mode (was making input text same color as
+   light backgrounds → invisible). */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Native inputs/textarea default to white bg; ensure typed text is always dark. */
+input:not([type]),
+input[type="text"],
+input[type="tel"],
+input[type="email"],
+input[type="search"],
+input[type="number"],
+input[type="password"],
+input[type="url"],
+textarea,
+select {
+  color: #171717;
+  background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
 }
 
 @layer utilities {
