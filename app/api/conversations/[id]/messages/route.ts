@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
+import {
+  createAdminSupabase,
+  getUserIdFromRequest,
+  idMatchVariantsForIn,
+  isSameUserId,
+} from "@/lib/auth-server";
 import { sendWhatsApp } from "@/lib/twilio";
 import { isServicesListing } from "@/lib/listing-category";
 
@@ -21,15 +26,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const supabase = createAdminSupabase();
+    const idVars = idMatchVariantsForIn(conversationId);
     const { data: conv, error: convErr } = await supabase
       .from("listing_conversations")
       .select("id,buyer_id,seller_id,listing_id")
-      .eq("id", conversationId)
+      .in("id", idVars)
       .maybeSingle();
 
     if (convErr || !conv) {
       return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
     }
+
+    const convRowId = conv.id;
 
     if (!isSameUserId(conv.buyer_id, userId) && !isSameUserId(conv.seller_id, userId)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -37,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const { data: inserted, error: insErr } = await supabase
       .from("listing_messages")
-      .insert({ conversation_id: conversationId, sender_id: userId, body })
+      .insert({ conversation_id: convRowId, sender_id: userId, body })
       .select("id,sender_id,body,created_at")
       .single();
 
@@ -46,9 +54,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "No se pudo enviar" }, { status: 500 });
     }
 
-    await supabase.from("listing_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    await supabase.from("listing_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convRowId);
 
-    if (userId === conv.buyer_id) {
+    if (isSameUserId(conv.buyer_id, userId)) {
       const { data: listing } = await supabase
         .from("listings")
         .select("category_id")

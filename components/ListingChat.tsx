@@ -32,17 +32,23 @@ export default function ListingChat({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   /** Which listing `selectedId` belongs to. If it differs from `listingId`, do not use `selectedId` for sends. */
   const conversationListingIdRef = useRef<string | null>(null);
+  /** Only full reset (loading + clear threads) when `listingId` actually changes, not on React remount. Stops seller flicker. */
+  const lastScopeListingIdRef = useRef<string | null>(null);
 
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: "smooth" });
 
   const loadListingScope = useCallback(async () => {
     setError("");
-    // Avoid stale thread/messages from another anuncio (SPA navigation) or a buyer id from another listing
-    setLoading(true);
-    setSelectedId(null);
-    setMessages([]);
-    setThreads([]);
-    conversationListingIdRef.current = null;
+    const listingChanged = lastScopeListingIdRef.current !== listingId;
+    if (listingChanged) {
+      lastScopeListingIdRef.current = listingId;
+      // Avoid stale thread/messages from another anuncio (SPA navigation) or a buyer id from another listing
+      setLoading(true);
+      setSelectedId(null);
+      setMessages([]);
+      setThreads([]);
+      conversationListingIdRef.current = null;
+    }
 
     const res = await fetch(`/api/conversations?listingId=${encodeURIComponent(listingId)}`, {
       credentials: "same-origin",

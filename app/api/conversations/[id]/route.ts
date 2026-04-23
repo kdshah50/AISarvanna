@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
+import {
+  createAdminSupabase,
+  getUserIdFromRequest,
+  idMatchVariantsForIn,
+  isSameUserId,
+} from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
@@ -13,16 +18,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     const conversationId = params.id;
     const supabase = createAdminSupabase();
+    const idVars = idMatchVariantsForIn(conversationId);
 
     const { data: conv, error: convErr } = await supabase
       .from("listing_conversations")
       .select("id,listing_id,buyer_id,seller_id,updated_at")
-      .eq("id", conversationId)
+      .in("id", idVars)
       .maybeSingle();
 
     if (convErr || !conv) {
       return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
     }
+
+    const convRowId = conv.id;
 
     if (!isSameUserId(conv.buyer_id, userId) && !isSameUserId(conv.seller_id, userId)) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -37,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const { data: messages, error: msgErr } = await supabase
       .from("listing_messages")
       .select("id,sender_id,body,created_at")
-      .eq("conversation_id", conversationId)
+      .eq("conversation_id", convRowId)
       .order("created_at", { ascending: true });
 
     if (msgErr) {
