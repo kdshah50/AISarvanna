@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     const id = String(body?.id ?? "");
-    const action = String(body?.action ?? "") as "approve" | "reject" | "commission";
+    const action = String(body?.action ?? "") as "approve" | "reject" | "commission" | "package";
     if (!id || !action) {
       return NextResponse.json({ error: "id y action requeridos" }, { status: 400 });
     }
@@ -29,6 +29,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const parsePackageFields = (b: Record<string, unknown>) => {
+      const psc = b?.package_session_count;
+      const ptp = b?.package_total_price_mxn;
+      const hasSess = psc != null && psc !== "" && psc !== undefined;
+      const hasTot = ptp != null && ptp !== "" && ptp !== undefined;
+      if (!hasSess && !hasTot) {
+        return { package_session_count: null as number | null, package_total_price_mxn: null as number | null };
+      }
+      const n = typeof psc === "number" ? psc : parseInt(String(psc), 10);
+      const total = typeof ptp === "number" ? ptp : parseInt(String(ptp), 10);
+      if (!Number.isFinite(n) || n < 2 || !Number.isFinite(total) || total < 1) {
+        return { error: "Package: 2+ sessions and total price in centavos, or leave both empty" };
+      }
+      return { package_session_count: Math.floor(n), package_total_price_mxn: Math.floor(total) };
+    };
+
     if (action === "approve") {
       const raw = body?.commission_pct;
       const pct =
@@ -37,9 +53,20 @@ export async function POST(req: NextRequest) {
           : parseFloat(String(raw ?? "5"));
       const commission_pct = Number.isFinite(pct) ? Math.min(30, Math.max(0, pct)) : 5;
 
+      const parsed = parsePackageFields(body);
+      if ("error" in parsed) {
+        return NextResponse.json({ error: (parsed as { error: string }).error }, { status: 400 });
+      }
+      const updateRow: Record<string, unknown> = {
+        is_verified: true,
+        commission_pct,
+        package_session_count: parsed.package_session_count,
+        package_total_price_mxn: parsed.package_total_price_mxn,
+      };
+
       const { data, error } = await supabase
         .from("listings")
-        .update({ is_verified: true, commission_pct })
+        .update(updateRow)
         .eq("id", id.trim())
         .select("id");
 
@@ -52,6 +79,30 @@ export async function POST(req: NextRequest) {
           { error: "No se actualizó ningún anuncio (id no encontrado o distinto tipo en BD)" },
           { status: 404 }
         );
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === "package") {
+      const parsed = parsePackageFields(body);
+      if ("error" in parsed) {
+        return NextResponse.json({ error: (parsed as { error: string }).error }, { status: 400 });
+      }
+      const { data, error } = await supabase
+        .from("listings")
+        .update({
+          package_session_count: parsed.package_session_count,
+          package_total_price_mxn: parsed.package_total_price_mxn,
+        })
+        .eq("id", id.trim())
+        .select("id");
+
+      if (error) {
+        console.error("[admin/listing] package", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      if (!data?.length) {
+        return NextResponse.json({ error: "No se encontró el anuncio" }, { status: 404 });
       }
       return NextResponse.json({ ok: true });
     }

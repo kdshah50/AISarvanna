@@ -17,6 +17,7 @@ type Booking = {
   status: string;
   created_at: string;
   has_review?: boolean;
+  package_session_count?: number | null;
   listing_title: string;
   seller_name: string;
 };
@@ -277,6 +278,12 @@ export default function MyBookingsPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="text-sm font-semibold text-[#1C1917]">{b.listing_title}</h3>
+                      {b.package_session_count != null && b.package_session_count >= 2 && (
+                        <p className="text-xs text-amber-800 font-medium mt-0.5">
+                          📦 {lang === "es" ? "Paquete" : "Package"}: {b.package_session_count}{" "}
+                          {lang === "es" ? "sesiones" : "sessions"}
+                        </p>
+                      )}
                       <p className="text-xs text-[#6B7280] mt-0.5">
                         {lang === "es" ? "Proveedor" : "Provider"}: {b.seller_name}
                       </p>

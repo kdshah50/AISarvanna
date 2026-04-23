@@ -11,6 +11,8 @@ type Listing = {
   status: string;
   location_city: string;
   commission_pct: number | null;
+  package_session_count?: number | null;
+  package_total_price_mxn?: number | null;
   created_at: string;
   users: { display_name: string; phone: string } | null;
 };
@@ -51,6 +53,8 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<"pending" | "verified" | "all">("pending");
   const [saving, setSaving] = useState<string | null>(null);
   const [commissions, setCommissions] = useState<Record<string, string>>({});
+  const [pkgSess, setPkgSess] = useState<Record<string, string>>({});
+  const [pkgPesos, setPkgPesos] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState("");
   const [msgError, setMsgError] = useState(false);
 
@@ -111,12 +115,22 @@ export default function AdminPage() {
     const json = res.ok ? await res.json() : { listings: [] };
     const data = (json as { listings?: unknown }).listings;
     setListings(Array.isArray(data) ? data : []);
-    // Init commission inputs
+    // Init commission + optional package
     const c: Record<string, string> = {};
+    const ps: Record<string, string> = {};
+    const pp: Record<string, string> = {};
     (Array.isArray(data) ? data : []).forEach((l: Listing) => {
       c[l.id] = String(l.commission_pct ?? 5);
+      if (l.package_session_count != null && l.package_session_count >= 2) {
+        ps[l.id] = String(l.package_session_count);
+      }
+      if (l.package_total_price_mxn != null && l.package_total_price_mxn > 0) {
+        pp[l.id] = String(l.package_total_price_mxn / 100);
+      }
     });
     setCommissions(c);
+    setPkgSess(ps);
+    setPkgPesos(pp);
     setLoading(false);
   };
 
@@ -286,15 +300,47 @@ export default function AdminPage() {
     }
   };
 
+  const buildPackagePayload = (id: string) => {
+    const s = (pkgSess[id] ?? "").trim();
+    const p = (pkgPesos[id] ?? "").trim();
+    if (!s && !p) {
+      return { package_session_count: null as number | null, package_total_price_mxn: null as number | null };
+    }
+    if (!s || !p) {
+      throw new Error("Complete package sessions and total MXN, or leave both empty");
+    }
+    const n = parseInt(s, 10);
+    const pesos = parseFloat(p.replace(/,/g, "."));
+    if (!Number.isFinite(n) || n < 2 || !Number.isFinite(pesos) || pesos <= 0) {
+      throw new Error("Package: 2+ sessions and positive total MXN, or both empty");
+    }
+    return { package_session_count: n, package_total_price_mxn: Math.round(pesos * 100) };
+  };
+
+  const savePackage = async (id: string) => {
+    setSaving(id);
+    try {
+      const pkg = buildPackagePayload(id);
+      await postAdmin({ id, action: "package", ...pkg });
+      showMsg("✅ Package pricing saved");
+      await load();
+    } catch (e: unknown) {
+      showMsg(e instanceof Error ? e.message : "Error", true);
+    } finally {
+      setSaving(null);
+    }
+  };
+
   const approve = async (id: string) => {
     setSaving(id);
     const pct = parseFloat(commissions[id] ?? "5");
     try {
-      await postAdmin({ id, action: "approve", commission_pct: pct });
-      showMsg(`✅ Aprobado — comisión ${pct}%`);
+      const pkg = buildPackagePayload(id);
+      await postAdmin({ id, action: "approve", commission_pct: pct, ...pkg });
+      showMsg(`✅ Approved — comisión ${pct}%${pkg.package_session_count ? ` — paquete ${pkg.package_session_count} sesiones` : ""}`);
       await load();
-    } catch (e: any) {
-      showMsg(e?.message ?? "No se pudo aprobar", true);
+    } catch (e: unknown) {
+      showMsg(e instanceof Error ? e.message : "No se pudo aprobar", true);
     } finally {
       setSaving(null);
     }
@@ -835,6 +881,48 @@ export default function AdminPage() {
                 <p className="text-sm text-[#374151] bg-[#F4F0EB] rounded-xl px-4 py-3 mb-4 leading-relaxed">
                   {l.description_es?.slice(0, 200)}{l.description_es?.length > 200 ? "..." : ""}
                 </p>
+
+                {/* Optional package: N sessions for $X total (commission base) */}
+                <div className="mb-4 p-3 rounded-xl bg-amber-50/80 border border-amber-200/80">
+                  <p className="text-xs font-semibold text-amber-950 mb-2">Package (optional) — N sessions, total $ MXN (agreed with provider)</p>
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div>
+                      <label className="text-[10px] text-amber-900 block">Sessions (≥2)</label>
+                      <input
+                        type="number"
+                        min={2}
+                        placeholder="—"
+                        value={pkgSess[l.id] ?? ""}
+                        onChange={(e) => setPkgSess((c) => ({ ...c, [l.id]: e.target.value }))}
+                        className="w-20 border border-amber-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-amber-500 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-amber-900 block">Total MXN</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="e.g. 2400"
+                        value={pkgPesos[l.id] ?? ""}
+                        onChange={(e) => setPkgPesos((c) => ({ ...c, [l.id]: e.target.value }))}
+                        className="w-28 border border-amber-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-amber-500 bg-white"
+                      />
+                    </div>
+                    {l.is_verified && (
+                      <button
+                        type="button"
+                        onClick={() => void savePackage(l.id)}
+                        disabled={saving === l.id}
+                        className="text-xs px-3 py-2 rounded-lg bg-amber-700 text-white font-semibold hover:bg-amber-800 transition-colors disabled:opacity-40"
+                      >
+                        {saving === l.id ? "…" : "Save package"}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-amber-800 mt-2">
+                    Platform fee uses % commission on this total. Leave both fields empty for single-visit list price only.
+                  </p>
+                </div>
 
                 {/* Commission + Actions */}
                 <div className="flex flex-wrap gap-3 items-center">

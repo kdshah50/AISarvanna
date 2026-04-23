@@ -108,6 +108,15 @@ export default async function ListingPage({
           <h1 className="text-xl font-semibold text-[#1C1917] flex-1 min-w-0">{listing.title_es}</h1>
           <FavoriteButton listingId={params.id} />
         </div>
+        {isServiceListing && listing.package_session_count >= 2 && listing.package_total_price_mxn > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <strong>Approved package:</strong> {listing.package_session_count} sessions for{" "}
+            {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(
+              listing.package_total_price_mxn / 100
+            )}{" "}
+            total (platform fee is calculated on this amount when you book).
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 mb-6">
           {listing.shipping_available && (
             <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">Envio disponible</span>

@@ -18,6 +18,9 @@ type BookingState = {
   pendingBookingId: string | null;
   commissionAmountCents: number;
   commissionPct: number;
+  hasPackage?: boolean;
+  packageSessionCount?: number | null;
+  packageTotalMxnCents?: number | null;
 };
 
 function formatMXN(cents: number): string {
@@ -246,9 +249,26 @@ export default function ServiceBookingBlock({
     <div className="rounded-xl border border-[#E5E0D8] bg-white overflow-hidden">
       <div className="px-4 py-3 border-b border-[#E5E0D8] bg-[#F4F0EB]">
         <h3 className="text-sm font-bold text-[#1C1917]">Reservar servicio</h3>
+        {booking.hasPackage && booking.packageSessionCount && booking.packageTotalMxnCents != null && (
+          <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-950">
+            <strong>Plan aprobado (Naranjogo):</strong> {booking.packageSessionCount} sesiones por{" "}
+            {formatMXN(booking.packageTotalMxnCents)} en total. La tarifa de plataforma abajo se calcula sobre este
+            monto acordado con el proveedor.
+          </div>
+        )}
         <p className="text-xs text-[#6B7280] mt-1">
-          El precio del anuncio (ej. $52) lo acuerdas con el proveedor. Aquí solo pagas la{" "}
-          <strong>tarifa de la plataforma</strong> (~comisión; mín. $10 MXN por Stripe) para desbloquear su WhatsApp.
+          {booking.hasPackage ? (
+            <span>
+              El precio publicado en el anuncio es referencia. Pagas la{" "}
+              <strong>tarifa de plataforma</strong> (comisión, mín. $10 MXN) calculada sobre el total del plan aprobado, para
+              desbloquear el WhatsApp del proveedor.
+            </span>
+          ) : (
+            <>
+              El precio del anuncio (ej. $52) lo acuerdas con el proveedor. Aquí solo pagas la{" "}
+              <strong>tarifa de la plataforma</strong> (~comisión; mín. $10 MXN por Stripe) para desbloquear su WhatsApp.
+            </>
+          )}
         </p>
       </div>
 

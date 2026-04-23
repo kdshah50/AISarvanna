@@ -3,6 +3,7 @@ import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
 import { getStripe, computeCommissionCents, DEFAULT_COMMISSION_PCT, MIN_COMMISSION_CENTS_MXN } from "@/lib/stripe";
 import { getNextBookingDiscount, redeemDiscount } from "@/lib/loyalty";
 import { isServicesListing } from "@/lib/listing-category";
+import { effectiveListingPriceMxnCents, listingHasActivePackage } from "@/lib/package-pricing";
 import { buyerHasSentInAppMessage, ensureContactGateFromMessages } from "@/lib/contact-gate";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const { data: listing } = await supabase
       .from("listings")
-      .select("id,seller_id,category_id,status,title_es,price_mxn,commission_pct")
+      .select("id,seller_id,category_id,status,title_es,price_mxn,commission_pct,package_session_count,package_total_price_mxn")
       .eq("id", listingId)
       .maybeSingle();
 
@@ -78,7 +79,10 @@ export async function POST(req: NextRequest) {
     }
 
     const commissionPct = Number(listing.commission_pct ?? DEFAULT_COMMISSION_PCT);
-    let commissionCents = computeCommissionCents(Number(listing.price_mxn) || 0, commissionPct);
+    const priceBase = effectiveListingPriceMxnCents(
+      listing as { price_mxn: number; package_session_count?: number | null; package_total_price_mxn?: number | null }
+    );
+    let commissionCents = computeCommissionCents(priceBase, commissionPct);
     if (!Number.isFinite(commissionCents) || commissionCents < MIN_COMMISSION_CENTS_MXN) {
       commissionCents = MIN_COMMISSION_CENTS_MXN;
     }
@@ -97,6 +101,12 @@ export async function POST(req: NextRequest) {
       console.error("[checkout] loyalty check failed (non-fatal)", loyaltyErr);
     }
 
+    const pkgCount = listingHasActivePackage(
+      listing as { package_session_count?: number | null; package_total_price_mxn?: number | null }
+    )
+      ? (listing as { package_session_count: number }).package_session_count
+      : null;
+
     const { data: booking, error: bookErr } = await supabase
       .from("service_bookings")
       .insert({
@@ -107,6 +117,7 @@ export async function POST(req: NextRequest) {
         commission_pct: commissionPct,
         note,
         payment_status: "pending",
+        package_session_count: pkgCount,
       })
       .select("id")
       .single();
@@ -122,6 +133,13 @@ export async function POST(req: NextRequest) {
       ? ` (descuento lealtad ${loyaltyDiscountPct}% aplicado)`
       : "";
 
+    const isPkg = listingHasActivePackage(
+      listing as { package_session_count?: number | null; package_total_price_mxn?: number | null }
+    );
+    const lineDesc = isPkg
+      ? `Plan aprobado: ${(listing as { package_session_count: number }).package_session_count} sesiones (precio acordado; tarifa de plataforma ${commissionPct}%)${discountLabel}`
+      : `Tarifa de servicio (${commissionPct}%) para conectarte con el proveedor${discountLabel}`;
+
     let session;
     try {
       session = await stripe.checkout.sessions.create({
@@ -133,8 +151,10 @@ export async function POST(req: NextRequest) {
             currency: "mxn",
             unit_amount: commissionCents,
             product_data: {
-              name: `Comisión de reserva — ${listing.title_es}`,
-              description: `Tarifa de servicio (${commissionPct}%) para conectarte con el proveedor${discountLabel}`,
+              name: isPkg
+                ? `Comisión de reserva (paquete) — ${listing.title_es}`
+                : `Comisión de reserva — ${listing.title_es}`,
+              description: lineDesc,
             },
           },
           quantity: 1,

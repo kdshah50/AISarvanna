@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest, isSameUserId } from "@/lib/auth-server";
 import { isServicesListing } from "@/lib/listing-category";
 import { buyerHasSentInAppMessage, ensureContactGateFromMessages } from "@/lib/contact-gate";
-import { MIN_COMMISSION_CENTS_MXN } from "@/lib/stripe";
+import { computeCommissionCents } from "@/lib/stripe";
+import { effectiveListingPriceMxnCents, listingHasActivePackage } from "@/lib/package-pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -123,15 +124,21 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     const { data: listingPricing } = await supabase
       .from("listings")
-      .select("price_mxn,commission_pct")
+      .select("price_mxn,commission_pct,package_session_count,package_total_price_mxn")
       .eq("id", listingId)
       .maybeSingle();
 
-    const commPct = listingPricing?.commission_pct ?? 10;
-    const commCents = Math.max(
-      Math.round((Number(listingPricing?.price_mxn) || 0) * Number(commPct) / 100),
-      MIN_COMMISSION_CENTS_MXN
-    );
+    const commPct = Number(listingPricing?.commission_pct ?? 10);
+    const base = effectiveListingPriceMxnCents({
+      price_mxn: Number(listingPricing?.price_mxn) || 0,
+      package_session_count: listingPricing?.package_session_count,
+      package_total_price_mxn: listingPricing?.package_total_price_mxn,
+    });
+    const commCents = computeCommissionCents(base, commPct);
+    const hasPackage = listingHasActivePackage({
+      package_session_count: listingPricing?.package_session_count,
+      package_total_price_mxn: listingPricing?.package_total_price_mxn,
+    });
 
     return NextResponse.json({
       isService: true,
@@ -146,6 +153,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       pendingBookingId: pendingBooking?.id ?? null,
       commissionAmountCents: commCents,
       commissionPct: commPct,
+      hasPackage,
+      packageSessionCount: hasPackage ? listingPricing?.package_session_count : null,
+      packageTotalMxnCents: hasPackage ? listingPricing?.package_total_price_mxn : null,
     });
   } catch (e) {
     console.error("[service-booking] GET", e);
