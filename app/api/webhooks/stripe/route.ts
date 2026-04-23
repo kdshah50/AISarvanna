@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/auth-server";
 import { getStripe, stripePaymentIntentId } from "@/lib/stripe";
 import { awardPoints } from "@/lib/loyalty";
+import { maybeAwardReferralBonus } from "@/lib/referral";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,11 @@ export async function POST(req: NextRequest) {
         await awardPoints(supabase, buyerId, bookingId, amountPaid);
       } catch (loyaltyErr) {
         console.error("[stripe-webhook] loyalty award failed (non-fatal)", loyaltyErr);
+      }
+      try {
+        await maybeAwardReferralBonus(supabase, buyerId, bookingId);
+      } catch (refErr) {
+        console.error("[stripe-webhook] referral bonus failed (non-fatal)", refErr);
       }
     }
   }

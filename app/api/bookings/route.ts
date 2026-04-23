@@ -28,8 +28,21 @@ export async function GET(req: NextRequest) {
   const { data: bookings, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const bookingRows = bookings ?? [];
+  const bookingIds = bookingRows.map((b: { id: string }) => b.id);
+  const reviewedSet = new Set<string>();
+  if (bookingIds.length > 0) {
+    const { data: revRows } = await supabase
+      .from("seller_reviews")
+      .select("booking_id")
+      .in("booking_id", bookingIds);
+    for (const r of revRows ?? []) {
+      if (r.booking_id) reviewedSet.add(r.booking_id);
+    }
+  }
+
   const enriched = await Promise.all(
-    (bookings ?? []).map(async (b: Record<string, unknown>) => {
+    bookingRows.map(async (b: Record<string, unknown>) => {
       const { data: listing } = await supabase
         .from("listings")
         .select("title_es")
@@ -44,6 +57,7 @@ export async function GET(req: NextRequest) {
 
       return {
         ...b,
+        has_review: reviewedSet.has(String(b.id)),
         listing_title: listing?.title_es ?? "Servicio",
         seller_name: seller?.display_name ?? "Proveedor",
       };

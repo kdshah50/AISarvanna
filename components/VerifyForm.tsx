@@ -15,6 +15,7 @@ export default function VerifyForm() {
   const phone = canonicalizeAuthPhone(normalizeAuthPhone(params.get("phone") ?? ""));
   const devOtp = (params.get("otp") ?? "").replace(/\D/g, "").slice(0, 6);
   const returnTo = params.get("returnTo") ?? "";
+  const referralCode = (params.get("ref") ?? "").trim();
   const { prefix: phonePrefix, formatted: displayNational } = useMemo(() => nationalDigitsForDisplay(phone), [phone]);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function VerifyForm() {
         const res = await fetch("/api/auth/verify-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone, code: fullCode }),
+          body: JSON.stringify({ phone, code: fullCode, referralCode: referralCode || undefined }),
         });
         const ct = res.headers.get("content-type") ?? "";
         const data = ct.includes("application/json") ? await res.json() : null;
@@ -57,7 +58,7 @@ export default function VerifyForm() {
         setLoading(false);
       }
     },
-    [phone, router]
+    [phone, returnTo, referralCode]
   );
 
   useEffect(() => {

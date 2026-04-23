@@ -19,6 +19,7 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo") ?? "";
+  const refParam = searchParams.get("ref")?.trim() ?? "";
 
   const selected = COUNTRIES.find((c) => c.id === country)!;
 
@@ -50,6 +51,7 @@ export default function LoginForm() {
         params.set("otp", String(data.devOtp));
       }
       if (returnTo) params.set("returnTo", returnTo);
+      if (refParam) params.set("ref", refParam);
       router.push(`/auth/verify?${params.toString()}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error");

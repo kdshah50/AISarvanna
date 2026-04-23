@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase } from "@/lib/auth-server";
+import { createAdminSupabase, idMatchVariantsForIn } from "@/lib/auth-server";
 import { getStripe, stripePaymentIntentId } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
@@ -26,33 +26,37 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Pago no completado" }, { status: 402 });
     }
 
-    const bookingId = checkoutSession.metadata?.booking_id;
-    if (!bookingId) {
+    const bookingIdFromMeta = checkoutSession.metadata?.booking_id;
+    if (!bookingIdFromMeta) {
       return NextResponse.json({ error: "Sesión sin reserva" }, { status: 404 });
     }
 
     const supabase = createAdminSupabase();
+    const idVars = idMatchVariantsForIn(String(bookingIdFromMeta));
     const { data: booking } = await supabase
       .from("service_bookings")
       .select("*")
-      .eq("id", bookingId)
+      .in("id", idVars)
       .maybeSingle();
 
     if (!booking) {
       return NextResponse.json({ error: "Reserva no encontrada" }, { status: 404 });
     }
 
+    const bookingRowId = booking.id;
+
     if (booking.payment_status !== "paid") {
       const now = new Date().toISOString();
+      const sellerIdVars = idMatchVariantsForIn(String(booking.seller_id));
       const { data: seller } = await supabase
         .from("users")
         .select("phone")
-        .eq("id", booking.seller_id)
+        .in("id", sellerIdVars)
         .maybeSingle();
 
       const intentId = stripePaymentIntentId(checkoutSession.payment_intent);
 
-      const { error: upErr } = await supabase
+      const { data: updatedRows, error: upErr } = await supabase
         .from("service_bookings")
         .update({
           payment_status: "paid",
@@ -63,10 +67,15 @@ export async function GET(req: NextRequest) {
           status: "confirmed",
           updated_at: now,
         })
-        .eq("id", bookingId);
+        .in("id", idVars)
+        .select("id");
 
       if (upErr) {
         console.error("[verify-session] booking update", upErr);
+        return NextResponse.json({ error: "No se pudo confirmar la reserva" }, { status: 500 });
+      }
+      if (!updatedRows?.length) {
+        console.error("[verify-session] update matched 0 rows for booking", bookingRowId);
         return NextResponse.json({ error: "No se pudo confirmar la reserva" }, { status: 500 });
       }
     }
@@ -74,23 +83,25 @@ export async function GET(req: NextRequest) {
     const { data: fresh } = await supabase
       .from("service_bookings")
       .select("*")
-      .eq("id", bookingId)
+      .in("id", idVars)
       .maybeSingle();
 
     if (!fresh) {
       return NextResponse.json({ error: "Reserva no encontrada" }, { status: 404 });
     }
 
+    const listingIdVars = idMatchVariantsForIn(String(fresh.listing_id));
     const { data: listing } = await supabase
       .from("listings")
       .select("title_es,photo_urls,price_mxn")
-      .eq("id", fresh.listing_id)
+      .in("id", listingIdVars)
       .maybeSingle();
 
+    const freshSellerIdVars = idMatchVariantsForIn(String(fresh.seller_id));
     const { data: seller } = await supabase
       .from("users")
       .select("display_name,avatar_url,phone,whatsapp_optin")
-      .eq("id", fresh.seller_id)
+      .in("id", freshSellerIdVars)
       .maybeSingle();
 
     const isPaid = fresh.payment_status === "paid";

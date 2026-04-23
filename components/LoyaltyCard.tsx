@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from "react";
 
+type Tx = {
+  id: string;
+  type: string;
+  points: number;
+  description: string | null;
+  created_at: string;
+};
+
 type LoyaltyData = {
   account: {
     points_balance: number;
@@ -15,6 +23,7 @@ type LoyaltyData = {
     bookingsUntilReward: number;
     bookingCount: number;
   };
+  transactions?: Tx[];
 };
 
 export default function LoyaltyCard({ lang = "es" }: { lang?: "es" | "en" }) {
@@ -29,7 +38,7 @@ export default function LoyaltyCard({ lang = "es" }: { lang?: "es" | "en" }) {
 
   if (!data) return null;
 
-  const { account, reward } = data;
+  const { account, reward, transactions = [] } = data;
   const progress = reward.everyN > 0
     ? ((reward.bookingCount % reward.everyN) / reward.everyN) * 100
     : 0;
@@ -89,6 +98,25 @@ export default function LoyaltyCard({ lang = "es" }: { lang?: "es" | "en" }) {
           🎉 {lang === "es"
             ? `¡Tu próxima reserva tiene ${reward.discountPct}% de descuento!`
             : `Your next booking is ${reward.discountPct}% off!`}
+        </div>
+      )}
+
+      {transactions.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-white/20">
+          <p className="text-[10px] font-semibold text-white/60 uppercase tracking-wide mb-2">
+            {lang === "es" ? "Actividad reciente" : "Recent activity"}
+          </p>
+          <ul className="space-y-1.5 max-h-32 overflow-y-auto text-[11px] text-white/90">
+            {transactions.slice(0, 8).map((tx) => (
+              <li key={tx.id} className="flex justify-between gap-2">
+                <span className="truncate opacity-90">{tx.description ?? tx.type}</span>
+                <span className={tx.points >= 0 ? "text-[#D4A017] font-semibold" : "text-red-200"}>
+                  {tx.points >= 0 ? "+" : ""}
+                  {tx.points}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

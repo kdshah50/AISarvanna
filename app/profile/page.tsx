@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getTianguisTokenFromCookie } from "@/lib/client-auth";
 import LoyaltyCard from "@/components/LoyaltyCard";
+import ReferralCard from "@/components/ReferralCard";
+import RoutineHabitsCard from "@/components/RoutineHabitsCard";
 
 type User = {
   id: string;
@@ -53,6 +55,28 @@ export default function ProfilePage() {
   const [lang, setLang] = useState<"es" | "en">("es");
   const [ineUploading, setIneUploading] = useState(false);
   const [ineMsg, setIneMsg] = useState("");
+  const [favorites, setFavorites] = useState<
+    { listing_id: string; title: string; price_mxn: number; location_city: string | null }[]
+  >([]);
+
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("naranjo_lang");
+      if (s === "en" || s === "es") setLang(s);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/favorites?enrich=1", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : { favorites: [] }))
+      .then((d) => {
+        setFavorites(Array.isArray(d.favorites) ? d.favorites : []);
+      })
+      .catch(() => {});
+  }, [user]);
 
   const t = {
     es: {
@@ -73,7 +97,7 @@ export default function ProfilePage() {
       namePlaceholder:"Tu nombre completo",
       verifyBadge:    "Insignia de confianza",
       contactSupport: "¿Preguntas? Escríbenos",
-      phase3:         "Próximamente: historial de pagos, reseñas y más.",
+      phase3:         "Historial de reservas, reseñas, puntos e invitaciones: todo en un solo lugar.",
     },
     en: {
       myProfile:      "My profile",
@@ -93,7 +117,7 @@ export default function ProfilePage() {
       namePlaceholder:"Your full name",
       verifyBadge:    "Trust badge",
       contactSupport: "Questions? Contact us",
-      phase3:         "Coming soon: payment history, reviews, and more.",
+      phase3:         "Bookings, reviews, points, and referrals—everything in one place.",
     },
   }[lang];
 
@@ -195,7 +219,10 @@ export default function ProfilePage() {
           <Link href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">← {lang === "es" ? "Inicio" : "Home"}</Link>
           <div className="flex bg-[#F4F0EB] rounded-lg p-1 gap-1">
             {(["es", "en"] as const).map(l => (
-              <button key={l} onClick={() => setLang(l)}
+              <button key={l} onClick={() => {
+                setLang(l);
+                try { localStorage.setItem("naranjo_lang", l); } catch { /* ignore */ }
+              }}
                 className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${lang === l ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280]"}`}>
                 {l.toUpperCase()}
               </button>
@@ -369,9 +396,42 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Loyalty card */}
+        {/* Loyalty + referral */}
         <div className="mb-5">
           <LoyaltyCard lang={lang} />
+        </div>
+        <ReferralCard lang={lang} />
+
+        <RoutineHabitsCard lang={lang} />
+
+        <div className="bg-white rounded-3xl border border-[#E5E0D8] p-6 mb-5 shadow-sm">
+          <h2 className="font-serif text-lg font-bold text-[#1C1917] mb-3">
+            {lang === "es" ? "Favoritos" : "Saved services"}
+          </h2>
+          {favorites.length === 0 ? (
+            <p className="text-sm text-[#6B7280]">
+              {lang === "es"
+                ? "Marca un servicio con el corazón en la ficha del listado."
+                : "Save a service with the heart button on a listing page."}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {favorites.map((f) => (
+                <li key={f.listing_id}>
+                  <Link
+                    href={`/listing/${f.listing_id}`}
+                    className="block p-3 rounded-xl bg-[#F4F0EB] hover:bg-[#EDE8E0] transition-colors"
+                  >
+                    <p className="text-sm font-semibold text-[#1C1917] truncate">{f.title}</p>
+                    <p className="text-xs text-[#6B7280]">
+                      {fmtMXN(f.price_mxn)}
+                      {f.location_city ? ` · ${f.location_city}` : ""}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* My Bookings link */}

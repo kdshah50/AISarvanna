@@ -7,6 +7,7 @@ import WhatsAppCTA from "@/components/WhatsAppCTA";
 import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
 import ReportButton from "@/components/ReportButton";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
+import FavoriteButton from "@/components/FavoriteButton";
 import { isServicesListing } from "@/lib/listing-category";
 import { PAYMENT_METHODS_MX } from "@/lib/types";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
@@ -103,7 +104,10 @@ export default async function ListingPage({
           </span>
           {listing.negotiable && <span className="text-sm text-[#6B7280] italic">Negociable</span>}
         </div>
-        <h1 className="text-xl font-semibold text-[#1C1917] mb-4">{listing.title_es}</h1>
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <h1 className="text-xl font-semibold text-[#1C1917] flex-1 min-w-0">{listing.title_es}</h1>
+          <FavoriteButton listingId={params.id} />
+        </div>
         <div className="flex flex-wrap gap-2 mb-6">
           {listing.shipping_available && (
             <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">Envio disponible</span>

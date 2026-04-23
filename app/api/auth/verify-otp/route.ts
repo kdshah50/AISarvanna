@@ -13,6 +13,11 @@ export async function POST(req: NextRequest) {
     let phone = normalizeAuthPhone(String(body?.phone ?? ""));
     phone = canonicalizeAuthPhone(phone);
     const code = String(body?.code ?? "").replace(/\D/g, "").slice(0, 6);
+    const referralCodeRaw = String(body?.referralCode ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^0-9A-Z]/g, "")
+      .slice(0, 12);
 
     if (!isValidAuthPhone(phone) || code.length !== 6) {
       return NextResponse.json({ error: "Datos de verificación inválidos" }, { status: 400 });
@@ -63,12 +68,40 @@ export async function POST(req: NextRequest) {
       console.log("[verify-otp] merged +prefix duplicate", { id: dupUser.id, old: plusVariant, new: phone });
     }
 
-    const { data: user, error: userError } = await supabase
+    const { data: existingUser } = await supabase
       .from("users")
-      .upsert({ phone, phone_verified: true, trust_badge: "bronze" }, { onConflict: "phone" })
       .select("id, display_name, trust_badge")
-      .single();
-    if (userError || !user) throw new Error("No se pudo crear/actualizar usuario");
+      .eq("phone", phone)
+      .maybeSingle();
+
+    let user: { id: string; display_name: string | null; trust_badge: string } | null = null;
+
+    if (existingUser) {
+      const { error: upErr } = await supabase
+        .from("users")
+        .update({ phone_verified: true })
+        .eq("id", existingUser.id);
+      if (upErr) throw new Error("No se pudo actualizar usuario");
+      user = existingUser;
+    } else {
+      let referredBy: string | null = null;
+      if (referralCodeRaw.length >= 4) {
+        const { data: rc } = await supabase
+          .from("referral_codes")
+          .select("user_id")
+          .eq("code", referralCodeRaw)
+          .maybeSingle();
+        if (rc?.user_id) referredBy = rc.user_id;
+      }
+      const { data: inserted, error: insErr } = await supabase
+        .from("users")
+        .insert({ phone, phone_verified: true, trust_badge: "bronze", referred_by: referredBy })
+        .select("id, display_name, trust_badge")
+        .single();
+      if (insErr || !inserted) throw new Error("No se pudo crear/actualizar usuario");
+      user = inserted;
+    }
+    if (!user) throw new Error("No se pudo crear/actualizar usuario");
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? "tianguis_dev_secret_change_in_production");
     const token = await new SignJWT({ sub: user.id, phone, badge: user.trust_badge })
