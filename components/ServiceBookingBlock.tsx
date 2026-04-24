@@ -9,7 +9,6 @@ type BookingState = {
   isSeller?: boolean;
   canBook: boolean;
   contactedInApp: boolean;
-  whatsappAcked: boolean;
   hasPaidBooking: boolean;
   paidBookingId: string | null;
   revealedPhone: string | null;
@@ -113,13 +112,13 @@ export default function ServiceBookingBlock({
   // When step 1 completes, scroll the pay section into view (buyers only — not the seller on their own ad)
   useEffect(() => {
     if (sellerId && meId && sameUserId(meId, sellerId)) return;
-    const contacted = Boolean(booking?.contactedInApp || booking?.whatsappAcked);
+    const contacted = Boolean(booking?.contactedInApp);
     if (contacted && !prevContacted.current) {
       const el = document.getElementById("booking-section");
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     prevContacted.current = contacted;
-  }, [booking?.contactedInApp, booking?.whatsappAcked, meId, sellerId]);
+  }, [booking?.contactedInApp, meId, sellerId]);
 
   const manualRefresh = async () => {
     setRefreshing(true);
@@ -197,7 +196,7 @@ export default function ServiceBookingBlock({
 
   if (!booking?.isService) return null;
 
-  const contacted = booking.contactedInApp || booking.whatsappAcked;
+  const contacted = booking.contactedInApp;
   const hasPaid = booking.hasPaidBooking;
 
   // STEP 3: Contact revealed — buyer has paid

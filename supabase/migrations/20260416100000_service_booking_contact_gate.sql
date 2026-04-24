@@ -1,7 +1,5 @@
--- Service listings: buyer must contact via in-app thread and/or acknowledge WhatsApp before requesting a booking.
-
 CREATE TABLE IF NOT EXISTS public.listing_service_contact_gate (
-  listing_id TEXT NOT NULL REFERENCES public.listings (id) ON DELETE CASCADE,
+  listing_id UUID NOT NULL REFERENCES public.listings (id) ON DELETE CASCADE,
   buyer_id TEXT NOT NULL,
   contacted_in_app BOOLEAN NOT NULL DEFAULT FALSE,
   whatsapp_ack_at TIMESTAMPTZ,
@@ -13,7 +11,7 @@ CREATE INDEX IF NOT EXISTS idx_listing_service_contact_gate_buyer ON public.list
 
 CREATE TABLE IF NOT EXISTS public.service_booking_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id TEXT NOT NULL REFERENCES public.listings (id) ON DELETE CASCADE,
+  listing_id UUID NOT NULL REFERENCES public.listings (id) ON DELETE CASCADE,
   buyer_id TEXT NOT NULL,
   note TEXT NOT NULL CHECK (char_length(note) > 0 AND char_length(note) <= 2000),
   buyer_preference_text TEXT CHECK (buyer_preference_text IS NULL OR char_length(buyer_preference_text) <= 500),

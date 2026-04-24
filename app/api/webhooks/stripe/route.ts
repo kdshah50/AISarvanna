@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
 
     if (upErr) {
       console.error("[stripe-webhook] booking update failed", upErr);
+      // Return 5xx so Stripe retries delivery; paid users are not left without a matching paid row in DB.
+      return NextResponse.json({ error: "Persist failed" }, { status: 500 });
     }
 
     // Award loyalty points (non-blocking — errors here should not fail the webhook)

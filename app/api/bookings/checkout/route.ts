@@ -58,12 +58,12 @@ export async function POST(req: NextRequest) {
 
     const { data: gate } = await supabase
       .from("listing_service_contact_gate")
-      .select("contacted_in_app,whatsapp_ack_at")
+      .select("contacted_in_app")
       .eq("listing_id", listingId)
       .eq("buyer_id", userId)
       .maybeSingle();
 
-    let contactOk = Boolean(gate?.contacted_in_app || gate?.whatsapp_ack_at);
+    let contactOk = Boolean(gate?.contacted_in_app);
     if (!contactOk) {
       const sent = await buyerHasSentInAppMessage(supabase, listingId, userId);
       if (sent) {

@@ -37,7 +37,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         needLogin: true,
         canBook: false,
         contactedInApp: false,
-        whatsappAcked: false,
       });
     }
 
@@ -47,7 +46,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         isSeller: true,
         canBook: false,
         contactedInApp: false,
-        whatsappAcked: false,
       });
     }
 
@@ -56,21 +54,18 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         isService: false,
         canBook: false,
         contactedInApp: false,
-        whatsappAcked: false,
       });
     }
 
     const { data: gate } = await supabase
       .from("listing_service_contact_gate")
-      .select("contacted_in_app,whatsapp_ack_at")
+      .select("contacted_in_app")
       .eq("listing_id", listingId)
       .eq("buyer_id", userId)
       .maybeSingle();
 
     let contactedInApp = Boolean(gate?.contacted_in_app);
-    const whatsappAcked = Boolean(gate?.whatsapp_ack_at);
-
-    if (!contactedInApp && !whatsappAcked) {
+    if (!contactedInApp) {
       const sent = await buyerHasSentInAppMessage(supabase, listingId, userId);
       if (sent) {
         contactedInApp = true;
@@ -78,7 +73,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       }
     }
 
-    const hasContacted = contactedInApp || whatsappAcked;
+    const hasContacted = contactedInApp;
 
     const { data: paidBookings } = await supabase
       .from("service_bookings")
@@ -144,7 +139,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       isService: true,
       canBook: hasContacted,
       contactedInApp,
-      whatsappAcked,
       hasPaidBooking: !!latestPaid,
       paidBookingId: latestPaid?.id ?? null,
       revealedPhone,
@@ -163,7 +157,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-/** POST { action: "ack_whatsapp" } | { action: "request", note, preferred_at? } */
+/** POST { action: "request", note, buyer_preference_text? } */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const userId = await getUserIdFromRequest(req);
@@ -197,41 +191,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Este anuncio no está activo" }, { status: 400 });
     }
 
-    if (action === "ack_whatsapp") {
-      const now = new Date().toISOString();
-      const { data: existing } = await supabase
-        .from("listing_service_contact_gate")
-        .select("listing_id,buyer_id,contacted_in_app")
-        .eq("listing_id", listingId)
-        .eq("buyer_id", userId)
-        .maybeSingle();
-
-      if (!existing) {
-        const { error: ins } = await supabase.from("listing_service_contact_gate").insert({
-          listing_id: listingId,
-          buyer_id: userId,
-          contacted_in_app: false,
-          whatsapp_ack_at: now,
-          updated_at: now,
-        });
-        if (ins) {
-          console.error("[service-booking] ack insert", ins);
-          return NextResponse.json({ error: "No se pudo registrar" }, { status: 500 });
-        }
-      } else {
-        const { error: up } = await supabase
-          .from("listing_service_contact_gate")
-          .update({ whatsapp_ack_at: now, updated_at: now })
-          .eq("listing_id", listingId)
-          .eq("buyer_id", userId);
-        if (up) {
-          console.error("[service-booking] ack update", up);
-          return NextResponse.json({ error: "No se pudo registrar" }, { status: 500 });
-        }
-      }
-      return NextResponse.json({ ok: true });
-    }
-
     if (action === "request") {
       const note = String((json as { note?: string }).note ?? "").trim();
       if (!note || note.length > 2000) {
@@ -246,16 +205,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
       const { data: gate } = await supabase
         .from("listing_service_contact_gate")
-        .select("contacted_in_app,whatsapp_ack_at")
+        .select("contacted_in_app")
         .eq("listing_id", listingId)
         .eq("buyer_id", userId)
         .maybeSingle();
 
-      const contactedInApp = Boolean(gate?.contacted_in_app);
-      const whatsappAcked = Boolean(gate?.whatsapp_ack_at);
-      if (!contactedInApp && !whatsappAcked) {
+      let contactedInApp = Boolean(gate?.contacted_in_app);
+      if (!contactedInApp) {
+        const sent = await buyerHasSentInAppMessage(supabase, listingId, userId);
+        if (sent) {
+          await ensureContactGateFromMessages(supabase, listingId, userId);
+          contactedInApp = true;
+        }
+      }
+      if (!contactedInApp) {
         return NextResponse.json(
-          { error: "Primero contacta al proveedor por mensajes en la app o por WhatsApp." },
+          { error: "Primero contacta al proveedor por mensajes en la app." },
           { status: 400 }
         );
       }

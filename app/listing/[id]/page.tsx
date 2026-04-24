@@ -60,7 +60,7 @@ export default async function ListingPage({
   const supaUrl = getSupabaseUrl();
   const h = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
   const res = await fetch(
-    `${supaUrl}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users!fk_listings_seller(id,display_name,avatar_url,trust_badge,ine_verified,phone,whatsapp_optin,created_at)`,
+    `${supaUrl}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users!fk_listings_seller(id,display_name,avatar_url,trust_badge,ine_verified,whatsapp_optin,created_at)`,
     { headers: h, cache: "no-store" }
   );
   const [listing] = res.ok ? await res.json() : [];
