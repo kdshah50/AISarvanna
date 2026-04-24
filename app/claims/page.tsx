@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getTianguisTokenFromCookie } from "@/lib/client-auth";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
 
 type Booking = {
@@ -58,20 +57,22 @@ export default function ClaimsPage() {
   const [msgError, setMsgError] = useState(false);
 
   useEffect(() => {
-    const token = getTianguisTokenFromCookie();
-    if (!token) {
-      router.push("/auth/login?returnTo=/claims");
-      return;
-    }
-
     Promise.all([
-      fetch("/api/bookings?status=paid", { credentials: "same-origin" }).then(r => r.ok ? r.json() : { bookings: [] }),
-      fetch("/api/claims", { credentials: "same-origin" }).then(r => r.ok ? r.json() : { claims: [] }),
-    ]).then(([bData, cData]) => {
-      setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
-      setClaims(Array.isArray(cData.claims) ? cData.claims : []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+      fetch("/api/bookings?status=paid", { credentials: "same-origin" }),
+      fetch("/api/claims", { credentials: "same-origin" }),
+    ])
+      .then(async ([br, cr]) => {
+        if (br.status === 401 || cr.status === 401) {
+          router.push("/auth/login?returnTo=/claims");
+          return;
+        }
+        const bData = br.ok ? await br.json() : { bookings: [] };
+        const cData = cr.ok ? await cr.json() : { claims: [] };
+        setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
+        setClaims(Array.isArray(cData.claims) ? cData.claims : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [router]);
 
   const claimedBookingIds = new Set(claims.map(c => c.booking_id));

@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getTianguisTokenFromCookie } from "@/lib/client-auth";
 import LoyaltyCard from "@/components/LoyaltyCard";
 import ReferralCard from "@/components/ReferralCard";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
@@ -122,12 +121,6 @@ export default function ProfilePage() {
   }[lang];
 
   useEffect(() => {
-    const token = getTianguisTokenFromCookie();
-    if (!token) {
-      router.push("/auth/login");
-      return;
-    }
-
     fetch("/api/auth/me", { credentials: "same-origin" })
       .then(async (res) => {
         if (!res.ok) {
@@ -170,8 +163,9 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    document.cookie = "tianguis_token=; path=/; max-age=0";
-    router.push("/");
+    void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).finally(() => {
+      router.push("/");
+    });
   };
 
   const handleIneUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

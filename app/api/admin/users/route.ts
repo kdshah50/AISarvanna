@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/auth-server";
-import { getAdminPin } from "@/lib/admin-pin";
+import { getAdminPin, isAdminPinConfigured } from "@/lib/admin-pin";
+import { signedInePhotoUrl } from "@/lib/ine-storage";
 
 export const dynamic = "force-dynamic";
 
+function adminNotConfigured() {
+  return NextResponse.json(
+    { error: "Admin no configurado: define ADMIN_PIN en el servidor" },
+    { status: 503 }
+  );
+}
+
 /** GET ?pin=…  —  list all users (admin only). */
 export async function GET(req: NextRequest) {
+  if (!isAdminPinConfigured()) return adminNotConfigured();
   const pin = req.nextUrl.searchParams.get("pin");
   if (!pin || pin !== getAdminPin()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,12 +47,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to load users" }, { status: 500 });
   }
 
-  return NextResponse.json({ users: data ?? [] });
+  const rows = data ?? [];
+  for (const u of rows) {
+    if (u.ine_photo_url) {
+      const signed = await signedInePhotoUrl(supabase, u.ine_photo_url as string);
+      if (signed) u.ine_photo_url = signed;
+    }
+  }
+
+  return NextResponse.json({ users: rows });
 }
 
 /** PATCH — update trust_badge / ine_verified for a user. */
 export async function PATCH(req: NextRequest) {
   try {
+    if (!isAdminPinConfigured()) return adminNotConfigured();
     const body = await req.json();
     const pin = String(body?.pin ?? "").trim();
     if (!pin || pin !== getAdminPin()) {

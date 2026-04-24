@@ -3,7 +3,6 @@ import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { decodeJwtPayload, getTianguisTokenFromCookie } from "@/lib/client-auth";
 
 const SellModal = dynamic(() => import("./SellModal"), { ssr: false });
 
@@ -40,24 +39,24 @@ function HeaderInner() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const token = getTianguisTokenFromCookie();
-    if (!token) {
-      setUser(null);
-      return;
-    }
-    const payload = decodeJwtPayload(token);
-    if (payload?.phone && payload?.badge != null && typeof payload.exp === "number" && payload.exp * 1000 > Date.now()) {
-      setUser({ phone: payload.phone, badge: payload.badge });
-    } else {
-      setUser(null);
-    }
+    fetch("/api/auth/session", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((d: { loggedIn?: boolean; phone?: string; badge?: string }) => {
+        if (d.loggedIn && d.phone && d.badge != null) {
+          setUser({ phone: d.phone, badge: d.badge });
+        } else {
+          setUser(null);
+        }
+      })
+      .catch(() => setUser(null));
   }, [pathname]);
 
   const handleLogout = () => {
-    document.cookie = "tianguis_token=; path=/; max-age=0";
-    setUser(null);
-    setShowMenu(false);
-    router.push("/");
+    void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).finally(() => {
+      setUser(null);
+      setShowMenu(false);
+      router.push("/");
+    });
   };
 
   const badgeIcon = (b: string) => b === "diamond" ? "💎" : b === "gold" ? "🥇" : "🥉";

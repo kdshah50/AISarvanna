@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { SignJWT } from "jose";
 import { canonicalizeAuthPhone, isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
+import { getJwtSecretBytes } from "@/lib/jwt-secret";
+import { TIANGUIS_TOKEN_COOKIE } from "@/lib/auth-server";
+
+const IS_PROD = process.env.NODE_ENV === "production";
+
+function clientError(status: number, message: string) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+function serverError(log: unknown) {
+  console.error("[verify-otp]", log);
+  return NextResponse.json(
+    { error: IS_PROD ? "Error al verificar. Intenta de nuevo." : String((log as Error)?.message ?? log) },
+    { status: 500 }
+  );
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +36,15 @@ export async function POST(req: NextRequest) {
       .slice(0, 12);
 
     if (!isValidAuthPhone(phone) || code.length !== 6) {
-      return NextResponse.json({ error: "Datos de verificación inválidos" }, { status: 400 });
+      return clientError(400, "Datos de verificación inválidos");
+    }
+
+    let secret: Uint8Array;
+    try {
+      secret = getJwtSecretBytes();
+    } catch (e) {
+      console.error("[verify-otp] JWT_SECRET", e);
+      return clientError(503, "Autenticación no configurada en el servidor");
     }
 
     const baseOtpQuery = () =>
@@ -35,7 +59,6 @@ export async function POST(req: NextRequest) {
 
     let { data: otp, error: otpError } = await baseOtpQuery().eq("code", code).maybeSingle();
 
-    // Some DBs store OTP as integer; retry with numeric code to avoid type mismatch failures.
     if (otpError) {
       const numericCode = Number(code);
       if (Number.isInteger(numericCode)) {
@@ -47,16 +70,17 @@ export async function POST(req: NextRequest) {
 
     if (otpError) {
       console.error("[verify-otp] lookup error", otpError);
-      throw new Error("No se pudo validar el código OTP");
+      return clientError(500, "No se pudo validar el código OTP");
     }
     if (!otp) {
-      return NextResponse.json({ error: "Código incorrecto o expirado" }, { status: 401 });
+      return clientError(401, "Código incorrecto o expirado");
     }
 
     const { error: markUsedError } = await supabase.from("otp_codes").update({ used: true }).eq("id", otp.id);
-    if (markUsedError) throw new Error("No se pudo actualizar el OTP");
+    if (markUsedError) {
+      return clientError(500, "No se pudo actualizar el OTP");
+    }
 
-    // Check for duplicate accounts with +prefix variant (e.g. "+17326908527" vs "17326908527")
     const plusVariant = `+${phone}`;
     const { data: dupUser } = await supabase
       .from("users")
@@ -65,7 +89,6 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (dupUser) {
       await supabase.from("users").update({ phone }).eq("id", dupUser.id);
-      console.log("[verify-otp] merged +prefix duplicate", { id: dupUser.id, old: plusVariant, new: phone });
     }
 
     const { data: existingUser } = await supabase
@@ -81,7 +104,7 @@ export async function POST(req: NextRequest) {
         .from("users")
         .update({ phone_verified: true })
         .eq("id", existingUser.id);
-      if (upErr) throw new Error("No se pudo actualizar usuario");
+      if (upErr) return clientError(500, "No se pudo actualizar usuario");
       user = existingUser;
     } else {
       let referredBy: string | null = null;
@@ -98,20 +121,31 @@ export async function POST(req: NextRequest) {
         .insert({ phone, phone_verified: true, trust_badge: "bronze", referred_by: referredBy })
         .select("id, display_name, trust_badge")
         .single();
-      if (insErr || !inserted) throw new Error("No se pudo crear/actualizar usuario");
+      if (insErr || !inserted) {
+        return clientError(500, "No se pudo crear/actualizar usuario");
+      }
       user = inserted;
     }
-    if (!user) throw new Error("No se pudo crear/actualizar usuario");
+    if (!user) {
+      return clientError(500, "No se pudo crear/actualizar usuario");
+    }
 
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? "tianguis_dev_secret_change_in_production");
     const token = await new SignJWT({ sub: user.id, phone, badge: user.trust_badge })
       .setProtectedHeader({ alg: "HS256" })
       .setExpirationTime("30d")
       .setIssuedAt()
       .sign(secret);
 
-    return NextResponse.json({ token, user });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const res = NextResponse.json({ user });
+    res.cookies.set(TIANGUIS_TOKEN_COOKIE, token, {
+      httpOnly: true,
+      secure: IS_PROD,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+    return res;
+  } catch (e) {
+    return serverError(e);
   }
 }

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getTianguisTokenFromCookie } from "@/lib/client-auth";
-
 type Lang = "es" | "en";
 
 export default function FavoriteButton({ listingId, lang = "es" }: { listingId: string; lang?: Lang }) {
@@ -15,11 +13,6 @@ export default function FavoriteButton({ listingId, lang = "es" }: { listingId: 
       : { add: "Save", remove: "Saved" };
 
   useEffect(() => {
-    const token = getTianguisTokenFromCookie();
-    if (!token) {
-      setFavorited(false);
-      return;
-    }
     fetch(`/api/favorites?listingId=${encodeURIComponent(listingId)}`, { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : { favorited: false }))
       .then((d) => setFavorited(!!d.favorited))
@@ -27,11 +20,6 @@ export default function FavoriteButton({ listingId, lang = "es" }: { listingId: 
   }, [listingId]);
 
   const toggle = useCallback(async () => {
-    const token = getTianguisTokenFromCookie();
-    if (!token) {
-      window.location.href = `/auth/login?returnTo=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`;
-      return;
-    }
     setLoading(true);
     try {
       if (favorited) {
@@ -47,6 +35,10 @@ export default function FavoriteButton({ listingId, lang = "es" }: { listingId: 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ listingId }),
         });
+        if (res.status === 401) {
+          window.location.href = `/auth/login?returnTo=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname : "/")}`;
+          return;
+        }
         if (res.ok) setFavorited(true);
       }
     } finally {

@@ -1,14 +1,11 @@
 /**
- * Admin PIN for /api/admin/* — read at request time on the server.
- * Set `ADMIN_PIN` in Vercel (recommended) or `NEXT_PUBLIC_ADMIN_PIN`.
- *
- * Important: In Vercel, an empty `ADMIN_PIN` is still `""`, and `"" ?? fallback` does NOT
- * fall through — so we treat empty/whitespace as "unset" and use the next source.
+ * Admin PIN for /api/admin/* and similar — server env only (never NEXT_PUBLIC_*).
+ * If unset, admin routes return 503 until ADMIN_PIN is configured in the host.
  */
 export function getAdminPin(): string {
-  const fromAdmin = (process.env.ADMIN_PIN ?? "").trim();
-  const fromPublic = (process.env.NEXT_PUBLIC_ADMIN_PIN ?? "").trim();
-  if (fromAdmin) return fromAdmin;
-  if (fromPublic) return fromPublic;
-  return "naranjogo2026";
+  return (process.env.ADMIN_PIN ?? "").trim();
+}
+
+export function isAdminPinConfigured(): boolean {
+  return getAdminPin().length > 0;
 }

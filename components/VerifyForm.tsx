@@ -43,9 +43,8 @@ export default function VerifyForm() {
         if (!res.ok) {
           throw new Error((data as { error?: string } | null)?.error ?? "Código incorrecto");
         }
-        const token = (data as { token?: string } | null)?.token;
-        if (!token) throw new Error("Respuesta inválida del servidor");
-        document.cookie = `tianguis_token=${token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Lax`;
+        if (!(data as { user?: unknown } | null)?.user) throw new Error("Respuesta inválida del servidor");
+        // Session cookie is HttpOnly; set by /api/auth/verify-otp
         const dest = returnTo && returnTo.startsWith("/") ? returnTo : "/profile";
         window.location.href = dest;
       } catch (e: unknown) {

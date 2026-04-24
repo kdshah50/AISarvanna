@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
-import { getAdminPin } from "@/lib/admin-pin";
+import { getAdminPin, isAdminPinConfigured } from "@/lib/admin-pin";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +8,12 @@ const VALID_REASONS = ["fraud", "fake_listing", "misleading", "inappropriate", "
 
 /** GET ?pin=… — admin lists all reports */
 export async function GET(req: NextRequest) {
+  if (!isAdminPinConfigured()) {
+    return NextResponse.json(
+      { error: "Admin no configurado: define ADMIN_PIN en el servidor" },
+      { status: 503 }
+    );
+  }
   const pin = req.nextUrl.searchParams.get("pin");
   if (!pin || pin !== getAdminPin()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -135,6 +141,12 @@ export async function POST(req: NextRequest) {
 /** PATCH { reportId, status, admin_note? } — admin updates report */
 export async function PATCH(req: NextRequest) {
   try {
+    if (!isAdminPinConfigured()) {
+      return NextResponse.json(
+        { error: "Admin no configurado: define ADMIN_PIN en el servidor" },
+        { status: 503 }
+      );
+    }
     const body = await req.json();
     const pin = String(body?.pin ?? "").trim();
     if (!pin || pin !== getAdminPin()) {

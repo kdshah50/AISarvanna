@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { getAdminPin, isAdminPinConfigured } from "@/lib/admin-pin";
 
 export const dynamic = "force-dynamic";
-
-const ADMIN_PIN = process.env.ADMIN_PIN ?? process.env.NEXT_PUBLIC_ADMIN_PIN ?? "";
 
 const VALID_REASONS = ["no_show", "poor_quality", "incomplete", "overcharged", "safety_issue", "other"] as const;
 
@@ -17,7 +16,7 @@ export async function GET(req: NextRequest) {
   const statusFilter = req.nextUrl.searchParams.get("status") ?? "open";
   const supabase = createAdminSupabase();
 
-  if (pin && pin === ADMIN_PIN) {
+  if (pin && isAdminPinConfigured() && pin === getAdminPin()) {
     let query = supabase
       .from("guarantee_claims")
       .select("*")
@@ -151,7 +150,13 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const pin = String((body as { pin?: string }).pin ?? "").trim();
-  if (!pin || pin !== ADMIN_PIN) return NextResponse.json({ error: "PIN inválido" }, { status: 401 });
+  if (!isAdminPinConfigured()) {
+    return NextResponse.json(
+      { error: "Admin no configurado: define ADMIN_PIN en el servidor" },
+      { status: 503 }
+    );
+  }
+  if (!pin || pin !== getAdminPin()) return NextResponse.json({ error: "PIN inválido" }, { status: 401 });
 
   const claimId = String((body as { claimId?: string }).claimId ?? "").trim();
   const status = String((body as { status?: string }).status ?? "").trim();

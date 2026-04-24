@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 type Listing = {
   id: string;
@@ -39,6 +40,7 @@ function fmtDate(d: string) {
 }
 
 export default function AdminPage() {
+  const router = useRouter();
   const [pin, setPin] = useState("");
   const [authed, setAuthed] = useState(false);
   const [pinError, setPinError] = useState(false);
@@ -267,7 +269,7 @@ export default function AdminPage() {
       if (res.status === 404) {
         setPinErrorDetail("No está el servicio de verificación. Haz redeploy en Vercel con el código nuevo.");
       } else if (res.status === 401) {
-        setPinErrorDetail(data.error ?? "PIN incorrecto (revisa ADMIN_PIN / NEXT_PUBLIC_ADMIN_PIN en Vercel).");
+        setPinErrorDetail(data.error ?? "PIN incorrecto (revisa ADMIN_PIN en el servidor).");
       } else {
         setPinErrorDetail(data.error ?? `Error ${res.status}. Revisa logs en Vercel.`);
       }
@@ -286,6 +288,17 @@ export default function AdminPage() {
       setMsg("");
       setMsgError(false);
     }, 5000);
+  };
+
+  const lockAdminPanel = () => {
+    setAuthed(false);
+  };
+
+  const sessionLogout = () => {
+    void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).finally(() => {
+      setAuthed(false);
+      router.push("/");
+    });
   };
 
   const postAdmin = async (body: Record<string, unknown>) => {
@@ -425,7 +438,23 @@ export default function AdminPage() {
             <h1 className="font-serif text-2xl font-bold text-[#1B4332]">Naranjogo Admin</h1>
             <p className="text-sm text-[#6B7280]">Provider approval, verification & trust management</p>
           </div>
-          <a href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332]">← Back to site</a>
+          <div className="flex items-center flex-wrap gap-2 justify-end">
+            <a href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332]">← Volver al sitio</a>
+            <button
+              type="button"
+              onClick={lockAdminPanel}
+              className="text-sm font-medium text-[#6B7280] hover:text-[#1B4332] border border-[#E5E0D8] rounded-lg px-3 py-1.5 bg-white"
+            >
+              Salir del panel
+            </button>
+            <button
+              type="button"
+              onClick={sessionLogout}
+              className="text-sm font-semibold text-white bg-[#1B4332] hover:bg-[#2D6A4F] rounded-lg px-3 py-1.5"
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </div>
 
         {/* Main tabs */}

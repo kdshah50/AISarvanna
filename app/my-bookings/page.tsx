@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getTianguisTokenFromCookie } from "@/lib/client-auth";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
 
@@ -153,14 +152,14 @@ export default function MyBookingsPage() {
   }, []);
 
   useEffect(() => {
-    const token = getTianguisTokenFromCookie();
-    if (!token) {
-      router.push("/auth/login?returnTo=/my-bookings");
-      return;
-    }
-
     fetch("/api/bookings?status=paid", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : { bookings: [] }))
+      .then((r) => {
+        if (r.status === 401) {
+          router.push("/auth/login?returnTo=/my-bookings");
+          return { bookings: [] };
+        }
+        return r.ok ? r.json() : { bookings: [] };
+      })
       .then((data) => {
         setBookings(Array.isArray(data.bookings) ? data.bookings : []);
         setLoading(false);

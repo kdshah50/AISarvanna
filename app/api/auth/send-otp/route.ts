@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { canonicalizeAuthPhone, isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
+import { clientIpFromHeaders, rateLimitMemory } from "@/lib/rate-limit-memory";
 
 function generateOTP() {
   return Math.floor(Math.random() * 1000000)
@@ -59,6 +60,15 @@ export async function POST(req: NextRequest) {
           requestId,
         },
         { status: 400 }
+      );
+    }
+
+    const ip = clientIpFromHeaders(req.headers);
+    const ipRl = rateLimitMemory(`send-otp-ip:${ip}`, 25, 15 * 60 * 1000);
+    if (!ipRl.ok) {
+      return NextResponse.json(
+        { error: "Demasiados intentos desde esta red. Espera 15 minutos.", requestId },
+        { status: 429 }
       );
     }
 

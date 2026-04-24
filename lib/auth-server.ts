@@ -1,12 +1,16 @@
 import { NextRequest } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { jwtVerify } from "jose";
+import { getJwtSecretBytes } from "@/lib/jwt-secret";
 
 export const TIANGUIS_TOKEN_COOKIE = "tianguis_token";
 
-export function getJwtSecretBytes() {
-  return new TextEncoder().encode(process.env.JWT_SECRET ?? "tianguis_dev_secret_change_in_production");
-}
+export type TianguisJwtPayload = {
+  sub?: string;
+  phone?: string;
+  badge?: string;
+  exp?: number;
+};
 
 /** JWT sub vs Supabase uuids may differ in letter casing; never use raw `===` for identity. */
 export function isSameUserId(
@@ -24,17 +28,36 @@ export function idMatchVariantsForIn(id: string): string[] {
   return Array.from(new Set([t, t.toLowerCase(), t.toUpperCase()]));
 }
 
-export async function getUserIdFromRequest(req: NextRequest): Promise<string | null> {
-  const token = req.cookies.get(TIANGUIS_TOKEN_COOKIE)?.value;
-  if (!token) return null;
+async function verifyTianguisCookie(token: string) {
+  let secret: Uint8Array;
   try {
-    const { payload } = await jwtVerify(token, getJwtSecretBytes());
-    const sub = payload.sub;
-    if (typeof sub !== "string" || sub.length === 0) return null;
-    return sub.trim().toLowerCase();
+    secret = getJwtSecretBytes();
   } catch {
     return null;
   }
+  try {
+    return await jwtVerify(token, secret);
+  } catch {
+    return null;
+  }
+}
+
+export async function getTianguisJwtPayloadFromRequest(req: NextRequest): Promise<TianguisJwtPayload | null> {
+  const token = req.cookies.get(TIANGUIS_TOKEN_COOKIE)?.value;
+  if (!token) return null;
+  const result = await verifyTianguisCookie(token);
+  if (!result) return null;
+  return result.payload as TianguisJwtPayload;
+}
+
+export async function getUserIdFromRequest(req: NextRequest): Promise<string | null> {
+  const token = req.cookies.get(TIANGUIS_TOKEN_COOKIE)?.value;
+  if (!token) return null;
+  const result = await verifyTianguisCookie(token);
+  if (!result) return null;
+  const sub = result.payload.sub;
+  if (typeof sub !== "string" || sub.length === 0) return null;
+  return sub.trim().toLowerCase();
 }
 
 export function createAdminSupabase(): SupabaseClient {

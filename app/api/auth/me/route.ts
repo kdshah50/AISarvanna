@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest, idMatchVariantsForIn } from "@/lib/auth-server";
+import { signedInePhotoUrl } from "@/lib/ine-storage";
 
 /** Session + profile payload for /profile (bypasses RLS that blocks anon reads on users/listings). */
 export async function GET(req: NextRequest) {
@@ -37,6 +38,11 @@ export async function GET(req: NextRequest) {
     }
     if (!user) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    if (user.ine_photo_url) {
+      const signed = await signedInePhotoUrl(supabase, user.ine_photo_url as string);
+      if (signed) user.ine_photo_url = signed;
     }
 
     const { data: listings, error: listingsError } = await supabase
@@ -96,6 +102,11 @@ export async function PATCH(req: NextRequest) {
     if (error || !data) {
       console.error("[auth/me] PATCH", error);
       return NextResponse.json({ error: "No se pudo guardar" }, { status: 500 });
+    }
+
+    if (data.ine_photo_url) {
+      const signed = await signedInePhotoUrl(supabase, data.ine_photo_url as string);
+      if (signed) data.ine_photo_url = signed;
     }
 
     return NextResponse.json({ user: data });

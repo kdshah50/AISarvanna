@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/auth-server";
-
-const ADMIN_PIN = process.env.ADMIN_PIN ?? process.env.NEXT_PUBLIC_ADMIN_PIN ?? "";
+import { getAdminPin, isAdminPinConfigured } from "@/lib/admin-pin";
 
 /**
  * GET ?pin=&filter=pending|verified|all
  * Server-only listing queue for admin (replaces direct anon PostgREST after RLS).
  */
 export async function GET(req: NextRequest) {
+  if (!isAdminPinConfigured()) {
+    return NextResponse.json(
+      { error: "Admin no configurado: define ADMIN_PIN en el servidor" },
+      { status: 503 }
+    );
+  }
   const pin = req.nextUrl.searchParams.get("pin")?.trim() ?? "";
-  if (!ADMIN_PIN || pin !== ADMIN_PIN) {
+  const expected = getAdminPin();
+  if (!expected || pin !== expected) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

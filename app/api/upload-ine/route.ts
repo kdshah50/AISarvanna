@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
+import { createAdminSupabase, getUserIdFromRequest, idMatchVariantsForIn } from "@/lib/auth-server";
+import { INE_PHOTOS_BUCKET, signedInePhotoUrl } from "@/lib/ine-storage";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     const buf = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await supabase.storage
-      .from("ine-photos")
+      .from(INE_PHOTOS_BUCKET)
       .upload(fileName, buf, { contentType: file.type, upsert: true });
 
     if (uploadError) {
@@ -40,25 +41,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Upload failed — storage bucket may not exist yet" }, { status: 500 });
     }
 
-    const { data: urlData } = supabase.storage
-      .from("ine-photos")
-      .getPublicUrl(fileName);
-
-    const publicUrl = urlData?.publicUrl ?? "";
-
+    // Store object key only (private bucket); /api/auth/me returns a time-limited signed URL.
     const { error: updateError } = await supabase
       .from("users")
-      .update({ ine_photo_url: publicUrl })
-      .eq("id", userId);
+      .update({ ine_photo_url: fileName })
+      .in("id", idMatchVariantsForIn(userId));
 
     if (updateError) {
       console.error("[upload-ine] user update error:", updateError);
       return NextResponse.json({ error: "Photo uploaded but failed to save URL" }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, url: publicUrl });
-  } catch (e: any) {
+    const displayUrl = await signedInePhotoUrl(supabase, fileName);
+    return NextResponse.json({ ok: true, url: displayUrl ?? undefined, objectPath: fileName });
+  } catch (e: unknown) {
     console.error("[upload-ine] error:", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: "Error al subir el archivo" }, { status: 500 });
   }
 }

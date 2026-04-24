@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminPin } from "@/lib/admin-pin";
+import { getAdminPin, isAdminPinConfigured } from "@/lib/admin-pin";
 import { createAdminSupabase } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    if (!isAdminPinConfigured()) {
+      return NextResponse.json(
+        { error: "Admin no configurado: define ADMIN_PIN en el servidor" },
+        { status: 503 }
+      );
+    }
     const body = await req.json();
     const pin = String(body?.pin ?? "").trim();
     if (!pin || pin !== getAdminPin()) {
