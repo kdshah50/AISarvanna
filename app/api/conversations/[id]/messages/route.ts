@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth-server";
 import { sendWhatsApp } from "@/lib/twilio";
 import { isServicesListing } from "@/lib/listing-category";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         const senderName = sender?.display_name?.trim() || "Un cliente";
         const listingTitle = listingRow?.title_es || "tu servicio";
         const preview = body.length > 80 ? body.slice(0, 80) + "…" : body;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.naranjogo.com.mx";
+        const appUrl = getPublicAppUrl();
 
         const msg = [
           `💬 *Nuevo mensaje en Naranjogo*`,

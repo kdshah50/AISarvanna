@@ -5,12 +5,13 @@ import { getNextBookingDiscount, redeemDiscount } from "@/lib/loyalty";
 import { isServicesListing } from "@/lib/listing-category";
 import { effectiveListingPriceMxnCents, listingHasActivePackage } from "@/lib/package-pricing";
 import { buyerHasSentInAppMessage, ensureContactGateFromMessages } from "@/lib/contact-gate";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 /** Allow Stripe + retries to finish on Vercel (requires Hobby 10s default or Pro for 60s). */
 export const maxDuration = 60;
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.naranjogo.com.mx";
+const APP_URL = getPublicAppUrl();
 
 /**
  * POST { listingId, note? }

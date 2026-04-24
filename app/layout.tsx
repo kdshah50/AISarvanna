@@ -3,16 +3,18 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
 import SiteFooter from "@/components/SiteFooter";
+import { getPublicAppUrl } from "@/lib/app-url";
 
-
+const siteUrl = getPublicAppUrl();
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Tianguis — El Mercado Digital de México",
   description: "El mercado digital más seguro de México. Compra y vende con confianza.",
   openGraph: {
     title: "Tianguis — El Mercado Digital de México",
     description: "Compra y vende con confianza. Sin estafas, sin spam.",
-    url: "https://www.naranjogo.com.mx",
+    url: siteUrl,
     siteName: "Tianguis",
     locale: "es_MX",
     type: "website",

@@ -12,7 +12,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("NEXT_PUBLIC_APP_URL", "https://www.naranjogo.com.mx")],
+    allow_origins=[os.getenv("NEXT_PUBLIC_APP_URL", "https://naranjogo.com.mx")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

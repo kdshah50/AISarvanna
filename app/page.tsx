@@ -1,8 +1,11 @@
+import { Suspense } from "react";
 import ListingGrid from "@/components/listings/ListingGrid";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
+import { HomeListHeading } from "@/components/home/HomeListHeading";
 import { COLONIAS, COLONIA_RADIUS_KM, nearestColonia, coloniaLabel } from "@/lib/colonias";
+import { getPublicAppUrl } from "@/lib/app-url";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +13,7 @@ export const dynamic = "force-dynamic";
 const SMA_ZIP   = "37745";
 const SMA_LAT   = 20.91528;
 const SMA_LNG   = -100.74389;
-const APP_URL   = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.naranjogo.com.mx";
+const APP_URL = getPublicAppUrl();
 
 function fmtMXN(c: number) {
   return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(c / 100);
@@ -28,7 +31,9 @@ interface Props {
 
 export default async function HomePage({ searchParams }: Props) {
   const query       = searchParams?.q ?? "";
-  const lang        = searchParams?.lang ?? "es";
+  const rawLang     = searchParams?.lang;
+  const lang        = rawLang === "en" || rawLang === "es" ? rawLang : "es";
+  const initialLang = lang;
   const coloniaKey  = searchParams?.colonia ?? "";
   let coloniaData   = coloniaKey ? COLONIAS[coloniaKey] : null;
   const userLat     = parseFloat(searchParams?.lat ?? "NaN");
@@ -121,14 +126,6 @@ export default async function HomePage({ searchParams }: Props) {
     }
   } catch (e) { console.error("Search error:", e); }
 
-  const heading = query && coloniaData
-    ? (lang === "en" ? `"${query}" in ${coloniaData.label}` : `"${query}" en ${coloniaData.label}`)
-    : query
-      ? (lang === "en" ? `Results for "${query}"` : `Resultados para "${query}"`)
-      : coloniaData
-        ? (lang === "en" ? `Services in ${coloniaData.label}` : `Servicios en ${coloniaData.label}`)
-        : (lang === "en" ? "Local Services — San Miguel de Allende" : "Servicios locales — San Miguel de Allende");
-
   const isHybrid = searchMode === "hybrid";
 
   return (
@@ -136,36 +133,20 @@ export default async function HomePage({ searchParams }: Props) {
       <Hero initialQuery={query} />
       <CategoryBar activeCategory="services" />
       <section className="max-w-5xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <h2 className="font-serif text-2xl font-bold text-[#1C1917]">{heading}</h2>
-          <div className="flex items-center gap-2 flex-wrap">
-            {isHybrid && (
-              <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#EFF6FF] text-[#1D4ED8] border border-[#BFDBFE]">
-                ✦ {lang === "en" ? "AI search" : "Búsqueda IA"}
-              </span>
-            )}
-            {hasGeo && (
-              <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]">
-                📍 {lang === "en" ? "Sorted by distance" : "Ordenado por distancia"}
-              </span>
-            )}
-            {coloniaData && (
-              <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#FDE68A] text-[#78350F] border border-[#F59E0B]">
-                📍 {coloniaData.label}
-              </span>
-            )}
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#F4F0EB] text-[#6B7280] border border-[#E5E0D8]">
-              San Miguel de Allende
-            </span>
-            <span className="text-xs px-3 py-1.5 rounded-full bg-[#F4F0EB] text-[#6B7280]">
-              {cards.length} {lang === "en" ? "services" : "servicios"}
-            </span>
-          </div>
-        </div>
-        <p className="text-sm text-[#6B7280] mb-6 flex items-center gap-2">
-          🏙️ San Miguel de Allende, Guanajuato
-          {hasGeo && <span className="text-xs text-[#059669] font-medium">· GPS activo</span>}
-        </p>
+        <Suspense
+          fallback={
+            <div className="h-32 mb-6 rounded-xl bg-[#F4F0EB] animate-pulse" aria-hidden />
+          }
+        >
+          <HomeListHeading
+            initialLang={initialLang}
+            query={query}
+            coloniaData={coloniaData}
+            hasGeo={hasGeo}
+            isHybrid={isHybrid}
+            cardCount={cards.length}
+          />
+        </Suspense>
         <ListingGrid listings={cards} />
       </section>
       <TrustBar />
