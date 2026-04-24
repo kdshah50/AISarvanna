@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Error loading reviews" }, { status: 500 });
   }
 
-  const buyerIds = [...new Set((reviews ?? []).map((r) => r.buyer_id))];
+  const buyerIds = Array.from(new Set((reviews ?? []).map((r) => r.buyer_id)));
   let buyerMap: Record<string, string> = {};
   if (buyerIds.length > 0) {
     const { data: buyers } = await supabase
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const listingIds = [...new Set((reviews ?? []).map((r) => r.listing_id))];
+  const listingIds = Array.from(new Set((reviews ?? []).map((r) => r.listing_id)));
   let listingMap: Record<string, string> = {};
   if (listingIds.length > 0) {
     const { data: listings } = await supabase

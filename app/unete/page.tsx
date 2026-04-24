@@ -148,6 +148,8 @@ export default function UnetePage() {
     name: "", whatsapp: "", service: "",
     description: "", price: "", curp: "",
     city: "San Miguel de Allende",
+    colonia: "",
+    address: "",
     payment_methods: ["efectivo", "whatsapp"] as string[],
     acceptTerms: false,
     acceptPricing: false,

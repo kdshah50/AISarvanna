@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
       seen.add(r.id);
       return true;
     });
-    const listingIds = [...new Set(all.map((r) => r.listing_id))];
-    const userIds = [...new Set(all.flatMap((r) => [r.buyer_id, r.seller_id]))];
+    const listingIds = Array.from(new Set(all.map((r) => r.listing_id)));
+    const userIds = Array.from(new Set(all.flatMap((r) => [r.buyer_id, r.seller_id])));
 
     const listingMap: Record<string, { title_es: string | null }> = {};
     if (listingIds.length > 0) {

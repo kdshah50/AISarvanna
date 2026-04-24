@@ -90,8 +90,9 @@ export default async function HomePage({ searchParams }: Props) {
         let rows = Array.isArray(data) ? data : [];
 
         if (coloniaData) {
+          const cd = coloniaData;
           rows = rows.filter((row: any) => {
-            const km = distKm(coloniaData.lat, coloniaData.lng, row.location_lat ?? SMA_LAT, row.location_lng ?? SMA_LNG);
+            const km = distKm(cd.lat, cd.lng, row.location_lat ?? SMA_LAT, row.location_lng ?? SMA_LNG);
             return km <= COLONIA_RADIUS_KM;
           });
         }

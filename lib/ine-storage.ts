@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/** Bucket should be private in Supabase Dashboard → Storage (signed URLs used for display). */
 const BUCKET = "ine-photos";
 
 /** Legacy rows store a full https://... URL; new rows store the object name only (private bucket + signed reads). */

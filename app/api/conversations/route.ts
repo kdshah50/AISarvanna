@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 
       const convs = (convsRaw ?? []).filter((c) => !isSameUserId(c.buyer_id, userId));
 
-      const buyerIds = [...new Set((convs ?? []).map((c) => c.buyer_id))];
+      const buyerIds = Array.from(new Set((convs ?? []).map((c) => c.buyer_id)));
       const buyerMap: Record<string, { display_name: string | null; phone: string | null }> = {};
       if (buyerIds.length > 0) {
         const { data: buyers } = await supabase.from("users").select("id,display_name,phone").in("id", buyerIds);

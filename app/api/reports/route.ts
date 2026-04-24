@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to load reports" }, { status: 500 });
   }
 
-  const listingIds = [...new Set((data ?? []).map((r) => r.listing_id).filter(Boolean))];
+  const listingIds = Array.from(new Set((data ?? []).map((r) => r.listing_id).filter(Boolean)));
   let listingMap: Record<string, string> = {};
   if (listingIds.length > 0) {
     const { data: listings } = await supabase
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     for (const l of listings ?? []) listingMap[l.id] = l.title_es;
   }
 
-  const userIds = [...new Set((data ?? []).flatMap((r) => [r.reporter_id, r.seller_id].filter(Boolean)))];
+  const userIds = Array.from(new Set((data ?? []).flatMap((r) => [r.reporter_id, r.seller_id].filter(Boolean))));
   let userMap: Record<string, string> = {};
   if (userIds.length > 0) {
     const { data: users } = await supabase
