@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 type Listing = {
@@ -107,7 +107,7 @@ export default function AdminPage() {
   const [reportFilter, setReportFilter] = useState<"open" | "all">("open");
   const [reportSaving, setReportSaving] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const f = filter === "pending" ? "pending" : filter === "verified" ? "verified" : "all";
     const res = await fetch(
@@ -134,9 +134,9 @@ export default function AdminPage() {
     setPkgSess(ps);
     setPkgPesos(pp);
     setLoading(false);
-  };
+  }, [filter, pin]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
       const res = await fetch(`/api/admin/users?pin=${encodeURIComponent(pin.trim())}`);
@@ -160,7 +160,7 @@ export default function AdminPage() {
       setUsers([]);
     }
     setUsersLoading(false);
-  };
+  }, [pin]);
 
   const updateUser = async (userId: string, updates: Record<string, unknown>) => {
     setUserSaving(userId);
@@ -181,7 +181,7 @@ export default function AdminPage() {
     }
   };
 
-  const loadClaims = async () => {
+  const loadClaims = useCallback(async () => {
     setClaimsLoading(true);
     try {
       const res = await fetch(`/api/claims?pin=${encodeURIComponent(pin.trim())}&status=${claimFilter}`);
@@ -191,7 +191,7 @@ export default function AdminPage() {
       setClaims([]);
     }
     setClaimsLoading(false);
-  };
+  }, [pin, claimFilter]);
 
   const updateClaim = async (claimId: string, status: string) => {
     setClaimSaving(claimId);
@@ -212,7 +212,7 @@ export default function AdminPage() {
     }
   };
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setReportsLoading(true);
     try {
       const res = await fetch(`/api/reports?pin=${encodeURIComponent(pin.trim())}&status=${reportFilter}`);
@@ -222,7 +222,7 @@ export default function AdminPage() {
       setReports([]);
     }
     setReportsLoading(false);
-  };
+  }, [pin, reportFilter]);
 
   const updateReport = async (reportId: string, status: string) => {
     setReportSaving(reportId);
@@ -244,11 +244,12 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (authed && tab === "listings") load();
-    if (authed && tab === "sellers") loadUsers();
-    if (authed && tab === "reports") loadReports();
-    if (authed && tab === "claims") loadClaims();
-  }, [authed, filter, tab, reportFilter, claimFilter]);
+    if (!authed) return;
+    if (tab === "listings") void load();
+    else if (tab === "sellers") void loadUsers();
+    else if (tab === "reports") void loadReports();
+    else if (tab === "claims") void loadClaims();
+  }, [authed, tab, load, loadUsers, loadReports, loadClaims]);
 
   const submitPin = async () => {
     setPinError(false);
