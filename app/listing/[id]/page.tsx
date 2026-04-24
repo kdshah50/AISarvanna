@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -96,7 +97,17 @@ export default async function ListingPage({
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {listing.photo_urls?.[0] && <img src={listing.photo_urls[0]} alt={listing.title_es} className="w-full h-80 object-cover rounded-2xl mb-6" />}
+        {listing.photo_urls?.[0] && (
+          <Image
+            src={listing.photo_urls[0]}
+            alt={listing.title_es}
+            width={1200}
+            height={320}
+            className="w-full h-80 object-cover rounded-2xl mb-6"
+            sizes="(max-width: 48rem) 100vw, 48rem"
+            priority
+          />
+        )}
         <div className="flex items-start justify-between mb-3">
           <span className="text-3xl font-bold text-[#1B4332]">
             {price}

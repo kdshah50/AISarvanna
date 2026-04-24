@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
@@ -173,7 +174,14 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
             {/* Photo preview + change button */}
             {photo && (
               <div className="relative mb-4">
-                <img src={photo} alt="" className="w-full h-48 object-cover rounded-xl" />
+                <Image
+                  src={photo}
+                  alt=""
+                  width={800}
+                  height={192}
+                  unoptimized
+                  className="w-full h-48 object-cover rounded-xl"
+                />
                 <button
                   onClick={() => { setPhoto(null); setStep(1); setAiDone(false); setAiSuggestedPrice(null); }}
                   className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-7 h-7 text-sm flex items-center justify-center"

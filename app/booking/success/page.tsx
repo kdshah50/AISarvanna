@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -186,9 +187,12 @@ function BookingSuccessContent() {
             <div className="px-6 py-4 border-b border-[#E5E0D8]">
               <div className="flex items-center gap-3">
                 {data.listing.photo && (
-                  <img
+                  <Image
                     src={data.listing.photo}
                     alt=""
+                    width={64}
+                    height={64}
+                    unoptimized
                     className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                   />
                 )}

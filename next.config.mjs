@@ -1,3 +1,5 @@
+import { CSP_REPORT_ONLY } from "./lib/csp.mjs";
+
 /** @type {import('next').NextConfig} */
 const isProd = process.env.NODE_ENV === "production";
 
@@ -22,6 +24,10 @@ const nextConfig = {
       security.push({
         key: "Strict-Transport-Security",
         value: "max-age=31536000; includeSubDomains",
+      });
+      security.push({
+        key: "Content-Security-Policy-Report-Only",
+        value: CSP_REPORT_ONLY,
       });
     }
     return [

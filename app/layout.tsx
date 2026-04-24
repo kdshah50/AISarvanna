@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 // Inter loaded via CSS
 import "./globals.css";
 import Header from "@/components/Header";
+import SiteFooter from "@/components/SiteFooter";
 
 
 
@@ -21,9 +22,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className="font-sans">
+      <body className="font-sans min-h-screen flex flex-col">
         <Header />
-        {children}
+        <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+        <SiteFooter />
       </body>
     </html>
   );
