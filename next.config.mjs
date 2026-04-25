@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import { CSP_REPORT_ONLY } from "./lib/csp.mjs";
 
 /** @type {import('next').NextConfig} */
@@ -48,4 +49,9 @@ const nextConfig = {
     ];
   },
 };
-export default nextConfig;
+
+/** Source map upload is off until SENTRY_AUTH_TOKEN is set in CI/Vercel. */
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  sourcemaps: { disable: true },
+});

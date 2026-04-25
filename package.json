@@ -11,6 +11,7 @@
     "test:messaging:smoke": "npx --yes tsx scripts/test-messaging.ts --smoke"
   },
   "dependencies": {
+    "@sentry/nextjs": "^8.55.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.0",
     "jose": "^6.2.2",
