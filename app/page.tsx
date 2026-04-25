@@ -62,6 +62,7 @@ export default async function HomePage({ searchParams }: Props) {
           const rLat = row.location_lat ?? SMA_LAT;
           const rLng = row.location_lng ?? SMA_LNG;
           const near = nearestColonia(rLat, rLng);
+          const u = row.users;
           return {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
             price_display: fmtMXN(row.price_mxn),
@@ -70,9 +71,10 @@ export default async function HomePage({ searchParams }: Props) {
             colonia_label: near?.label ?? null,
             photo_url: row.photo_urls?.[0] ?? null,
             shipping_available: row.shipping_available, negotiable: row.negotiable,
-            seller_name: row.users?.display_name ?? "Proveedor",
-            seller_badge: row.users?.trust_badge ?? "none",
-            seller_verified: false,
+            seller_name: u?.display_name ?? "Proveedor",
+            seller_badge: u?.trust_badge ?? "none",
+            seller_ine_verified: Boolean(u?.ine_verified),
+            seller_phone_verified: Boolean(u?.phone_verified),
             payment_methods: row.payment_methods ?? null,
             _dist_km: row._dist_km ?? null,
             _mode: row._mode,
@@ -86,7 +88,7 @@ export default async function HomePage({ searchParams }: Props) {
       // ── No query: show all CP 37745 services sorted by distance ───────────
       const res = await fetch(
         `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.services`
-        + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)`
+        + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)`
         + `&order=created_at.desc&limit=24`,
         { headers: supaHeaders, cache: "no-store" }
       );
@@ -117,7 +119,8 @@ export default async function HomePage({ searchParams }: Props) {
             shipping_available: row.shipping_available, negotiable: row.negotiable,
             seller_name: row.users?.display_name ?? "Proveedor",
             seller_badge: row.users?.trust_badge ?? "none",
-            seller_verified: row.users?.ine_verified ?? false,
+            seller_ine_verified: Boolean(row.users?.ine_verified),
+            seller_phone_verified: Boolean(row.users?.phone_verified),
             payment_methods: row.payment_methods ?? null,
             _dist_km: Math.round(km * 10) / 10,
           };

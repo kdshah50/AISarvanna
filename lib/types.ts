@@ -11,7 +11,10 @@ export interface ListingCard {
   negotiable: boolean;
   seller_name: string;
   seller_badge: string;
-  seller_verified: boolean;
+  /** INE/identity checked by team — stronger than phone-only. */
+  seller_ine_verified: boolean;
+  /** WhatsApp/OTP verified (number holds); does not mean ID reviewed. */
+  seller_phone_verified: boolean;
   payment_methods: string[] | null;
 }
 

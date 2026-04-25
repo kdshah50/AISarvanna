@@ -16,7 +16,7 @@ export default async function HomePage({ searchParams }: Props) {
   let cards: any[] = [];
 
   try {
-    let url = `${SUPA_URL}/rest/v1/listings?select=id,title_es,price_mxn,category_id,condition,location_city,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified)&status=eq.active&category_id=eq.services&order=created_at.desc&limit=24`;
+    let url = `${SUPA_URL}/rest/v1/listings?select=id,title_es,price_mxn,category_id,condition,location_city,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)&status=eq.active&category_id=eq.services&order=created_at.desc&limit=24`;
     if (category && category !== "all") url += `&category_id=eq.${category}`;
     if (query) url += `&title_es=ilike.*${encodeURIComponent(query)}*`;
 
@@ -33,7 +33,8 @@ export default async function HomePage({ searchParams }: Props) {
         shipping_available: row.shipping_available, negotiable: row.negotiable,
         seller_name: row.users?.display_name ?? "Vendedor",
         seller_badge: row.users?.trust_badge ?? "none",
-        seller_verified: row.users?.ine_verified ?? false,
+        seller_ine_verified: Boolean(row.users?.ine_verified),
+        seller_phone_verified: Boolean(row.users?.phone_verified),
       })) : [];
     }
   } catch (e) { console.error("Fetch error:", e); }

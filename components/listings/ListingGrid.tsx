@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ListingCard, PAYMENT_METHODS_MX } from "@/lib/types";
+import { ListingCard } from "@/lib/types";
 import { WhatsAppBadgeLocked } from "@/components/WhatsAppCTA";
 
 function fmtMXN(centavos: number) {
@@ -9,11 +9,29 @@ function fmtMXN(centavos: number) {
   }).format(centavos / 100);
 }
 
-function TrustBadge({ badge, verified }: { badge: string; verified: boolean }) {
+function TrustBadge({
+  badge,
+  ineVerified,
+  phoneVerified,
+}: {
+  badge: string;
+  ineVerified: boolean;
+  phoneVerified: boolean;
+}) {
   if (badge === "gold" || badge === "diamond")
     return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-700">{badge}</span>;
-  if (verified)
-    return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">Verif.</span>;
+  if (ineVerified)
+    return (
+      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800" title="INE revisada">
+        INE
+      </span>
+    );
+  if (phoneVerified)
+    return (
+      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600" title="Número verificado (WhatsApp)">
+        Tel.
+      </span>
+    );
   return null;
 }
 
@@ -72,7 +90,11 @@ export default function ListingGrid({ listings }: { listings: ListingCard[] }) {
                   <span className="text-xs text-[#6B7280] truncate max-w-[80px]">
                     {listing.seller_name}
                   </span>
-                  <TrustBadge badge={listing.seller_badge} verified={listing.seller_verified} />
+                  <TrustBadge
+                    badge={listing.seller_badge}
+                    ineVerified={listing.seller_ine_verified}
+                    phoneVerified={listing.seller_phone_verified}
+                  />
                 </div>
                 <WhatsAppBadgeLocked />
               </div>
