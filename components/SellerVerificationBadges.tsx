@@ -11,8 +11,26 @@ type Props = {
   size?: "sm" | "md";
 };
 
+function tierLabel(tier: "bronze" | "gold" | "diamond", lang: Lang): string {
+  if (lang === "en") {
+    return { bronze: "Bronze", gold: "Gold", diamond: "Diamond" }[tier];
+  }
+  return { bronze: "Bronce", gold: "Oro", diamond: "Diamante" }[tier];
+}
+
+function tierClass(tier: "bronze" | "gold" | "diamond"): string {
+  switch (tier) {
+    case "bronze":
+      return "bg-amber-50 text-amber-900 border-amber-200/90";
+    case "gold":
+      return "bg-yellow-50 text-yellow-800 border-yellow-200/90";
+    case "diamond":
+      return "bg-blue-50 text-blue-800 border-blue-200/90";
+  }
+}
+
 /**
- * Seller trust chips: tier (gold/diamond), INE, or phone — with visible ✓ (works on mobile; title is extra on desktop).
+ * Seller trust chips: tier (Bronce/Oro/Diamante), optional INE, Teléfono when no tier, platform fallback.
  */
 export function SellerVerificationBadges({
   trustBadge,
@@ -27,36 +45,52 @@ export function SellerVerificationBadges({
   const iconSm = size === "sm" ? "w-2.5 h-2.5" : "w-3 h-3";
 
   const b = (trustBadge ?? "none").toLowerCase();
-  if (b === "gold" || b === "diamond") {
-    return (
-      <span className={`${textSm} font-bold ${padSm} rounded bg-yellow-50 text-yellow-700 shrink-0`}>
-        {b}
+  const tier = b === "bronze" || b === "gold" || b === "diamond" ? b : null;
+
+  const parts: JSX.Element[] = [];
+
+  if (tier) {
+    const title =
+      lang === "en"
+        ? `${tierLabel(tier, lang)} trust level on Naranjogo`
+        : `Nivel de confianza: ${tierLabel(tier, lang)}`;
+    parts.push(
+      <span
+        key="tier"
+        className={`${textSm} font-bold ${padSm} rounded-md border shrink-0 ${tierClass(tier)}`}
+        title={title}
+      >
+        {tierLabel(tier, lang)}
       </span>
     );
   }
 
   if (ineVerified) {
     const title = lang === "en" ? "Verified: government ID reviewed (INE)" : "Verificado: INE revisada";
-    const label = "INE";
-    return (
+    parts.push(
       <span
+        key="ine"
         className={`inline-flex items-center gap-0.5 ${textSm} font-bold ${padSm} rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300/80 shrink-0`}
         title={title}
       >
         <span className="text-emerald-600" aria-hidden>
           ✓
         </span>
-        {label}
+        INE
       </span>
     );
   }
 
-  if (phoneVerified) {
+  // Teléfono: show when phone is verified and we are not already showing INE.
+  // If seller has a tier (Bronce+), phone is implied for bronze; for gold/diamond still optional —
+  // hide duplicate when tier exists to keep cards readable (tier + INE is enough).
+  if (phoneVerified && !ineVerified && !tier) {
     const title =
       lang === "en" ? "Verified: phone number (WhatsApp)" : "Verificado: número (WhatsApp)";
     const label = lang === "en" ? "Telephone" : "Teléfono";
-    return (
+    parts.push(
       <span
+        key="phone"
         className={`inline-flex items-center gap-0.5 ${textSm} font-bold ${padSm} rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0`}
         title={title}
       >
@@ -71,14 +105,15 @@ export function SellerVerificationBadges({
     );
   }
 
-  if (platformListingVerified) {
+  if (parts.length === 0 && platformListingVerified) {
     const title =
       lang === "en"
         ? "Listing reviewed and approved on Naranjogo"
         : "Anuncio revisado y aprobado en Naranjogo";
     const label = lang === "en" ? "Verified" : "Verificado";
-    return (
+    parts.push(
       <span
+        key="platform"
         className={`inline-flex items-center gap-0.5 ${textSm} font-bold ${padSm} rounded-md bg-teal-50 text-teal-800 border border-teal-200/90 shrink-0`}
         title={title}
       >
@@ -90,5 +125,9 @@ export function SellerVerificationBadges({
     );
   }
 
-  return null;
+  if (parts.length === 0) return null;
+
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">{parts}</span>
+  );
 }
