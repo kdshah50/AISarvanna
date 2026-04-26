@@ -3,12 +3,15 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ColoniaInfo } from "@/lib/colonias";
+import { categoryLabel, normalizeBrowseCategory } from "@/lib/marketplace-categories";
 
 type Lang = "en" | "es";
 
 type Props = {
   /** Must match `searchParams.lang` used on the server (first render / SSR). */
   initialLang: Lang;
+  /** Must match `?category=` on first paint. */
+  initialCategory?: string;
   query: string;
   coloniaData: ColoniaInfo | null;
   hasGeo: boolean;
@@ -24,6 +27,7 @@ type Props = {
  */
 export function HomeListHeading({
   initialLang,
+  initialCategory = "services",
   query,
   coloniaData,
   hasGeo,
@@ -32,11 +36,19 @@ export function HomeListHeading({
 }: Props) {
   const params = useSearchParams();
   const [lang, setLang] = useState<Lang>(initialLang);
+  const [categorySlug, setCategorySlug] = useState(() => normalizeBrowseCategory(initialCategory));
 
   useEffect(() => {
     const p = (params.get("lang") || "es") as string;
     if (p === "en" || p === "es") setLang(p);
   }, [params]);
+
+  useEffect(() => {
+    setCategorySlug(normalizeBrowseCategory(params.get("category")));
+  }, [params]);
+
+  const catWord = categoryLabel(categorySlug, lang);
+  const isServices = categorySlug === "services";
 
   const heading =
     query && coloniaData
@@ -49,11 +61,15 @@ export function HomeListHeading({
           : `Resultados para "${query}"`
         : coloniaData
           ? lang === "en"
-            ? `Services in ${coloniaData.label}`
-            : `Servicios en ${coloniaData.label}`
+            ? `${catWord} in ${coloniaData.label}`
+            : `${catWord} en ${coloniaData.label}`
           : lang === "en"
-            ? "Local Services — San Miguel de Allende"
-            : "Servicios locales — San Miguel de Allende";
+            ? isServices
+              ? "Local Services — San Miguel de Allende"
+              : `${catWord} — San Miguel de Allende`
+            : isServices
+              ? "Servicios locales — San Miguel de Allende"
+              : `${catWord} — San Miguel de Allende`;
 
   return (
     <div>
@@ -79,7 +95,8 @@ export function HomeListHeading({
             San Miguel de Allende
           </span>
           <span className="text-xs px-3 py-1.5 rounded-full bg-[#F4F0EB] text-[#6B7280]">
-            {cardCount} {lang === "en" ? "services" : "servicios"}
+            {cardCount}{" "}
+            {lang === "en" ? (isServices ? "services" : "listings") : isServices ? "servicios" : "anuncios"}
           </span>
         </div>
       </div>

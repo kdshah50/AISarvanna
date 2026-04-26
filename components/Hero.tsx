@@ -37,7 +37,8 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
 
   const go = (q: string, extra: Record<string, string> = {}) => {
     const p = new URLSearchParams(params.toString());
-    p.set("category", "services");
+    const cat = params.get("category") || "services";
+    p.set("category", cat);
 
     let finalQ = q.trim();
     if (finalQ && !extra.colonia) {

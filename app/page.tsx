@@ -11,6 +11,7 @@ import {
   embeddedSellerRow,
   isSellerPhoneVerifiedForDisplay,
 } from "@/lib/seller-trust-display";
+import { normalizeBrowseCategory } from "@/lib/marketplace-categories";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default async function HomePage({ searchParams }: Props) {
+  const categorySlug = normalizeBrowseCategory(searchParams?.category);
   const query       = searchParams?.q ?? "";
   const rawLang     = searchParams?.lang;
   const lang        = rawLang === "en" || rawLang === "es" ? rawLang : "es";
@@ -54,7 +56,7 @@ export default async function HomePage({ searchParams }: Props) {
   try {
     if (query) {
       // ── Use hybrid search API when query present ──────────────────────────
-      const params = new URLSearchParams({ q: query, category: "services" });
+      const params = new URLSearchParams({ q: query, category: categorySlug });
       if (hasGeo) { params.set("lat", String(userLat)); params.set("lng", String(userLng)); }
       if (coloniaKey) { params.set("colonia", coloniaKey); }
       const res = await fetch(`${APP_URL}/api/search?${params}`, { cache: "no-store" });
@@ -95,9 +97,9 @@ export default async function HomePage({ searchParams }: Props) {
         }
       }
     } else {
-      // ── No query: show all CP 37745 services sorted by distance ───────────
+      // ── No query: show active verified listings for selected category ───────
       const res = await fetch(
-        `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.services`
+        `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${categorySlug}`
         + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)`
         + `&order=created_at.desc&limit=24`,
         { headers: supaHeaders, cache: "no-store" }
@@ -151,7 +153,7 @@ export default async function HomePage({ searchParams }: Props) {
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
       <Hero initialQuery={query} />
-      <CategoryBar activeCategory="services" />
+      <CategoryBar />
       <section className="max-w-5xl mx-auto px-4 py-10">
         <Suspense
           fallback={
@@ -160,6 +162,7 @@ export default async function HomePage({ searchParams }: Props) {
         >
           <HomeListHeading
             initialLang={initialLang}
+            initialCategory={categorySlug}
             query={query}
             coloniaData={coloniaData}
             hasGeo={hasGeo}
