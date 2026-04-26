@@ -24,21 +24,11 @@ type BookingInfo = {
   revealedWhatsappUrl: string | null;
 };
 
-export default function WhatsAppCTA({
-  listingId,
-  isService,
-}: {
-  listingId: string;
-  isService: boolean;
-}) {
+export default function WhatsAppCTA({ listingId }: { listingId: string }) {
   const [state, setState] = useState<"loading" | "locked" | "unlocked">("loading");
   const [waUrl, setWaUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!isService) {
-      setState("locked");
-      return;
-    }
     try {
       const res = await fetch(`/api/listings/${listingId}/service-booking`, {
         credentials: "same-origin",
@@ -57,7 +47,7 @@ export default function WhatsAppCTA({
     } catch {
       setState("locked");
     }
-  }, [listingId, isService]);
+  }, [listingId]);
 
   useEffect(() => {
     void load();

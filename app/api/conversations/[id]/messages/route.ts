@@ -6,7 +6,6 @@ import {
   isSameUserId,
 } from "@/lib/auth-server";
 import { sendWhatsApp } from "@/lib/twilio";
-import { isServicesListing } from "@/lib/listing-category";
 import { getPublicAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
@@ -58,35 +57,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     await supabase.from("listing_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convRowId);
 
     if (isSameUserId(conv.buyer_id, userId)) {
-      const { data: listing } = await supabase
-        .from("listings")
-        .select("category_id")
-        .eq("id", conv.listing_id)
+      const now = new Date().toISOString();
+      const { data: gate } = await supabase
+        .from("listing_service_contact_gate")
+        .select("listing_id")
+        .eq("listing_id", conv.listing_id)
+        .eq("buyer_id", userId)
         .maybeSingle();
-      if (isServicesListing(listing)) {
-        const now = new Date().toISOString();
-        const { data: gate } = await supabase
+      if (!gate) {
+        const { error: insErr } = await supabase.from("listing_service_contact_gate").insert({
+          listing_id: conv.listing_id,
+          buyer_id: userId,
+          contacted_in_app: true,
+          updated_at: now,
+        });
+        if (insErr) console.error("[messages] contact_gate insert", insErr);
+      } else {
+        const { error: upErr } = await supabase
           .from("listing_service_contact_gate")
-          .select("listing_id")
+          .update({ contacted_in_app: true, updated_at: now })
           .eq("listing_id", conv.listing_id)
-          .eq("buyer_id", userId)
-          .maybeSingle();
-        if (!gate) {
-          const { error: insErr } = await supabase.from("listing_service_contact_gate").insert({
-            listing_id: conv.listing_id,
-            buyer_id: userId,
-            contacted_in_app: true,
-            updated_at: now,
-          });
-          if (insErr) console.error("[messages] contact_gate insert", insErr);
-        } else {
-          const { error: upErr } = await supabase
-            .from("listing_service_contact_gate")
-            .update({ contacted_in_app: true, updated_at: now })
-            .eq("listing_id", conv.listing_id)
-            .eq("buyer_id", userId);
-          if (upErr) console.error("[messages] contact_gate update", upErr);
-        }
+          .eq("buyer_id", userId);
+        if (upErr) console.error("[messages] contact_gate update", upErr);
       }
     }
 

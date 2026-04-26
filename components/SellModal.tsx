@@ -55,9 +55,9 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          category: "electronics",
-          condition: "used",
-          title: "artículo",
+          category: category === "services" ? "services" : category,
+          condition: "good",
+          title: title.trim() || "artículo",
           location_state: "CDMX",
         }),
       });

@@ -17,7 +17,7 @@ async function loadListing(supabase: ReturnType<typeof createAdminSupabase>, lis
   return { listing: data, error: null };
 }
 
-/** GET — buyer: contact gate + whether they can submit a booking request; anon: isService only. */
+/** GET — contact gate + commission booking state (all categories; `isService` = services copy tier only). */
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const listingId = params.id;
@@ -27,33 +27,27 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: "Anuncio no encontrado" }, { status: 404 });
     }
 
-    const isService = isServicesListing(listing);
+    const isServicesCategory = isServicesListing(listing);
     const sellerId = listing.seller_id as string | null;
 
     const userId = await getUserIdFromRequest(req);
     if (!userId) {
       return NextResponse.json({
-        isService,
+        isService: isServicesCategory,
         needLogin: true,
         canBook: false,
         contactedInApp: false,
+        flowActive: false,
       });
     }
 
     if (sellerId && isSameUserId(userId, sellerId)) {
       return NextResponse.json({
-        isService,
+        isService: isServicesCategory,
         isSeller: true,
         canBook: false,
         contactedInApp: false,
-      });
-    }
-
-    if (!isService) {
-      return NextResponse.json({
-        isService: false,
-        canBook: false,
-        contactedInApp: false,
+        flowActive: false,
       });
     }
 
@@ -100,9 +94,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       }
       if (revealedPhone) {
         const digits = revealedPhone.replace(/\D/g, "");
-        revealedWhatsappUrl = `https://wa.me/${digits}?text=${encodeURIComponent(
-          `Hola! Ya reservé tu servicio "${listing.title_es}" en Naranjogo.`
-        )}`;
+        const waIntro = isServicesCategory
+          ? `Hola! Ya reservé tu servicio "${listing.title_es}" en Naranjogo.`
+          : `Hola! Vi tu anuncio "${listing.title_es}" en Naranjogo y ya completé el contacto por la app.`;
+        revealedWhatsappUrl = `https://wa.me/${digits}?text=${encodeURIComponent(waIntro)}`;
       }
     }
 
@@ -136,7 +131,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     });
 
     return NextResponse.json({
-      isService: true,
+      isService: isServicesCategory,
+      flowActive: true,
       canBook: hasContacted,
       contactedInApp,
       hasPaidBooking: !!latestPaid,
@@ -173,10 +169,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { listing, error: le } = await loadListing(supabase, listingId);
     if (le || !listing) {
       return NextResponse.json({ error: "Anuncio no encontrado" }, { status: 404 });
-    }
-
-    if (!isServicesListing(listing)) {
-      return NextResponse.json({ error: "Solo aplica a servicios" }, { status: 400 });
     }
 
     const sellerId = listing.seller_id as string | null;

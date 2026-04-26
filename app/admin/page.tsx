@@ -111,7 +111,7 @@ export default function AdminPage() {
     setLoading(true);
     const f = filter === "pending" ? "pending" : filter === "verified" ? "verified" : "all";
     const res = await fetch(
-      `/api/admin/listing-queue?pin=${encodeURIComponent(pin.trim())}&filter=${f}`,
+      `/api/admin/listing-queue?pin=${encodeURIComponent(pin.trim())}&filter=${f}&scope=all`,
       { credentials: "same-origin" }
     );
     const json = res.ok ? await res.json() : { listings: [] };

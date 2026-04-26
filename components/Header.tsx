@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 const SellModal = dynamic(() => import("./SellModal"), { ssr: false });
+const CartHeaderLink = dynamic(() => import("@/components/cart/CartHeaderLink"), { ssr: false });
 
 function LangToggle() {
   const router = useRouter();
@@ -122,6 +123,7 @@ function HeaderInner() {
               className="text-sm font-semibold px-4 py-2 rounded-xl border border-[#1B4332] text-[#1B4332] hover:bg-[#1B4332] hover:text-white transition-colors hidden sm:inline-flex">
               {lang === "en" ? "List your service" : "Únete"}
             </Link>
+            <CartHeaderLink />
             <button onClick={() => setShowSell(true)}
               className="bg-[#D4A017] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#C4900D] transition-colors">
               + {lang === "en" ? "Sell" : "Vender"}

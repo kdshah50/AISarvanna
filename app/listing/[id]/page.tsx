@@ -9,6 +9,7 @@ import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
 import ReportButton from "@/components/ReportButton";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
 import FavoriteButton from "@/components/FavoriteButton";
+import AddToCartButton from "@/components/cart/AddToCartButton";
 import { isServicesListing } from "@/lib/listing-category";
 import { PAYMENT_METHODS_MX } from "@/lib/types";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
@@ -134,12 +135,26 @@ export default async function ListingPage({
             <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#F4F0EB] text-[#6B7280]">{listing.location_city}</span>
           )}
         </div>
-        {/* WhatsApp CTA — hero button, always visible */}
-        {isServiceListing && (
-          <div className="mb-6">
-            <WhatsAppCTA listingId={params.id} isService={isServiceListing} />
-            <p className="text-center text-xs text-[#6B7280] mt-2">
-              Platica primero, paga la tarifa y recibe el WhatsApp del proveedor
+        {/* WhatsApp CTA — hero button (contact gate + commission same as services) */}
+        <div className="mb-6">
+          <WhatsAppCTA listingId={params.id} />
+          <p className="text-center text-xs text-[#6B7280] mt-2">
+            {isServiceListing
+              ? "Platica primero, paga la tarifa y recibe el WhatsApp del proveedor"
+              : "Escribe por la app, paga la tarifa de conexión y desbloquea el WhatsApp del vendedor"}
+          </p>
+        </div>
+
+        {!isServiceListing && (
+          <div className="mb-6 space-y-2">
+            <AddToCartButton
+              listingId={params.id}
+              titleEs={listing.title_es}
+              priceMxnCents={Number(listing.price_mxn) || 0}
+            />
+            <p className="text-xs text-[#6B7280] text-center">
+              O compra por carrito: verás comisión (admin), IVA y total antes de pagar. Con Stripe Connect activo para
+              vendedores, el subtotal va al vendedor; si no, el cargo es a la plataforma (reparto manual).
             </p>
           </div>
         )}
@@ -186,11 +201,9 @@ export default async function ListingPage({
           </div>
         </div>
 
-        {isServiceListing && (
-          <div className="mt-6">
-            <GuaranteeBadge />
-          </div>
-        )}
+        <div className="mt-6">
+          <GuaranteeBadge />
+        </div>
 
         {sellerId && (
           <div className="mt-8">

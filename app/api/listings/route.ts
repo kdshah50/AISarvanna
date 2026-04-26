@@ -52,6 +52,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Precio inválido. Verifica el monto." }, { status: 400 });
     }
 
+    // Public browse/search only shows `is_verified=true`. Services stay pending until admin approves
+    // (see provider-signup + /admin). Other categories publish immediately.
+    const isVerified = category !== "services";
+
     // Always bind listing to the signed-in user — never trust client seller_id (old clients sent a demo uuid).
     const listing = {
       seller_id:          userId,
@@ -62,6 +66,7 @@ export async function POST(req: NextRequest) {
       category_id:        category,
       condition:          body.condition ?? "good",
       status:             "active",
+      is_verified:        isVerified,
       location_city:      body.location_city ?? body.city ?? "San Miguel de Allende",
       location_state:     body.location_state ?? "Guanajuato",
       zip_code:           body.zip_code ?? "37745",

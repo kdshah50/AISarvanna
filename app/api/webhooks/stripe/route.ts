@@ -31,22 +31,39 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const bookingId = session.metadata?.booking_id;
-    if (!bookingId) {
-      console.error("[stripe-webhook] No booking_id in metadata");
+    const supabase = createAdminSupabase();
+    const now = new Date().toISOString();
+    const intentId = stripePaymentIntentId(session.payment_intent);
+
+    if (session.metadata?.order_kind === "marketplace" && session.metadata?.marketplace_order_id) {
+      const orderId = session.metadata.marketplace_order_id;
+      const { error: ordErr } = await supabase
+        .from("marketplace_orders")
+        .update({
+          status: "paid",
+          ...(intentId ? { stripe_payment_intent_id: intentId } : {}),
+          updated_at: now,
+        })
+        .eq("id", orderId);
+
+      if (ordErr) {
+        console.error("[stripe-webhook] marketplace_order update failed", ordErr);
+        return NextResponse.json({ error: "Persist failed" }, { status: 500 });
+      }
       return NextResponse.json({ received: true });
     }
 
-    const supabase = createAdminSupabase();
-    const now = new Date().toISOString();
+    const bookingId = session.metadata?.booking_id;
+    if (!bookingId) {
+      console.error("[stripe-webhook] No booking_id or marketplace_order in metadata");
+      return NextResponse.json({ received: true });
+    }
 
     const { data: seller } = await supabase
       .from("users")
       .select("phone")
       .eq("id", session.metadata?.seller_id ?? "")
       .maybeSingle();
-
-    const intentId = stripePaymentIntentId(session.payment_intent);
 
     const { error: upErr } = await supabase
       .from("service_bookings")
@@ -63,11 +80,9 @@ export async function POST(req: NextRequest) {
 
     if (upErr) {
       console.error("[stripe-webhook] booking update failed", upErr);
-      // Return 5xx so Stripe retries delivery; paid users are not left without a matching paid row in DB.
       return NextResponse.json({ error: "Persist failed" }, { status: 500 });
     }
 
-    // Award loyalty points (non-blocking — errors here should not fail the webhook)
     const buyerId = session.metadata?.buyer_id;
     const amountPaid = session.amount_total;
     if (buyerId && amountPaid && amountPaid > 0) {

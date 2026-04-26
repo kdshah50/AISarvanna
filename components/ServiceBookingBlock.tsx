@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type BookingState = {
   isService: boolean;
+  /** Full commission + contact payload (buyer, not seller). */
+  flowActive?: boolean;
   needLogin?: boolean;
   isSeller?: boolean;
   canBook: boolean;
@@ -47,7 +49,7 @@ export default function ServiceBookingBlock({
 }) {
   const [meId, setMeId] = useState<string | null | undefined>(undefined);
   const [booking, setBooking] = useState<BookingState | null>(null);
-  const [loading, setLoading] = useState(!!isService);
+  const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -56,10 +58,6 @@ export default function ServiceBookingBlock({
   const prevContacted = useRef(false);
 
   const load = useCallback(async () => {
-    if (!isService) {
-      setLoading(false);
-      return;
-    }
     setMsg("");
     const meRes = await fetch("/api/auth/me", { credentials: "same-origin" });
     if (meRes.ok) {
@@ -86,28 +84,26 @@ export default function ServiceBookingBlock({
         }
       })
       .catch(() => {});
-  }, [listingId, isService]);
+  }, [listingId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
-    if (!isService) return;
     const onContact = () => void load();
     window.addEventListener("tianguis:listing-contact", onContact);
     return () => window.removeEventListener("tianguis:listing-contact", onContact);
-  }, [load, isService]);
+  }, [load]);
 
   // Refetch when user returns to the tab (fixes stale state after sending a message)
   useEffect(() => {
-    if (!isService) return;
     const onVis = () => {
       if (document.visibilityState === "visible") void load();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [load, isService]);
+  }, [load]);
 
   // When step 1 completes, scroll the pay section into view (buyers only — not the seller on their own ad)
   useEffect(() => {
@@ -156,8 +152,6 @@ export default function ServiceBookingBlock({
     }
   };
 
-  if (!isService) return null;
-
   if (loading || meId === undefined) {
     return (
       <div className="rounded-xl border border-[#E5E0D8] bg-white p-4 text-sm text-[#6B7280]">
@@ -169,9 +163,11 @@ export default function ServiceBookingBlock({
   if (sellerId && meId && sameUserId(meId, sellerId)) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        <p className="font-semibold mb-1">Tu servicio</p>
+        <p className="font-semibold mb-1">{isService ? "Tu servicio" : "Tu anuncio"}</p>
         <p className="text-amber-800">
-          Los clientes deben escribirte por mensajes en la app y pagar la tarifa de servicio antes de recibir tu número de contacto.
+          {isService
+            ? "Los clientes deben escribirte por mensajes en la app y pagar la tarifa de servicio antes de recibir tu número de contacto."
+            : "Los compradores deben escribirte por la app y pagar la tarifa de conexión antes de recibir tu WhatsApp o teléfono."}
         </p>
       </div>
     );
@@ -180,9 +176,13 @@ export default function ServiceBookingBlock({
   if (!meId) {
     return (
       <div className="rounded-xl border border-[#E5E0D8] bg-[#F4F0EB] p-4">
-        <p className="text-sm font-semibold text-[#1C1917] mb-2">Reservar este servicio</p>
+        <p className="text-sm font-semibold text-[#1C1917] mb-2">
+          {isService ? "Reservar este servicio" : "Contactar al vendedor"}
+        </p>
         <p className="text-xs text-[#6B7280] mb-3">
-          Inicia sesión, platica con el proveedor y paga la tarifa de servicio para obtener su contacto directo.
+          {isService
+            ? "Inicia sesión, platica con el proveedor y paga la tarifa de servicio para obtener su contacto directo."
+            : "Inicia sesión, envía un mensaje en la app y paga la tarifa de conexión para desbloquear WhatsApp."}
         </p>
         <Link
           href={`/auth/login?returnTo=${encodeURIComponent(`/listing/${listingId}`)}`}
@@ -194,9 +194,10 @@ export default function ServiceBookingBlock({
     );
   }
 
-  if (!booking?.isService) return null;
+  if (!booking?.flowActive) return null;
 
   const contacted = booking.contactedInApp;
+  const partyLabel = isService ? "proveedor" : "vendedor";
   const hasPaid = booking.hasPaidBooking;
 
   // STEP 3: Contact revealed — buyer has paid
@@ -211,12 +212,14 @@ export default function ServiceBookingBlock({
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
         <div className="px-4 py-3 border-b border-emerald-200 bg-emerald-100">
           <h3 className="text-sm font-bold text-emerald-900 flex items-center gap-2">
-            <span className="text-lg">✓</span> Servicio reservado
+            <span className="text-lg">✓</span> {isService ? "Servicio reservado" : "Contacto desbloqueado"}
           </h3>
         </div>
         <div className="px-4 py-4 space-y-3">
           <p className="text-sm text-emerald-800">
-            Ya pagaste la tarifa de servicio. Aquí está el contacto del proveedor:
+            {isService
+              ? "Ya pagaste la tarifa de servicio. Aquí está el contacto del proveedor:"
+              : "Ya pagaste la tarifa de conexión. Aquí está el contacto del vendedor:"}
           </p>
           <div className="bg-white rounded-xl p-3 border border-emerald-200">
             <p className="text-xs text-[#6B7280] mb-1">Teléfono / WhatsApp</p>
@@ -247,7 +250,7 @@ export default function ServiceBookingBlock({
   return (
     <div className="rounded-xl border border-[#E5E0D8] bg-white overflow-hidden">
       <div className="px-4 py-3 border-b border-[#E5E0D8] bg-[#F4F0EB]">
-        <h3 className="text-sm font-bold text-[#1C1917]">Reservar servicio</h3>
+        <h3 className="text-sm font-bold text-[#1C1917]">{isService ? "Reservar servicio" : "Comprar / contactar"}</h3>
         {booking.hasPackage && booking.packageSessionCount && booking.packageTotalMxnCents != null && (
           <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-950">
             <strong>Plan aprobado (Naranjogo):</strong> {booking.packageSessionCount} sesiones por{" "}
@@ -264,8 +267,17 @@ export default function ServiceBookingBlock({
             </span>
           ) : (
             <>
-              El precio del anuncio (ej. $52) lo acuerdas con el proveedor. Aquí solo pagas la{" "}
-              <strong>tarifa de la plataforma</strong> (~comisión; mín. $10 MXN por Stripe) para desbloquear su WhatsApp.
+              {isService ? (
+                <>
+                  El precio del anuncio lo acuerdas con el proveedor. Aquí solo pagas la{" "}
+                  <strong>tarifa de la plataforma</strong> (~comisión; mín. $10 MXN por Stripe) para desbloquear su WhatsApp.
+                </>
+              ) : (
+                <>
+                  El precio del artículo lo acuerdas con el vendedor (o pagas fuera de la app). Aquí solo pagas la{" "}
+                  <strong>tarifa de conexión</strong> de Naranjogo (comisión; mín. $10 MXN) para desbloquear su WhatsApp.
+                </>
+              )}
             </>
           )}
         </p>
@@ -278,7 +290,7 @@ export default function ServiceBookingBlock({
             {contacted ? "✓" : "1"}
           </span>
           <span className={contacted ? "text-emerald-700 font-medium" : ""}>
-            Envía un mensaje al proveedor en la app
+            Envía un mensaje al {partyLabel} en la app
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -286,7 +298,7 @@ export default function ServiceBookingBlock({
             {hasPaid ? "✓" : "2"}
           </span>
           <span>
-            Paga la tarifa de servicio ({formatMXN(booking.commissionAmountCents)})
+            Paga la tarifa {isService ? "de servicio" : "de conexión"} ({formatMXN(booking.commissionAmountCents)})
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -302,10 +314,12 @@ export default function ServiceBookingBlock({
         <div className="px-4 pb-4 space-y-3">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
             <p className="text-xs text-blue-800 leading-relaxed">
-              <strong>Paso 1:</strong> En <strong>Mensajes en la app</strong> (recuadro de arriba), escribe al
-              proveedor y envía el mensaje. <strong>Después de enviarlo</strong>, aparece aquí abajo el botón verde{" "}
-              <strong>Pagar … y obtener contacto</strong> (no pagas los $52 del anuncio en Stripe — solo la tarifa
-              indicada en el paso 2).
+              <strong>Paso 1:</strong> En <strong>Mensajes en la app</strong> (recuadro de arriba), escribe al{" "}
+              {partyLabel} y envía el mensaje. <strong>Después de enviarlo</strong>, aparece el botón{" "}
+              <strong>Pagar … y obtener contacto</strong>
+              {isService
+                ? " (no pagas el precio del anuncio en Stripe — solo la tarifa del paso 2)."
+                : " (el pago en Stripe es solo la tarifa de conexión, no el precio del artículo)."}
             </p>
           </div>
           <button
@@ -324,7 +338,10 @@ export default function ServiceBookingBlock({
         <div className="px-4 pb-4 space-y-3">
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
             <p className="text-xs text-amber-800">
-              <strong>Paso 2:</strong> Paga la tarifa de servicio para recibir el número de contacto del proveedor.
+              <strong>Paso 2:</strong>{" "}
+              {isService
+                ? "Paga la tarifa de servicio para recibir el número de contacto del proveedor."
+                : "Paga la tarifa de conexión para recibir el WhatsApp del vendedor."}
             </p>
           </div>
 
@@ -338,7 +355,9 @@ export default function ServiceBookingBlock({
 
           <div className="bg-[#F4F0EB] rounded-xl p-3 flex items-center justify-between">
             <div>
-              <p className="text-xs text-[#6B7280]">Tarifa de servicio ({booking.commissionPct}%)</p>
+              <p className="text-xs text-[#6B7280]">
+                Tarifa {isService ? "de servicio" : "de conexión"} ({booking.commissionPct}%)
+              </p>
               <p className="text-lg font-bold text-[#1C1917]">{formatMXN(booking.commissionAmountCents)}</p>
             </div>
             <span className="text-xs text-[#6B7280]">MXN</span>
@@ -354,7 +373,7 @@ export default function ServiceBookingBlock({
           </button>
 
           <p className="text-center text-xs text-[#6B7280]">
-            Pago seguro con Stripe. Al pagar recibirás el WhatsApp/teléfono del proveedor.
+            Pago seguro con Stripe. Al pagar recibirás el WhatsApp/teléfono del {partyLabel}.
           </p>
 
           {loyaltyHint && (

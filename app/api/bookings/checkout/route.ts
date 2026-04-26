@@ -44,14 +44,11 @@ export async function POST(req: NextRequest) {
     if (!listing) {
       return NextResponse.json({ error: "Anuncio no encontrado" }, { status: 404 });
     }
-    if (!isServicesListing(listing)) {
-      return NextResponse.json({ error: "Solo aplica a servicios" }, { status: 400 });
-    }
     if (listing.status !== "active") {
       return NextResponse.json({ error: "Este anuncio no está activo" }, { status: 400 });
     }
     if (listing.seller_id === userId) {
-      return NextResponse.json({ error: "No puedes reservar tu propio servicio" }, { status: 400 });
+      return NextResponse.json({ error: "No puedes reservar tu propio anuncio" }, { status: 400 });
     }
     if (!listing.seller_id) {
       return NextResponse.json({ error: "Este anuncio no tiene proveedor asignado" }, { status: 400 });
@@ -137,9 +134,12 @@ export async function POST(req: NextRequest) {
     const isPkg = listingHasActivePackage(
       listing as { package_session_count?: number | null; package_total_price_mxn?: number | null }
     );
+    const svc = isServicesListing(listing);
     const lineDesc = isPkg
       ? `Plan aprobado: ${(listing as { package_session_count: number }).package_session_count} sesiones (precio acordado; tarifa de plataforma ${commissionPct}%)${discountLabel}`
-      : `Tarifa de servicio (${commissionPct}%) para conectarte con el proveedor${discountLabel}`;
+      : svc
+        ? `Tarifa de servicio (${commissionPct}%) para conectarte con el proveedor${discountLabel}`
+        : `Tarifa de conexión (${commissionPct}%) — desbloquea WhatsApp del vendedor${discountLabel}`;
 
     let session;
     try {
@@ -154,7 +154,9 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: isPkg
                 ? `Comisión de reserva (paquete) — ${listing.title_es}`
-                : `Comisión de reserva — ${listing.title_es}`,
+                : svc
+                  ? `Comisión de reserva — ${listing.title_es}`
+                  : `Tarifa de contacto — ${listing.title_es}`,
               description: lineDesc,
             },
           },

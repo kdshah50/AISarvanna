@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
     let user: any = null;
     let userError: any = null;
 
-    const fullSelect = "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,created_at";
+    const fullSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,stripe_connect_account_id,created_at";
     const midSelect = "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,created_at";
     const baseSelect = "id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at";
     const idVars = idMatchVariantsForIn(userId);

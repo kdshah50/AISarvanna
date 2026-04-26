@@ -5,6 +5,7 @@ import Link from "next/link";
 import LoyaltyCard from "@/components/LoyaltyCard";
 import ReferralCard from "@/components/ReferralCard";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
+import SellerStripePayoutCard from "@/components/SellerStripePayoutCard";
 
 type User = {
   id: string;
@@ -15,6 +16,7 @@ type User = {
   ine_verified: boolean;
   curp: string | null;
   ine_photo_url: string | null;
+  stripe_connect_account_id?: string | null;
   created_at: string | null;
 };
 
@@ -347,6 +349,11 @@ export default function ProfilePage() {
             </p>
           )}
         </div>
+
+        <SellerStripePayoutCard
+          lang={lang}
+          hasStripeConnect={Boolean(user.stripe_connect_account_id?.startsWith("acct_"))}
+        />
 
         {/* My services */}
         <div className="bg-white rounded-3xl border border-[#E5E0D8] p-6 mb-5 shadow-sm">

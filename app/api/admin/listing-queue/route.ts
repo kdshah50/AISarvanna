@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   const filter = req.nextUrl.searchParams.get("filter") ?? "pending";
+  const scope = req.nextUrl.searchParams.get("scope") ?? "services";
   const supabase = createAdminSupabase();
 
   let q = supabase
@@ -27,9 +28,12 @@ export async function GET(req: NextRequest) {
     .select(
       "id,title_es,description_es,price_mxn,category_id,is_verified,status,location_city,commission_pct,package_session_count,package_total_price_mxn,created_at,users!fk_listings_seller(display_name,phone)"
     )
-    .eq("category_id", "services")
     .order("created_at", { ascending: false })
     .limit(50);
+
+  if (scope !== "all") {
+    q = q.eq("category_id", "services");
+  }
 
   if (filter === "pending") {
     q = q.eq("is_verified", false).eq("status", "active");
