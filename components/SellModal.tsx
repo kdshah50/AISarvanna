@@ -63,11 +63,13 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
       });
       if (res.ok) {
         const data = await res.json();
-        // FastAPI returns price in centavos (e.g. 1500000 = $15,000 MXN)
-        const suggested = Math.round(data.suggested_price_mxn / 100);
-        setAiSuggestedPrice(suggested);
-        setAiComparables(data.comparables_count ?? 12);
-        setPrice(String(suggested));
+        const cents = data?.suggested_price_mxn;
+        if (typeof cents === "number" && Number.isFinite(cents) && cents > 0) {
+          const suggested = Math.round(cents / 100);
+          setAiSuggestedPrice(suggested);
+          setAiComparables(data.comparables_count ?? 12);
+          setPrice(String(suggested));
+        }
       }
     } catch {
       // AI unavailable — user fills manually, no error shown

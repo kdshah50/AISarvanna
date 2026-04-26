@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 # ── Internal auth guard ────────────────────────────────────────────────────────
-INTERNAL_SECRET = os.getenv("INTERNAL_API_SECRET", "")
+INTERNAL_SECRET = (os.getenv("INTERNAL_API_SECRET", "") or "").strip()
 
 def verify_internal(x_internal_secret: str = Header(...)):
     if INTERNAL_SECRET and x_internal_secret != INTERNAL_SECRET:
