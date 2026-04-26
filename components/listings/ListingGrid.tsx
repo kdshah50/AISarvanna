@@ -95,6 +95,7 @@ export default function ListingGrid({ listings, initialLang = "es" }: Props) {
                     trustBadge={listing.seller_badge}
                     ineVerified={listing.seller_ine_verified}
                     phoneVerified={listing.seller_phone_verified}
+                    platformListingVerified={Boolean(listing.listing_admin_verified)}
                     lang={lang}
                     size="sm"
                   />

@@ -1,4 +1,16 @@
 /**
+ * PostgREST sometimes returns an embedded many-to-one row as a single object
+ * or as a one-element array depending on client/view — normalize for reads.
+ */
+export function embeddedSellerRow<T extends Record<string, unknown>>(
+  u: T | T[] | null | undefined
+): T | null {
+  if (u == null) return null;
+  if (Array.isArray(u)) return (u[0] as T | undefined) ?? null;
+  return u;
+}
+
+/**
  * Whether to show “phone / WhatsApp verified” on cards and listing UI.
  * Older rows may have phone_verified null even when trust_badge reflects OTP signup.
  */
@@ -16,18 +28,25 @@ export function isSellerIneVerified(u: { ine_verified?: boolean | null } | null 
   return Boolean(u?.ine_verified);
 }
 
-/** Normalize API `users` / row.users for `<SellerVerificationBadges />`. */
-export function verificationPropsFromSellerRow(u: {
+type SellerTrustFields = {
   trust_badge?: string | null;
   ine_verified?: boolean | null;
   phone_verified?: boolean | null;
-} | null | undefined) {
-  if (!u) {
+};
+
+/** Normalize API `users` / row.users for `<SellerVerificationBadges />`. */
+export function verificationPropsFromSellerRow(
+  u: SellerTrustFields | SellerTrustFields[] | null | undefined
+) {
+  const row = embeddedSellerRow(u as Record<string, unknown> | Record<string, unknown>[] | null | undefined) as
+    | SellerTrustFields
+    | null;
+  if (!row) {
     return { trustBadge: "none" as string, ineVerified: false, phoneVerified: false };
   }
   return {
-    trustBadge: u.trust_badge ?? "none",
-    ineVerified: isSellerIneVerified(u),
-    phoneVerified: isSellerPhoneVerifiedForDisplay(u),
+    trustBadge: row.trust_badge ?? "none",
+    ineVerified: isSellerIneVerified(row),
+    phoneVerified: isSellerPhoneVerifiedForDisplay(row),
   };
 }

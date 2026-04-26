@@ -13,7 +13,7 @@ import { isServicesListing } from "@/lib/listing-category";
 import { PAYMENT_METHODS_MX } from "@/lib/types";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { SellerVerificationBadges } from "@/components/SellerVerificationBadges";
-import { verificationPropsFromSellerRow } from "@/lib/seller-trust-display";
+import { embeddedSellerRow, verificationPropsFromSellerRow } from "@/lib/seller-trust-display";
 import { langFromParam } from "@/lib/i18n-lang";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
@@ -60,7 +60,14 @@ export default async function ListingPage({
     body: JSON.stringify({ listing_id: params.id }),
   }).catch(() => {});
 
-  const sellerId = listing.seller_id ?? (listing.users as any)?.id;
+  const seller = embeddedSellerRow(listing.users as Record<string, unknown> | Record<string, unknown>[] | null | undefined) as
+    | {
+        id?: string;
+        display_name?: string | null;
+        created_at?: string;
+      }
+    | null;
+  const sellerId = listing.seller_id ?? seller?.id;
 
   let reviewCount = 0;
   let avgRating = 0;
@@ -78,10 +85,11 @@ export default async function ListingPage({
   }
 
   const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(listing.price_mxn / 100);
-  const seller = listing.users as any;
   const isServiceListing = isServicesListing(listing);
   const listingLang = langFromParam(searchParams?.lang);
-  const sellerTrust = verificationPropsFromSellerRow(seller);
+  const sellerTrust = verificationPropsFromSellerRow(
+    listing.users as Parameters<typeof verificationPropsFromSellerRow>[0]
+  );
 
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
@@ -140,25 +148,29 @@ export default async function ListingPage({
 
         {/* Payment methods section — hidden until commission collection is enabled via Stripe */}
 
-        {seller && (
-          <Link href={`/seller/${seller.id}`} className="block hover:opacity-90 transition-opacity">
+        {sellerId && (
+          <Link href={`/seller/${sellerId}`} className="block hover:opacity-90 transition-opacity">
             <div className="bg-[#F4F0EB] rounded-xl p-4 mb-6 flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-[#1B4332] flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-                {seller.display_name?.[0] ?? "V"}
+                {seller?.display_name?.[0] ?? "V"}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <span className="font-semibold text-sm">{seller.display_name ?? "Vendedor"}</span>
+                  <span className="font-semibold text-sm">{seller?.display_name ?? "Vendedor"}</span>
                   <SellerVerificationBadges
                     trustBadge={sellerTrust.trustBadge}
                     ineVerified={sellerTrust.ineVerified}
                     phoneVerified={sellerTrust.phoneVerified}
+                    platformListingVerified={Boolean(listing.is_verified)}
                     lang={listingLang}
                     size="md"
                   />
                   {reviewCount > 0 && <RatingSummary average={avgRating} total={reviewCount} />}
                 </div>
-                <span className="text-xs text-[#6B7280]">Miembro desde {new Date(seller.created_at).getFullYear()}</span>
+                <span className="text-xs text-[#6B7280]">
+                  Miembro desde{" "}
+                  {seller?.created_at ? new Date(seller.created_at).getFullYear() : "—"}
+                </span>
               </div>
             </div>
           </Link>

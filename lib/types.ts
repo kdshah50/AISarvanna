@@ -15,6 +15,8 @@ export interface ListingCard {
   seller_ine_verified: boolean;
   /** WhatsApp/OTP verified (number holds); does not mean ID reviewed. */
   seller_phone_verified: boolean;
+  /** Listing passed admin approval (is_verified) — fallback chip when seller flags missing. */
+  listing_admin_verified?: boolean;
   payment_methods: string[] | null;
 }
 

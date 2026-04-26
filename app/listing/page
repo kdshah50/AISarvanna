@@ -2,7 +2,7 @@ import ListingGrid from "@/components/listings/ListingGrid";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
-import { isSellerPhoneVerifiedForDisplay } from "@/lib/seller-trust-display";
+import { embeddedSellerRow, isSellerPhoneVerifiedForDisplay } from "@/lib/seller-trust-display";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,16 +27,25 @@ export default async function HomePage({ searchParams }: Props) {
     });
     if (res.ok) {
       const data = await res.json();
-      cards = Array.isArray(data) ? data.map((row: any) => ({
-        id: row.id, title: row.title_es, price_mxn: row.price_mxn,
-        category_id: row.category_id, condition: row.condition,
-        location_city: row.location_city, photo_url: row.photo_urls?.[0] ?? null,
-        shipping_available: row.shipping_available, negotiable: row.negotiable,
-        seller_name: row.users?.display_name ?? "Vendedor",
-        seller_badge: row.users?.trust_badge ?? "none",
-        seller_ine_verified: Boolean(row.users?.ine_verified),
-        seller_phone_verified: isSellerPhoneVerifiedForDisplay(row.users),
-      })) : [];
+      cards = Array.isArray(data) ? data.map((row: any) => {
+        const u = embeddedSellerRow(row.users) as {
+          display_name?: string | null;
+          trust_badge?: string | null;
+          ine_verified?: boolean | null;
+          phone_verified?: boolean | null;
+        } | null;
+        return {
+          id: row.id, title: row.title_es, price_mxn: row.price_mxn,
+          category_id: row.category_id, condition: row.condition,
+          location_city: row.location_city, photo_url: row.photo_urls?.[0] ?? null,
+          shipping_available: row.shipping_available, negotiable: row.negotiable,
+          seller_name: u?.display_name ?? "Vendedor",
+          seller_badge: u?.trust_badge ?? "none",
+          seller_ine_verified: Boolean(u?.ine_verified),
+          seller_phone_verified: isSellerPhoneVerifiedForDisplay(u),
+          listing_admin_verified: Boolean(row.is_verified),
+        };
+      }) : [];
     }
   } catch (e) { console.error("Fetch error:", e); }
 

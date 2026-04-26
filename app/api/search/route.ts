@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
+import { embeddedSellerRow } from "@/lib/seller-trust-display";
 import { COLONIAS, detectColoniaInQuery, COLONIA_RADIUS_KM } from "@/lib/colonias";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
@@ -65,7 +66,9 @@ async function enrichResultsWithSellerUsers(
     const byId = new Map(rows.map((r) => [r.id, r.users]));
     for (const l of listings) {
       const u = byId.get(l.id);
-      if (u) l.users = u;
+      if (u != null) {
+        l.users = embeddedSellerRow(u as Record<string, unknown> | Record<string, unknown>[]) ?? u;
+      }
     }
   } catch {
     /* non-fatal */

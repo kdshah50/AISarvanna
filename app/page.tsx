@@ -7,7 +7,10 @@ import { HomeListHeading } from "@/components/home/HomeListHeading";
 import { COLONIAS, COLONIA_RADIUS_KM, nearestColonia, coloniaLabel } from "@/lib/colonias";
 import { getPublicAppUrl } from "@/lib/app-url";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
-import { isSellerPhoneVerifiedForDisplay } from "@/lib/seller-trust-display";
+import {
+  embeddedSellerRow,
+  isSellerPhoneVerifiedForDisplay,
+} from "@/lib/seller-trust-display";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +66,12 @@ export default async function HomePage({ searchParams }: Props) {
           const rLat = row.location_lat ?? SMA_LAT;
           const rLng = row.location_lng ?? SMA_LNG;
           const near = nearestColonia(rLat, rLng);
-          const u = row.users;
+          const u = embeddedSellerRow(row.users) as {
+            display_name?: string | null;
+            trust_badge?: string | null;
+            ine_verified?: boolean | null;
+            phone_verified?: boolean | null;
+          } | null;
           return {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
             price_display: fmtMXN(row.price_mxn),
@@ -76,6 +84,7 @@ export default async function HomePage({ searchParams }: Props) {
             seller_badge: u?.trust_badge ?? "none",
             seller_ine_verified: Boolean(u?.ine_verified),
             seller_phone_verified: isSellerPhoneVerifiedForDisplay(u),
+            listing_admin_verified: Boolean(row.is_verified),
             payment_methods: row.payment_methods ?? null,
             _dist_km: row._dist_km ?? null,
             _mode: row._mode,
@@ -110,6 +119,12 @@ export default async function HomePage({ searchParams }: Props) {
           const rLng = row.location_lng ?? SMA_LNG;
           const km = distKm(refLat, refLng, rLat, rLng);
           const near = nearestColonia(rLat, rLng);
+          const u = embeddedSellerRow(row.users) as {
+            display_name?: string | null;
+            trust_badge?: string | null;
+            ine_verified?: boolean | null;
+            phone_verified?: boolean | null;
+          } | null;
           return {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
             price_display: fmtMXN(row.price_mxn),
@@ -118,10 +133,11 @@ export default async function HomePage({ searchParams }: Props) {
             colonia_label: near?.label ?? null,
             photo_url: row.photo_urls?.[0] ?? null,
             shipping_available: row.shipping_available, negotiable: row.negotiable,
-            seller_name: row.users?.display_name ?? "Proveedor",
-            seller_badge: row.users?.trust_badge ?? "none",
-            seller_ine_verified: Boolean(row.users?.ine_verified),
-            seller_phone_verified: isSellerPhoneVerifiedForDisplay(row.users),
+            seller_name: u?.display_name ?? "Proveedor",
+            seller_badge: u?.trust_badge ?? "none",
+            seller_ine_verified: Boolean(u?.ine_verified),
+            seller_phone_verified: isSellerPhoneVerifiedForDisplay(u),
+            listing_admin_verified: Boolean(row.is_verified),
             payment_methods: row.payment_methods ?? null,
             _dist_km: Math.round(km * 10) / 10,
           };
