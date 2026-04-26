@@ -150,7 +150,7 @@ export default async function HomePage({ searchParams }: Props) {
             cardCount={cards.length}
           />
         </Suspense>
-        <ListingGrid listings={cards} />
+        <ListingGrid listings={cards} initialLang={initialLang} />
       </section>
       <TrustBar />
     </main>
