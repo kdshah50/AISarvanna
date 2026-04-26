@@ -30,7 +30,8 @@ function tierClass(tier: "bronze" | "gold" | "diamond"): string {
 }
 
 /**
- * Seller trust chips: tier (Bronce/Oro/Diamante), optional INE, Teléfono when no tier, platform fallback.
+ * Seller trust chips: tier (Bronce/Oro/Diamante), optional INE, ✓ Teléfono (red) when phone verified
+ * and INE is not shown — Teléfono appears alongside tier so both stay visible on cards and listing detail.
  */
 export function SellerVerificationBadges({
   trustBadge,
@@ -81,24 +82,23 @@ export function SellerVerificationBadges({
     );
   }
 
-  // Teléfono: show when phone is verified and we are not already showing INE.
-  // If seller has a tier (Bronce+), phone is implied for bronze; for gold/diamond still optional —
-  // hide duplicate when tier exists to keep cards readable (tier + INE is enough).
-  if (phoneVerified && !ineVerified && !tier) {
+  // Teléfono (red): show whenever phone/WhatsApp is verified unless INE chip already covers identity.
+  // Shown next to Bronce/Oro/Diamante so the checkmark + phone signal does not disappear.
+  if (phoneVerified && !ineVerified) {
     const title =
       lang === "en" ? "Verified: phone number (WhatsApp)" : "Verificado: número (WhatsApp)";
     const label = lang === "en" ? "Telephone" : "Teléfono";
     parts.push(
       <span
         key="phone"
-        className={`inline-flex items-center gap-0.5 ${textSm} font-bold ${padSm} rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0`}
+        className={`inline-flex items-center gap-0.5 ${textSm} font-bold ${padSm} rounded-md bg-red-50 text-red-700 border border-red-200/90 shrink-0`}
         title={title}
       >
-        <span className="text-emerald-600" aria-hidden>
+        <span className="text-red-600" aria-hidden>
           ✓
         </span>
         {label}
-        <svg className={`${iconSm} shrink-0 opacity-80`} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <svg className={`${iconSm} shrink-0 opacity-90`} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
           <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
         </svg>
       </span>
