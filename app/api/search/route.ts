@@ -39,6 +39,39 @@ function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
 const SELECT_COLS_FULL = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)";
 const SELECT_COLS_BASE = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)";
 
+const USER_EMBED_SELECT =
+  "id,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)";
+
+/** Dense / RPC rows often omit `users`; attach seller embed so listing cards can show trust badges. */
+async function enrichResultsWithSellerUsers(
+  listings: any[],
+  supaUrl: string,
+  headers: Record<string, string>
+) {
+  const need = listings.filter((l) => {
+    const u = l?.users;
+    return !u || (typeof u === "object" && u !== null && !("display_name" in u));
+  });
+  const ids = [...new Set(need.map((l) => l.id).filter(Boolean))];
+  if (!ids.length) return;
+
+  const inList = ids.join(",");
+  const url = `${supaUrl}/rest/v1/listings?id=in.(${inList})&select=${encodeURIComponent(USER_EMBED_SELECT)}`;
+  try {
+    const res = await fetch(url, { headers, cache: "no-store" });
+    if (!res.ok) return;
+    const raw = await res.json();
+    const rows: any[] = Array.isArray(raw) ? raw : [];
+    const byId = new Map(rows.map((r) => [r.id, r.users]));
+    for (const l of listings) {
+      const u = byId.get(l.id);
+      if (u) l.users = u;
+    }
+  } catch {
+    /* non-fatal */
+  }
+}
+
 export async function GET(req: NextRequest) {
   const supaUrl = getSupabaseUrl();
   const headers = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
@@ -143,6 +176,8 @@ export async function GET(req: NextRequest) {
   const results = fused
     .sort((a, b) => b._score - a._score)
     .slice(0, 24);
+
+  await enrichResultsWithSellerUsers(results, supaUrl, headers);
 
   const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
   const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length };

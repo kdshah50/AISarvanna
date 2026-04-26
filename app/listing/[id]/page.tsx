@@ -12,6 +12,9 @@ import FavoriteButton from "@/components/FavoriteButton";
 import { isServicesListing } from "@/lib/listing-category";
 import { PAYMENT_METHODS_MX } from "@/lib/types";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
+import { SellerVerificationBadges } from "@/components/SellerVerificationBadges";
+import { verificationPropsFromSellerRow } from "@/lib/seller-trust-display";
+import { langFromParam } from "@/lib/i18n-lang";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const supaUrl = getSupabaseUrl();
@@ -35,33 +38,17 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-function TrustBadge({ badge }: { badge: string }) {
-  const map: Record<string, { label: string; color: string; bg: string }> = {
-    diamond: { label: "Diamond", color: "#1D4ED8", bg: "#EFF6FF" },
-    gold: { label: "Gold", color: "#92400E", bg: "#FEF3C7" },
-    bronze: { label: "Bronze", color: "#92400E", bg: "#FEF9EE" },
-    none: { label: "Verificado", color: "#065F46", bg: "#ECFDF5" },
-  };
-
-  const b = map[badge] ?? map.none;
-  return (
-    <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ color: b.color, background: b.bg }}>
-      {b.label}
-    </span>
-  );
-}
-
 export default async function ListingPage({
   params,
   searchParams,
 }: {
   params: { id: string };
-  searchParams?: { chat?: string };
+  searchParams?: { chat?: string; lang?: string };
 }) {
   const supaUrl = getSupabaseUrl();
   const h = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
   const res = await fetch(
-    `${supaUrl}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users!fk_listings_seller(id,display_name,avatar_url,trust_badge,ine_verified,whatsapp_optin,created_at)`,
+    `${supaUrl}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users!fk_listings_seller(id,display_name,avatar_url,trust_badge,ine_verified,phone_verified,whatsapp_optin,created_at)`,
     { headers: h, cache: "no-store" }
   );
   const [listing] = res.ok ? await res.json() : [];
@@ -93,6 +80,8 @@ export default async function ListingPage({
   const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(listing.price_mxn / 100);
   const seller = listing.users as any;
   const isServiceListing = isServicesListing(listing);
+  const listingLang = langFromParam(searchParams?.lang);
+  const sellerTrust = verificationPropsFromSellerRow(seller);
 
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
@@ -158,9 +147,15 @@ export default async function ListingPage({
                 {seller.display_name?.[0] ?? "V"}
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="font-semibold text-sm">{seller.display_name ?? "Vendedor"}</span>
-                  <TrustBadge badge={seller.trust_badge ?? "none"} />
+                  <SellerVerificationBadges
+                    trustBadge={sellerTrust.trustBadge}
+                    ineVerified={sellerTrust.ineVerified}
+                    phoneVerified={sellerTrust.phoneVerified}
+                    lang={listingLang}
+                    size="md"
+                  />
                   {reviewCount > 0 && <RatingSummary average={avgRating} total={reviewCount} />}
                 </div>
                 <span className="text-xs text-[#6B7280]">Miembro desde {new Date(seller.created_at).getFullYear()}</span>

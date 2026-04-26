@@ -2,6 +2,7 @@ import ListingGrid from "@/components/listings/ListingGrid";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
+import { isSellerPhoneVerifiedForDisplay } from "@/lib/seller-trust-display";
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export default async function HomePage({ searchParams }: Props) {
         seller_name: row.users?.display_name ?? "Vendedor",
         seller_badge: row.users?.trust_badge ?? "none",
         seller_ine_verified: Boolean(row.users?.ine_verified),
-        seller_phone_verified: Boolean(row.users?.phone_verified),
+        seller_phone_verified: isSellerPhoneVerifiedForDisplay(row.users),
       })) : [];
     }
   } catch (e) { console.error("Fetch error:", e); }

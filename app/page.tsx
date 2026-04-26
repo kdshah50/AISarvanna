@@ -7,6 +7,7 @@ import { HomeListHeading } from "@/components/home/HomeListHeading";
 import { COLONIAS, COLONIA_RADIUS_KM, nearestColonia, coloniaLabel } from "@/lib/colonias";
 import { getPublicAppUrl } from "@/lib/app-url";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
+import { isSellerPhoneVerifiedForDisplay } from "@/lib/seller-trust-display";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export default async function HomePage({ searchParams }: Props) {
             seller_name: u?.display_name ?? "Proveedor",
             seller_badge: u?.trust_badge ?? "none",
             seller_ine_verified: Boolean(u?.ine_verified),
-            seller_phone_verified: Boolean(u?.phone_verified),
+            seller_phone_verified: isSellerPhoneVerifiedForDisplay(u),
             payment_methods: row.payment_methods ?? null,
             _dist_km: row._dist_km ?? null,
             _mode: row._mode,
@@ -120,7 +121,7 @@ export default async function HomePage({ searchParams }: Props) {
             seller_name: row.users?.display_name ?? "Proveedor",
             seller_badge: row.users?.trust_badge ?? "none",
             seller_ine_verified: Boolean(row.users?.ine_verified),
-            seller_phone_verified: Boolean(row.users?.phone_verified),
+            seller_phone_verified: isSellerPhoneVerifiedForDisplay(row.users),
             payment_methods: row.payment_methods ?? null,
             _dist_km: Math.round(km * 10) / 10,
           };
