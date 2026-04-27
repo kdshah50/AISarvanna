@@ -72,6 +72,7 @@ export default async function HomePage({ searchParams }: Props) {
             display_name?: string | null;
             trust_badge?: string | null;
             ine_verified?: boolean | null;
+            rfc_verified?: boolean | null;
             phone_verified?: boolean | null;
           } | null;
           return {
@@ -85,6 +86,7 @@ export default async function HomePage({ searchParams }: Props) {
             seller_name: u?.display_name ?? "Proveedor",
             seller_badge: u?.trust_badge ?? "none",
             seller_ine_verified: Boolean(u?.ine_verified),
+            seller_rfc_verified: Boolean(u?.rfc_verified),
             seller_phone_verified: isSellerPhoneVerifiedForDisplay(u),
             listing_admin_verified: Boolean(row.is_verified),
             payment_methods: row.payment_methods ?? null,
@@ -100,7 +102,7 @@ export default async function HomePage({ searchParams }: Props) {
       // ── No query: show active verified listings for selected category ───────
       const res = await fetch(
         `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${categorySlug}`
-        + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)`
+        + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)`
         + `&order=created_at.desc&limit=24`,
         { headers: supaHeaders, cache: "no-store" }
       );
@@ -125,6 +127,7 @@ export default async function HomePage({ searchParams }: Props) {
             display_name?: string | null;
             trust_badge?: string | null;
             ine_verified?: boolean | null;
+            rfc_verified?: boolean | null;
             phone_verified?: boolean | null;
           } | null;
           return {
@@ -138,6 +141,7 @@ export default async function HomePage({ searchParams }: Props) {
             seller_name: u?.display_name ?? "Proveedor",
             seller_badge: u?.trust_badge ?? "none",
             seller_ine_verified: Boolean(u?.ine_verified),
+            seller_rfc_verified: Boolean(u?.rfc_verified),
             seller_phone_verified: isSellerPhoneVerifiedForDisplay(u),
             listing_admin_verified: Boolean(row.is_verified),
             payment_methods: row.payment_methods ?? null,

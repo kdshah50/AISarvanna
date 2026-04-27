@@ -51,6 +51,9 @@ const T = {
     curp:         "CURP (opcional)",
     curpPh:       "Ej. GAMA850101HDFRRL09",
     curpHelp:     "Tu CURP nos ayuda a verificar tu identidad. Aparecerás como proveedor verificado.",
+    rfc:          "RFC (opcional)",
+    rfcPh:        "Ej. XAXX010101000 o ABCD850101XXX",
+    rfcHelp:      "Si facturas o eres persona moral, tu RFC ayuda al equipo a validar tu perfil (revisión manual).",
     service:      "¿Qué servicio ofreces?",
     desc:         "Describe tu servicio",
     descPh:       "Experiencia, zona de cobertura, horarios, especialidades...",
@@ -99,6 +102,9 @@ const T = {
     curp:         "CURP (optional)",
     curpPh:       "E.g. GAMA850101HDFRRL09",
     curpHelp:     "Your CURP helps us verify your identity. You'll appear as a verified provider.",
+    rfc:          "RFC (optional)",
+    rfcPh:        "E.g. XAXX010101000 or ABCD850101XXX",
+    rfcHelp:      "If you invoice or are a business, your RFC helps our team validate your profile (manual review).",
     service:      "What service do you offer?",
     desc:         "Describe your service",
     descPh:       "Experience, coverage area, hours, specialties...",
@@ -146,7 +152,7 @@ export default function UnetePage() {
 
   const [form, setForm] = useState({
     name: "", whatsapp: "", service: "",
-    description: "", price: "", curp: "",
+    description: "", price: "", curp: "", rfc: "",
     city: "San Miguel de Allende",
     colonia: "",
     address: "",
@@ -291,6 +297,15 @@ export default function UnetePage() {
                   placeholder={t.curpPh} maxLength={18} />
                 <p className="text-xs text-[#059669] mt-1 flex items-center gap-1">
                   🛡️ {t.curpHelp}
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.rfc}</label>
+                <input value={form.rfc ?? ""} onChange={e => set("rfc", e.target.value.toUpperCase())}
+                  className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors font-mono tracking-wide"
+                  placeholder={t.rfcPh} maxLength={13} />
+                <p className="text-xs text-[#6B7280] mt-1 flex items-center gap-1">
+                  📋 {t.rfcHelp}
                 </p>
               </div>
               <button onClick={() => setStep(2)}
@@ -438,6 +453,7 @@ export default function UnetePage() {
                   [t.price,    `$${form.price} MXN`],
                   [t.colonia,  COLONIAS_LIST.find(c => c.value === form.colonia)?.[lang] ?? form.colonia],
                   ...(form.curp ? [[t.curp.replace(" (opcional)", "").replace(" (optional)", ""), form.curp]] : []),
+                  ...(form.rfc ? [[t.rfc.replace(" (opcional)", "").replace(" (optional)", ""), form.rfc]] : []),
                   [t.payment, form.payment_methods.map(m => {
                     const labels: Record<string, string> = { efectivo: "💵 Efectivo", spei: "🏦 SPEI", oxxo: "🏪 OXXO", mercadopago: "💳 M.Pago", whatsapp: "💬 WhatsApp" };
                     return labels[m] ?? m;

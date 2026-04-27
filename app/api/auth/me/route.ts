@@ -16,21 +16,57 @@ export async function GET(req: NextRequest) {
     let userError: any = null;
 
     const fullSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at";
+    const fullNoRfcVerifiedSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at";
+    const noRfcSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,ine_photo_url,stripe_connect_account_id,created_at";
+    const noRfcNoRfcVerifiedSelect =
       "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,stripe_connect_account_id,created_at";
-    const midSelect = "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,created_at";
-    const baseSelect = "id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at";
+    const midRfcNoIneSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,created_at";
+    const midRfcNoIneNoRfcVerifiedSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,rfc,created_at";
+    const midNoIneSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,created_at";
+    const midNoIneNoRfcVerifiedSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,created_at";
+    const baseSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,created_at";
+    const baseNoRfcVerifiedSelect =
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at";
     const idVars = idMatchVariantsForIn(userId);
 
-    ({ data: user, error: userError } = await supabase
-      .from("users").select(fullSelect).in("id", idVars).maybeSingle());
+    const trySelect = async (cols: string) =>
+      supabase.from("users").select(cols).in("id", idVars).maybeSingle();
 
+    ({ data: user, error: userError } = await trySelect(fullSelect));
     if (userError?.message?.includes("does not exist")) {
-      ({ data: user, error: userError } = await supabase
-        .from("users").select(midSelect).in("id", idVars).maybeSingle());
+      ({ data: user, error: userError } = await trySelect(fullNoRfcVerifiedSelect));
     }
     if (userError?.message?.includes("does not exist")) {
-      ({ data: user, error: userError } = await supabase
-        .from("users").select(baseSelect).in("id", idVars).maybeSingle());
+      ({ data: user, error: userError } = await trySelect(noRfcSelect));
+    }
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await trySelect(noRfcNoRfcVerifiedSelect));
+    }
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await trySelect(midRfcNoIneSelect));
+    }
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await trySelect(midRfcNoIneNoRfcVerifiedSelect));
+    }
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await trySelect(midNoIneSelect));
+    }
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await trySelect(midNoIneNoRfcVerifiedSelect));
+    }
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await trySelect(baseSelect));
+    }
+    if (userError?.message?.includes("does not exist")) {
+      ({ data: user, error: userError } = await trySelect(baseNoRfcVerifiedSelect));
     }
 
     if (userError) {
@@ -82,22 +118,61 @@ export async function PATCH(req: NextRequest) {
     let error: any = null;
     const idVars = idMatchVariantsForIn(userId);
 
-    ({ data, error } = await supabase
-      .from("users").update({ display_name: displayName }).in("id", idVars)
-      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,created_at")
-      .maybeSingle());
+    const patchTry = (cols: string) =>
+      supabase
+        .from("users")
+        .update({ display_name: displayName })
+        .in("id", idVars)
+        .select(cols)
+        .maybeSingle();
 
+    ({ data, error } = await patchTry(
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at",
+    ));
     if (error?.message?.includes("does not exist")) {
-      ({ data, error } = await supabase
-        .from("users").update({ display_name: displayName }).in("id", idVars)
-        .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,created_at")
-        .maybeSingle());
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at",
+      ));
     }
     if (error?.message?.includes("does not exist")) {
-      ({ data, error } = await supabase
-        .from("users").update({ display_name: displayName }).in("id", idVars)
-        .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at")
-        .maybeSingle());
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,ine_photo_url,stripe_connect_account_id,created_at",
+      ));
+    }
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,stripe_connect_account_id,created_at",
+      ));
+    }
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,created_at",
+      ));
+    }
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,rfc,created_at",
+      ));
+    }
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,created_at",
+      ));
+    }
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,created_at",
+      ));
+    }
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,created_at",
+      ));
+    }
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await patchTry(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,created_at",
+      ));
     }
 
     if (error || !data) {

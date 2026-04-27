@@ -57,7 +57,7 @@ export default async function SellerPage({ params }: { params: { id: string } })
 
   // Fetch seller info
   const sellerRes = await fetch(
-    `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,ine_verified,phone_verified,created_at`,
+    `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,ine_verified,rfc_verified,phone_verified,created_at`,
     { headers: h, cache: "no-store" }
   );
   const [seller] = sellerRes.ok ? await sellerRes.json() : [];
@@ -116,6 +116,9 @@ export default async function SellerPage({ params }: { params: { id: string } })
               </span>
               <span className={seller.ine_verified ? "text-[#059669]" : ""}>
                 {seller.ine_verified ? "✓" : "○"} INE
+              </span>
+              <span className={seller.rfc_verified ? "text-[#059669]" : ""}>
+                {seller.rfc_verified ? "✓" : "○"} RFC
               </span>
             </div>
 

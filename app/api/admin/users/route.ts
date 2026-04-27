@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/auth-server";
 import { getAdminPin, isAdminPinConfigured } from "@/lib/admin-pin";
 import { signedInePhotoUrl } from "@/lib/ine-storage";
+import { normalizeCurpForStorage, normalizeRfcForStorage } from "@/lib/mx-tax-ids";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,49 @@ export async function GET(req: NextRequest) {
 
   ({ data, error } = await supabase
     .from("users")
-    .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,created_at")
+    .select(
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,created_at",
+    )
     .order("created_at", { ascending: false }));
 
+  if (error?.message?.includes("does not exist")) {
+    ({ data, error } = await supabase
+      .from("users")
+      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,rfc,ine_photo_url,created_at")
+      .order("created_at", { ascending: false }));
+  }
+  if (error?.message?.includes("does not exist")) {
+    ({ data, error } = await supabase
+      .from("users")
+      .select(
+        "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,ine_photo_url,created_at",
+      )
+      .order("created_at", { ascending: false }));
+  }
+  if (error?.message?.includes("does not exist")) {
+    ({ data, error } = await supabase
+      .from("users")
+      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,ine_photo_url,created_at")
+      .order("created_at", { ascending: false }));
+  }
+  if (error?.message?.includes("does not exist")) {
+    ({ data, error } = await supabase
+      .from("users")
+      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,created_at")
+      .order("created_at", { ascending: false }));
+  }
+  if (error?.message?.includes("does not exist")) {
+    ({ data, error } = await supabase
+      .from("users")
+      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,curp,rfc,created_at")
+      .order("created_at", { ascending: false }));
+  }
+  if (error?.message?.includes("does not exist")) {
+    ({ data, error } = await supabase
+      .from("users")
+      .select("id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,created_at")
+      .order("created_at", { ascending: false }));
+  }
   if (error?.message?.includes("does not exist")) {
     ({ data, error } = await supabase
       .from("users")
@@ -88,20 +129,52 @@ export async function PATCH(req: NextRequest) {
       updates.ine_verified = Boolean(body.ine_verified);
     }
 
+    if (body.rfc_verified !== undefined) {
+      updates.rfc_verified = Boolean(body.rfc_verified);
+    }
+
     if (body.display_name !== undefined) {
       updates.display_name = String(body.display_name).trim();
+    }
+
+    if (body.curp !== undefined) {
+      const raw = body.curp === null || body.curp === "" ? "" : String(body.curp);
+      updates.curp = raw ? normalizeCurpForStorage(raw) ?? null : null;
+    }
+
+    if (body.rfc !== undefined) {
+      const raw = body.rfc === null || body.rfc === "" ? "" : String(body.rfc);
+      updates.rfc = raw ? normalizeRfcForStorage(raw) ?? null : null;
     }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    let data: {
+      id: string;
+      trust_badge: string | null;
+      ine_verified: boolean | null;
+      rfc_verified?: boolean | null;
+      display_name: string | null;
+    } | null = null;
+    let error: { message: string } | null = null;
+
+    ({ data, error } = await supabase
       .from("users")
       .update(updates)
       .eq("id", userId)
-      .select("id,trust_badge,ine_verified,display_name")
-      .maybeSingle();
+      .select("id,trust_badge,ine_verified,rfc_verified,display_name")
+      .maybeSingle());
+
+    if (error?.message?.includes("does not exist")) {
+      ({ data, error } = await supabase
+        .from("users")
+        .update(updates)
+        .eq("id", userId)
+        .select("id,trust_badge,ine_verified,display_name")
+        .maybeSingle());
+    }
 
     if (error) {
       console.error("[admin/users] PATCH", error);

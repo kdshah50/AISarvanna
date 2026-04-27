@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { COLONIAS } from "@/lib/colonias";
+import { normalizeCurpForStorage, normalizeRfcForStorage } from "@/lib/mx-tax-ids";
 
 const ADMIN_WHATSAPP = process.env.ADMIN_WHATSAPP_NUMBER ?? "";
 const TWILIO_SID     = process.env.TWILIO_ACCOUNT_SID ?? "";
@@ -18,6 +19,7 @@ async function notifyAdmin(form: any) {
       `💰 $${form.price} MXN`,
       `📍 ${form.colonia ? (COLONIAS[form.colonia]?.label ?? form.colonia) : form.city}, SMA`,
       ...(form.curp ? [`🪪 CURP: ${form.curp}`] : []),
+      ...(form.rfc ? [`📋 RFC: ${form.rfc}`] : []),
       ``,
       `"${(form.description ?? "").slice(0, 120)}..."`,
       ``,
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
       name, whatsapp, service, service_label,
       description, price, city, colonia, address, lang,
       accepted_terms, accepted_pricing, accepted_at,
-      curp, payment_methods,
+      curp, rfc, payment_methods,
     } = body;
 
     // Validate required fields
@@ -83,19 +85,20 @@ export async function POST(req: NextRequest) {
     const existingUsers = userRes.ok ? await userRes.json() : [];
     let sellerId: string;
 
-    const cleanCurp = (curp ?? "").trim().toUpperCase().slice(0, 18) || undefined;
+    const cleanCurp = normalizeCurpForStorage(String(curp ?? ""));
+    const cleanRfc = normalizeRfcForStorage(String(rfc ?? ""));
 
     if (existingUsers.length > 0) {
       sellerId = existingUsers[0].id;
-      if (cleanCurp) {
-        await fetch(
-          `${SUPA_URL}/rest/v1/users?id=eq.${sellerId}`,
-          {
-            method: "PATCH",
-            headers: h,
-            body: JSON.stringify({ curp: cleanCurp }),
-          }
-        ).catch(() => {});
+      const patch: Record<string, string> = {};
+      if (cleanCurp) patch.curp = cleanCurp;
+      if (cleanRfc) patch.rfc = cleanRfc;
+      if (Object.keys(patch).length > 0) {
+        await fetch(`${SUPA_URL}/rest/v1/users?id=eq.${sellerId}`, {
+          method: "PATCH",
+          headers: h,
+          body: JSON.stringify(patch),
+        }).catch(() => {});
       }
     } else {
       const userPayload: Record<string, unknown> = {
@@ -104,6 +107,7 @@ export async function POST(req: NextRequest) {
         trust_badge: "none",
       };
       if (cleanCurp) userPayload.curp = cleanCurp;
+      if (cleanRfc) userPayload.rfc = cleanRfc;
 
       const newUserRes = await fetch(`${SUPA_URL}/rest/v1/users`, {
         method: "POST",
@@ -173,7 +177,7 @@ export async function POST(req: NextRequest) {
     notifyAdmin({
       name, whatsapp, service_label,
       price, city, colonia, description,
-      accepted_at, curp: cleanCurp,
+      accepted_at, curp: cleanCurp, rfc: cleanRfc,
     }).catch(() => {});
 
     return NextResponse.json({ ok: true });

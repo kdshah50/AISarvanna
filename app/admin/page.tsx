@@ -25,7 +25,9 @@ type UserRow = {
   trust_badge: string | null;
   phone_verified: boolean;
   ine_verified: boolean;
+  rfc_verified?: boolean;
   curp: string | null;
+  rfc: string | null;
   ine_photo_url: string | null;
   created_at: string;
   review_count?: number;
@@ -549,15 +551,26 @@ export default function AdminPage() {
                               ✓ INE
                             </span>
                           )}
+                          {u.rfc_verified && (
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-800">
+                              ✓ RFC
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      {/* CURP & INE verification */}
+                      {/* CURP, RFC & INE verification */}
                       <div className="flex flex-wrap gap-3 items-start mb-3">
                         {u.curp && (
                           <div className="bg-[#ECFDF5] rounded-xl px-3 py-2 text-xs">
                             <span className="font-semibold text-[#065F46]">🪪 CURP:</span>{" "}
                             <span className="font-mono text-[#1C1917] tracking-wide">{u.curp}</span>
+                          </div>
+                        )}
+                        {u.rfc && (
+                          <div className="bg-[#ECFDF5] rounded-xl px-3 py-2 text-xs">
+                            <span className="font-semibold text-[#065F46]">📋 RFC:</span>{" "}
+                            <span className="font-mono text-[#1C1917] tracking-wide">{u.rfc}</span>
                           </div>
                         )}
                         {u.ine_photo_url && (
@@ -566,7 +579,7 @@ export default function AdminPage() {
                             📸 Ver foto INE →
                           </a>
                         )}
-                        {!u.curp && !u.ine_photo_url && (
+                        {!u.curp && !u.rfc && !u.ine_photo_url && (
                           <span className="text-xs text-[#9CA3AF]">Sin documentos de verificación</span>
                         )}
                       </div>
@@ -617,6 +630,17 @@ export default function AdminPage() {
                               : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-blue-400"
                           }`}>
                           {userSaving === u.id ? "…" : u.ine_verified ? "✓ INE Verified" : "Verify INE"}
+                        </button>
+
+                        <button
+                          onClick={() => updateUser(u.id, { rfc_verified: !u.rfc_verified })}
+                          disabled={userSaving === u.id}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-40 ${
+                            u.rfc_verified
+                              ? "bg-indigo-100 text-indigo-800 hover:bg-indigo-200"
+                              : "bg-white border border-[#E5E0D8] text-[#6B7280] hover:border-indigo-400"
+                          }`}>
+                          {userSaving === u.id ? "…" : u.rfc_verified ? "✓ RFC Verified" : "Verify RFC"}
                         </button>
                       </div>
                     </div>

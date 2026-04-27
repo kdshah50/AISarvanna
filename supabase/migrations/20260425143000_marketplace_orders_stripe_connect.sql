@@ -1,4 +1,5 @@
-/* Marketplace cart + Stripe Connect: users.stripe_connect_account_id, marketplace_orders */
+-- Marketplace cart checkout (non-service categories) + Stripe Connect destination charges.
+-- Run in Supabase SQL editor or via CLI.
 
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS stripe_connect_account_id TEXT;

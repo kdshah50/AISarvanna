@@ -1,6 +1,6 @@
 -- Defense in depth: RLS (users_select_sellers_of_active_listing) can still
 -- expose one row, but with column-level SELECT only anon/authenticated
--- can read a safe subset — not phone, curp, ine_photo_url, or referred_by.
+-- can read a safe subset — not phone, curp, rfc, ine_photo_url, or referred_by.
 -- Service role and postgres remain unrestricted for server routes.
 
 REVOKE ALL ON public.users FROM anon, authenticated;

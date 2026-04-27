@@ -52,7 +52,7 @@ export default async function SellerPage({ params }: { params: { id: string } })
   const h = getServiceRoleRestHeaders();
 
   const sellerRes = await fetch(
-    `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,ine_verified,phone_verified,created_at`,
+    `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,ine_verified,rfc_verified,phone_verified,created_at`,
     { headers: h, cache: "no-store" }
   );
   const sellerRows = sellerRes.ok ? await sellerRes.json() : [];
@@ -107,6 +107,7 @@ export default async function SellerPage({ params }: { params: { id: string } })
             <div className="flex gap-4 text-xs text-[#6B7280]">
               <span className={seller.phone_verified ? "text-[#059669]" : ""}>{seller.phone_verified ? "+" : "o"} Telefono</span>
               <span className={seller.ine_verified ? "text-[#059669]" : ""}>{seller.ine_verified ? "+" : "o"} INE</span>
+              <span className={seller.rfc_verified ? "text-[#059669]" : ""}>{seller.rfc_verified ? "+" : "o"} RFC</span>
             </div>
             <div className="flex gap-3 w-full mt-2">
               <StatCard value={listings.length} label="Activos" />

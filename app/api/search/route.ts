@@ -37,11 +37,11 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
 
-const SELECT_COLS_FULL = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)";
-const SELECT_COLS_BASE = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)";
+const SELECT_COLS_FULL = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
+const SELECT_COLS_BASE = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
 
 const USER_EMBED_SELECT =
-  "id,users!fk_listings_seller(display_name,trust_badge,ine_verified,phone_verified)";
+  "id,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
 
 /** Dense / RPC rows often omit `users`; attach seller embed so listing cards can show trust badges. */
 async function enrichResultsWithSellerUsers(

@@ -3,6 +3,8 @@ import type { Lang } from "@/lib/i18n-lang";
 type Props = {
   trustBadge: string;
   ineVerified: boolean;
+  /** RFC reviewed by admin (Mexico tax ID). */
+  rfcVerified?: boolean;
   phoneVerified: boolean;
   lang: Lang;
   /** Listing approved in admin (`listings.is_verified`) — show chip if no stronger signal. */
@@ -36,6 +38,7 @@ function tierClass(tier: "bronze" | "gold" | "diamond"): string {
 export function SellerVerificationBadges({
   trustBadge,
   ineVerified,
+  rfcVerified = false,
   phoneVerified,
   lang,
   platformListingVerified = false,
@@ -78,6 +81,23 @@ export function SellerVerificationBadges({
           ✓
         </span>
         INE
+      </span>
+    );
+  }
+
+  if (rfcVerified) {
+    const title =
+      lang === "en" ? "Verified: RFC reviewed by Naranjogo" : "Verificado: RFC revisado por Naranjogo";
+    parts.push(
+      <span
+        key="rfc"
+        className={`inline-flex items-center gap-0.5 ${textSm} font-bold ${padSm} rounded-md bg-indigo-50 text-indigo-900 border border-indigo-200/90 shrink-0`}
+        title={title}
+      >
+        <span className="text-indigo-600" aria-hidden>
+          ✓
+        </span>
+        RFC
       </span>
     );
   }

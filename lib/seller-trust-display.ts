@@ -28,9 +28,14 @@ export function isSellerIneVerified(u: { ine_verified?: boolean | null } | null 
   return Boolean(u?.ine_verified);
 }
 
+export function isSellerRfcVerified(u: { rfc_verified?: boolean | null } | null | undefined): boolean {
+  return Boolean(u?.rfc_verified);
+}
+
 type SellerTrustFields = {
   trust_badge?: string | null;
   ine_verified?: boolean | null;
+  rfc_verified?: boolean | null;
   phone_verified?: boolean | null;
 };
 
@@ -42,11 +47,17 @@ export function verificationPropsFromSellerRow(
     | SellerTrustFields
     | null;
   if (!row) {
-    return { trustBadge: "none" as string, ineVerified: false, phoneVerified: false };
+    return {
+      trustBadge: "none" as string,
+      ineVerified: false,
+      rfcVerified: false,
+      phoneVerified: false,
+    };
   }
   return {
     trustBadge: row.trust_badge ?? "none",
     ineVerified: isSellerIneVerified(row),
+    rfcVerified: isSellerRfcVerified(row),
     phoneVerified: isSellerPhoneVerifiedForDisplay(row),
   };
 }

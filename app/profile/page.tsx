@@ -14,7 +14,9 @@ type User = {
   trust_badge: string;
   phone_verified: boolean;
   ine_verified: boolean;
+  rfc_verified: boolean;
   curp: string | null;
+  rfc: string | null;
   ine_photo_url: string | null;
   stripe_connect_account_id?: string | null;
   created_at: string | null;
@@ -279,6 +281,11 @@ export default function ProfilePage() {
                     🪪 INE {t.verified}
                   </span>
                 )}
+                {user.rfc_verified && (
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-indigo-50 text-indigo-900 border border-indigo-200/80">
+                    📋 RFC {t.verified}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -303,6 +310,15 @@ export default function ProfilePage() {
           <h2 className="font-serif text-lg font-bold text-[#1C1917] mb-3">
             🪪 {lang === "es" ? "Verificación de identidad" : "Identity verification"}
           </h2>
+
+          {user.rfc_verified && (
+            <div className="bg-indigo-50 border border-indigo-200/80 rounded-xl p-4 text-sm text-indigo-900 font-medium flex items-center gap-2 mb-3">
+              ✓{" "}
+              {lang === "es"
+                ? "Tu RFC fue revisado por el equipo de Naranjogo"
+                : "Your RFC has been reviewed by the Naranjogo team"}
+            </div>
+          )}
 
           {user.ine_verified ? (
             <div className="bg-[#ECFDF5] rounded-xl p-4 text-sm text-[#065F46] font-medium flex items-center gap-2">
@@ -334,10 +350,20 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {user.curp && (
-            <div className="mt-3 bg-[#F4F0EB] rounded-xl px-4 py-2 text-xs">
-              <span className="text-[#6B7280] font-medium">CURP: </span>
-              <span className="font-mono text-[#1C1917] tracking-wide">{user.curp}</span>
+          {(user.curp || user.rfc) && (
+            <div className="mt-3 bg-[#F4F0EB] rounded-xl px-4 py-2 text-xs space-y-1">
+              {user.curp && (
+                <div>
+                  <span className="text-[#6B7280] font-medium">CURP: </span>
+                  <span className="font-mono text-[#1C1917] tracking-wide">{user.curp}</span>
+                </div>
+              )}
+              {user.rfc && (
+                <div>
+                  <span className="text-[#6B7280] font-medium">RFC: </span>
+                  <span className="font-mono text-[#1C1917] tracking-wide">{user.rfc}</span>
+                </div>
+              )}
             </div>
           )}
 

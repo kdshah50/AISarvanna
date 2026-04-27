@@ -13,6 +13,8 @@ export interface ListingCard {
   seller_badge: string;
   /** INE/identity checked by team — stronger than phone-only. */
   seller_ine_verified: boolean;
+  /** RFC reviewed by admin (tax ID); optional complement to INE. */
+  seller_rfc_verified: boolean;
   /** WhatsApp/OTP verified (number holds); does not mean ID reviewed. */
   seller_phone_verified: boolean;
   /** Listing passed admin approval (is_verified) — fallback chip when seller flags missing. */
