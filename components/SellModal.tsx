@@ -1,7 +1,11 @@
 "use client";
 import Image from "next/image";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+const MAX_PHOTOS = 10;
+
+type PhotoItem = { file: File; preview: string };
 
 const CATEGORIES = [
   { id: "electronics", icon: "📱", label: "Electrónica" },
@@ -22,7 +26,7 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState(1);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [aiScanning, setAiScanning] = useState(false);
   const [aiDone, setAiDone] = useState(false);
   const [aiSuggestedPrice, setAiSuggestedPrice] = useState<number | null>(null);
@@ -35,12 +39,42 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
 
-  // ── Photo picked → call ML via Next.js proxy ─────────────────────────────
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhoto(URL.createObjectURL(file));
+  useEffect(() => {
+    return () => {
+      for (const p of photosRef.current) URL.revokeObjectURL(p.preview);
+    };
+  }, []);
+
+  const addFiles = (list: FileList | File[] | null) => {
+    if (!list || !list.length) return;
+    const incoming = Array.from(list);
+    setPhotos((prev) => {
+      const room = MAX_PHOTOS - prev.length;
+      if (room <= 0) return prev;
+      const take = incoming.slice(0, room);
+      const next = take.map((file) => ({ file, preview: URL.createObjectURL(file) }));
+      return [...prev, ...next];
+    });
+  };
+
+  const removePhotoAt = (index: number) => {
+    setPhotos((prev) => {
+      const p = prev[index];
+      if (p) URL.revokeObjectURL(p.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handlePhotoInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(e.target.files);
+    e.target.value = "";
+  };
+
+  const goToDetails = () => {
+    if (!photos.length) return;
     setStep(2);
     runAI();
   };
@@ -85,6 +119,28 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
     setError("");
     try {
+      const photoUrls: string[] = [];
+      for (const { file } of photos) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const up = await fetch("/api/upload-listing-photo", {
+          method: "POST",
+          credentials: "same-origin",
+          body: fd,
+        });
+        const data = await up.json().catch(() => ({}));
+        if (!up.ok) {
+          setError(
+            (data as { error?: string }).error ||
+              "No se pudieron subir las fotos. ¿Iniciaste sesión? ¿Existe el bucket listing-photos?",
+          );
+          setSubmitting(false);
+          return;
+        }
+        const url = (data as { url?: string }).url;
+        if (url) photoUrls.push(url);
+      }
+
       const res = await fetch("/api/listings", {
         method: "POST",
         credentials: "same-origin",
@@ -101,7 +157,7 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
           location_state: "CDMX",
           shipping_available: false,
           negotiable: true,
-          photo_urls: photo ? [photo] : [],
+          photo_urls: photoUrls,
           expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
         }),
       });
@@ -154,17 +210,56 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
           <div>
             <h2 className="font-serif text-xl font-bold mb-1">¿Qué quieres vender?</h2>
             <p className="text-sm text-[#6B7280] mb-5">
-              Sube una foto y la IA detecta el artículo automáticamente.
+              Sube hasta {MAX_PHOTOS} fotos (JPEG, PNG o WebP). La IA sugiere precio al continuar.
             </p>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              className="hidden"
+              onChange={handlePhotoInput}
+            />
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {photos.map((p, i) => (
+                  <div key={p.preview} className="relative aspect-square rounded-xl overflow-hidden bg-[#F4F0EB]">
+                    <Image src={p.preview} alt="" fill className="object-cover" unoptimized />
+                    <button
+                      type="button"
+                      onClick={() => removePhotoAt(i)}
+                      className="absolute top-1 right-1 bg-black/55 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div
-              onClick={() => fileRef.current?.click()}
-              className="border-2 border-dashed border-[#E5E0D8] rounded-2xl p-12 text-center cursor-pointer hover:border-[#1B4332] hover:bg-[#F4F0EB] transition-all"
+              onClick={() => photos.length < MAX_PHOTOS && fileRef.current?.click()}
+              className={`border-2 border-dashed border-[#E5E0D8] rounded-2xl p-8 text-center transition-all ${
+                photos.length >= MAX_PHOTOS
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer hover:border-[#1B4332] hover:bg-[#F4F0EB]"
+              }`}
             >
-              <div className="text-5xl mb-3">📷</div>
-              <p className="font-semibold text-[#1C1917] mb-1">Agregar foto</p>
-              <p className="text-xs text-[#6B7280]">La IA genera el título y precio sugerido</p>
+              <div className="text-4xl mb-2">📷</div>
+              <p className="font-semibold text-[#1C1917] mb-1">
+                {photos.length ? "Agregar más fotos" : "Agregar fotos"}
+              </p>
+              <p className="text-xs text-[#6B7280]">
+                {photos.length}/{MAX_PHOTOS} · máx. 5 MB c/u
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={goToDetails}
+              disabled={!photos.length}
+              className="w-full mt-5 bg-[#1B4332] text-white py-3 rounded-xl font-semibold disabled:opacity-40"
+            >
+              Continuar →
+            </button>
           </div>
         )}
 
@@ -173,21 +268,49 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
           <div>
             <h2 className="font-serif text-xl font-bold mb-4">Detalles del artículo</h2>
 
-            {/* Photo preview + change button */}
-            {photo && (
-              <div className="relative mb-4">
-                <Image
-                  src={photo}
-                  alt=""
-                  width={800}
-                  height={192}
-                  unoptimized
-                  className="w-full h-48 object-cover rounded-xl"
+            {/* Photo previews */}
+            {photos.length > 0 && (
+              <div className="mb-4">
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {photos.map((p, i) => (
+                    <div key={p.preview} className="relative w-24 h-24 shrink-0 rounded-lg overflow-hidden">
+                      <Image src={p.preview} alt="" fill className="object-cover" unoptimized />
+                      <button
+                        type="button"
+                        onClick={() => removePhotoAt(i)}
+                        className="absolute top-0.5 right-0.5 bg-black/50 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-xs font-semibold text-[#1B4332] underline"
+                  >
+                    Cambiar fotos
+                  </button>
+                  {photos.length < MAX_PHOTOS && (
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className="text-xs font-semibold text-[#6B7280]"
+                    >
+                      + Agregar ({photos.length}/{MAX_PHOTOS})
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={handlePhotoInput}
                 />
-                <button
-                  onClick={() => { setPhoto(null); setStep(1); setAiDone(false); setAiSuggestedPrice(null); }}
-                  className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-7 h-7 text-sm flex items-center justify-center"
-                >✕</button>
               </div>
             )}
 

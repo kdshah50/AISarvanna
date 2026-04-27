@@ -1,7 +1,19 @@
 "use client";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { COLONIAS, COLONIA_KEYS, detectColoniaInQuery, coloniaLabel } from "@/lib/colonias";
+
+/** Slider top = “no upper cap” in the URL (pmax omitted). Whole MXN pesos. */
+const PRICE_MAX_UI = 5_000_000;
+const PRICE_SLIDER_STEP = 25_000;
+
+function fmtPesos(n: number, lang: "es" | "en") {
+  return new Intl.NumberFormat(lang === "en" ? "en-MX" : "es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 0,
+  }).format(n);
+}
 
 const T = {
   es: {
@@ -13,6 +25,10 @@ const T = {
     btn: "Buscar",
     near: "Cerca de mí",
     chipLabel: "Buscar por colonia:",
+    priceTitle: "Precio (MXN)",
+    priceMin: "Mín.",
+    priceMax: "Máx.",
+    noMax: "Sin límite",
   },
   en: {
     badge: "ZIP 37745 • SERVICES",
@@ -23,17 +39,44 @@ const T = {
     btn: "Search",
     near: "Near me",
     chipLabel: "Search by colonia:",
+    priceTitle: "Price (MXN)",
+    priceMin: "Min.",
+    priceMax: "Max.",
+    noMax: "No max",
   },
 };
 
 function HeroInner({ initialQuery }: { initialQuery: string }) {
   const [query, setQuery] = useState(initialQuery);
+  const [priceMin, setPriceMin] = useState(0);
+  const [priceMax, setPriceMax] = useState(PRICE_MAX_UI);
   const [geoLoading, setGeoLoading] = useState(false);
   const router = useRouter();
   const params = useSearchParams();
   const lang = (params.get("lang") || "es") as "es" | "en";
   const t = T[lang];
   const activeColonia = params.get("colonia") ?? "";
+
+  const priceKey = `${params.get("pmin") ?? ""}|${params.get("pmax") ?? ""}`;
+  useEffect(() => {
+    const pm = parseInt(params.get("pmin") ?? "0", 10);
+    const min = Number.isFinite(pm) && pm > 0 ? Math.min(pm, PRICE_MAX_UI) : 0;
+    const px = params.get("pmax");
+    let max = PRICE_MAX_UI;
+    if (px != null && px !== "") {
+      const n = parseInt(px, 10);
+      if (Number.isFinite(n) && n > 0) max = Math.min(Math.max(n, min), PRICE_MAX_UI);
+    }
+    setPriceMin(min);
+    setPriceMax(max);
+  }, [priceKey]);
+
+  const applyPriceToParams = (p: URLSearchParams) => {
+    if (priceMin > 0) p.set("pmin", String(priceMin));
+    else p.delete("pmin");
+    if (priceMax < PRICE_MAX_UI) p.set("pmax", String(priceMax));
+    else p.delete("pmax");
+  };
 
   const go = (q: string, extra: Record<string, string> = {}) => {
     const p = new URLSearchParams(params.toString());
@@ -54,7 +97,20 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
 
     if (finalQ) p.set("q", finalQ); else p.delete("q");
     Object.entries(extra).forEach(([k, v]) => v ? p.set(k, v) : p.delete(k));
+    applyPriceToParams(p);
     router.push(`/?${p.toString()}`);
+  };
+
+  const setMinSlider = (v: number) => {
+    const next = Math.max(0, Math.min(v, PRICE_MAX_UI));
+    setPriceMin(next);
+    if (next > priceMax) setPriceMax(next);
+  };
+
+  const setMaxSlider = (v: number) => {
+    const next = Math.max(0, Math.min(v, PRICE_MAX_UI));
+    setPriceMax(next);
+    if (next < priceMin) setPriceMin(next);
   };
 
   const handleNearMe = () => {
@@ -111,6 +167,48 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
           >
             {t.btn}
           </button>
+        </div>
+
+        {/* Price range — combines with natural-language price phrases in `q` (stricter wins server-side). */}
+        <div
+          className="rounded-2xl px-4 py-3 mb-3 text-left max-w-xl mx-auto"
+          style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.22)" }}
+        >
+          <p className="text-[11px] font-bold tracking-wide text-[#F0C040]/90 mb-2">{t.priceTitle}</p>
+          <div className="space-y-3">
+            <div>
+              <div className="flex justify-between text-[11px] text-white/80 mb-1">
+                <span>{t.priceMin}</span>
+                <span className="font-semibold text-white">{fmtPesos(priceMin, lang)}</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={PRICE_MAX_UI}
+                step={PRICE_SLIDER_STEP}
+                value={priceMin}
+                onChange={(e) => setMinSlider(Number(e.target.value))}
+                className="w-full accent-[#D4A017] h-2"
+              />
+            </div>
+            <div>
+              <div className="flex justify-between text-[11px] text-white/80 mb-1">
+                <span>{t.priceMax}</span>
+                <span className="font-semibold text-white">
+                  {priceMax >= PRICE_MAX_UI ? t.noMax : fmtPesos(priceMax, lang)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={PRICE_MAX_UI}
+                step={PRICE_SLIDER_STEP}
+                value={priceMax}
+                onChange={(e) => setMaxSlider(Number(e.target.value))}
+                className="w-full accent-[#D4A017] h-2"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Near me */}

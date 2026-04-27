@@ -7,6 +7,9 @@ export interface ListingCard {
   location_city: string | null;
   colonia_label: string | null;
   photo_url: string | null;
+  /** Optional coords for map view (from listings.location_lat/lng). */
+  location_lat?: number | null;
+  location_lng?: number | null;
   shipping_available: boolean;
   negotiable: boolean;
   seller_name: string;

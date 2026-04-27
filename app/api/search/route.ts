@@ -42,6 +42,31 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function rrf(rank: number, k = 60) { return 1 / (k + rank + 1); }
 
+function parsePesosParam(v: string | null): number | undefined {
+  if (v == null || v === "") return undefined;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+/** Slider / URL caps (whole MXN) tighten NL-parsed price bounds. */
+function mergeUiPricePesosIntoParsed(
+  parsed: ParsedQueryFilters,
+  pminPesos?: number,
+  pmaxPesos?: number,
+): ParsedQueryFilters {
+  const out: ParsedQueryFilters = { ...parsed };
+  if (pminPesos != null && pminPesos > 0) {
+    const c = pminPesos * 100;
+    out.minPriceMxnCents = out.minPriceMxnCents != null ? Math.max(out.minPriceMxnCents, c) : c;
+  }
+  if (pmaxPesos != null && pmaxPesos > 0) {
+    const c = pmaxPesos * 100;
+    out.maxPriceMxnCents =
+      out.maxPriceMxnCents != null ? Math.min(out.maxPriceMxnCents, c) : c;
+  }
+  return out;
+}
+
 const SELECT_COLS_FULL = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
 const SELECT_COLS_BASE = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
 
@@ -90,6 +115,8 @@ export async function GET(req: NextRequest) {
   const lat        = parseFloat(searchParams.get("lat") ?? "NaN");
   const lng        = parseFloat(searchParams.get("lng") ?? "NaN");
   let hasGeo       = !isNaN(lat) && !isNaN(lng);
+  const pminPesos  = parsePesosParam(searchParams.get("pmin"));
+  const pmaxPesos  = parsePesosParam(searchParams.get("pmax"));
 
   if (!coloniaKey && query) {
     const detected = detectColoniaInQuery(query);
@@ -122,13 +149,15 @@ export async function GET(req: NextRequest) {
   const sparsePhrase = parsed.keywordForSparse.trim() || query;
   const embedPhrase = parsed.textForEmbedding.trim() || query;
 
+  const effective = mergeUiPricePesosIntoParsed(parsed, pminPesos, pmaxPesos);
+
   function appendPriceToUrl(base: string): string {
     let u = base;
-    if (parsed.maxPriceMxnCents != null) {
-      u += `&price_mxn=lte.${parsed.maxPriceMxnCents}`;
+    if (effective.maxPriceMxnCents != null) {
+      u += `&price_mxn=lte.${effective.maxPriceMxnCents}`;
     }
-    if (parsed.minPriceMxnCents != null) {
-      u += `&price_mxn=gte.${parsed.minPriceMxnCents}`;
+    if (effective.minPriceMxnCents != null) {
+      u += `&price_mxn=gte.${effective.minPriceMxnCents}`;
     }
     return u;
   }
@@ -143,7 +172,7 @@ export async function GET(req: NextRequest) {
   if (query) {
     // ── Layer 1: Sparse keyword search ──────────────────────────────────────
     try {
-      const hasPrice = parsed.maxPriceMxnCents != null || parsed.minPriceMxnCents != null;
+      const hasPrice = effective.maxPriceMxnCents != null || effective.minPriceMxnCents != null;
       const keywordTooShort = !sparsePhrase || sparsePhrase.trim().length < 2;
       const core =
         hasPrice && keywordTooShort
@@ -151,7 +180,7 @@ export async function GET(req: NextRequest) {
           : `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(sparsePhrase)}*&select=${SELECT_COLS_FULL}&limit=20`;
       const baseUrl = appendPriceToUrl(core);
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
-      sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, parsed));
+      sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
     } catch {}
 
     // ── Layer 2: Dense semantic search ──────────────────────────────────────
@@ -169,7 +198,7 @@ export async function GET(req: NextRequest) {
           const threshold = Math.max(ABS_THRESHOLD, bestScore * REL_FACTOR);
           denseRows = data
             .filter((l: any) => (l.similarity ?? 0) >= threshold)
-            .filter((l: any) => listingMatchesPriceFilters(l.price_mxn, parsed));
+            .filter((l: any) => listingMatchesPriceFilters(l.price_mxn, effective));
         }
       }
     } catch {}
@@ -180,7 +209,7 @@ export async function GET(req: NextRequest) {
       let baseUrl = `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
       baseUrl = appendPriceToUrl(baseUrl);
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
-      sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, parsed));
+      sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
     } catch {}
   }
 
@@ -221,7 +250,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  fused = fused.filter((l) => listingMatchesPriceFilters(l.price_mxn, parsed));
+  fused = fused.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
 
   const results = fused
     .sort((a, b) => b._score - a._score)
@@ -238,8 +267,10 @@ export async function GET(req: NextRequest) {
       source: parsed.source,
       keywordForSparse: sparsePhrase,
       textForEmbedding: embedPhrase,
-      maxPriceMxnCents: parsed.maxPriceMxnCents ?? null,
-      minPriceMxnCents: parsed.minPriceMxnCents ?? null,
+      maxPriceMxnCents: effective.maxPriceMxnCents ?? null,
+      minPriceMxnCents: effective.minPriceMxnCents ?? null,
+      pminPesos: pminPesos ?? null,
+      pmaxPesos: pmaxPesos ?? null,
     },
   };
 

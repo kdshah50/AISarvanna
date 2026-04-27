@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ListingGrid from "@/components/listings/ListingGrid";
+import ListingBrowseSection from "@/components/listings/ListingBrowseSection";
 import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
@@ -30,8 +30,23 @@ function distKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+function parsePricePesos(s: string | undefined): number | undefined {
+  if (s == null || s === "") return undefined;
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
 interface Props {
-  searchParams?: { q?: string; category?: string; lat?: string; lng?: string; lang?: string; colonia?: string };
+  searchParams?: {
+    q?: string;
+    category?: string;
+    lat?: string;
+    lng?: string;
+    lang?: string;
+    colonia?: string;
+    pmin?: string;
+    pmax?: string;
+  };
 }
 
 export default async function HomePage({ searchParams }: Props) {
@@ -41,6 +56,8 @@ export default async function HomePage({ searchParams }: Props) {
   const lang        = rawLang === "en" || rawLang === "es" ? rawLang : "es";
   const initialLang = lang;
   const coloniaKey  = searchParams?.colonia ?? "";
+  const pminPesos   = parsePricePesos(searchParams?.pmin);
+  const pmaxPesos   = parsePricePesos(searchParams?.pmax);
   let coloniaData   = coloniaKey ? COLONIAS[coloniaKey] : null;
   const userLat     = parseFloat(searchParams?.lat ?? "NaN");
   const userLng     = parseFloat(searchParams?.lng ?? "NaN");
@@ -59,6 +76,8 @@ export default async function HomePage({ searchParams }: Props) {
       const params = new URLSearchParams({ q: query, category: categorySlug });
       if (hasGeo) { params.set("lat", String(userLat)); params.set("lng", String(userLng)); }
       if (coloniaKey) { params.set("colonia", coloniaKey); }
+      if (pminPesos != null && pminPesos > 0) params.set("pmin", String(pminPesos));
+      if (pmaxPesos != null && pmaxPesos > 0) params.set("pmax", String(pmaxPesos));
       const res = await fetch(`${APP_URL}/api/search?${params}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
@@ -82,6 +101,8 @@ export default async function HomePage({ searchParams }: Props) {
             location_city: row.location_city ?? "San Miguel de Allende",
             colonia_label: near?.label ?? null,
             photo_url: row.photo_urls?.[0] ?? null,
+            location_lat: row.location_lat ?? null,
+            location_lng: row.location_lng ?? null,
             shipping_available: row.shipping_available, negotiable: row.negotiable,
             seller_name: u?.display_name ?? "Proveedor",
             seller_badge: u?.trust_badge ?? "none",
@@ -100,12 +121,13 @@ export default async function HomePage({ searchParams }: Props) {
       }
     } else {
       // ── No query: show active verified listings for selected category ───────
-      const res = await fetch(
-        `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${categorySlug}`
+      let browsePath =
+        `/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${categorySlug}`
         + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)`
-        + `&order=created_at.desc&limit=24`,
-        { headers: supaHeaders, cache: "no-store" }
-      );
+        + `&order=created_at.desc&limit=24`;
+      if (pminPesos != null && pminPesos > 0) browsePath += `&price_mxn=gte.${pminPesos * 100}`;
+      if (pmaxPesos != null && pmaxPesos > 0) browsePath += `&price_mxn=lte.${pmaxPesos * 100}`;
+      const res = await fetch(`${supaUrl}${browsePath}`, { headers: supaHeaders, cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         let rows = Array.isArray(data) ? data : [];
@@ -137,6 +159,8 @@ export default async function HomePage({ searchParams }: Props) {
             location_city: row.location_city ?? "San Miguel de Allende",
             colonia_label: near?.label ?? null,
             photo_url: row.photo_urls?.[0] ?? null,
+            location_lat: row.location_lat ?? null,
+            location_lng: row.location_lng ?? null,
             shipping_available: row.shipping_available, negotiable: row.negotiable,
             seller_name: u?.display_name ?? "Proveedor",
             seller_badge: u?.trust_badge ?? "none",
@@ -174,7 +198,12 @@ export default async function HomePage({ searchParams }: Props) {
             cardCount={cards.length}
           />
         </Suspense>
-        <ListingGrid listings={cards} initialLang={initialLang} />
+        <ListingBrowseSection
+          listings={cards}
+          initialLang={initialLang}
+          mapCenterLat={refLat}
+          mapCenterLng={refLng}
+        />
       </section>
       <TrustBar />
     </main>
