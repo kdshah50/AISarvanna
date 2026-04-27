@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { embeddedSellerRow } from "@/lib/seller-trust-display";
 import { COLONIAS, detectColoniaInQuery, COLONIA_RADIUS_KM } from "@/lib/colonias";
+import {
+  listingMatchesPriceFilters,
+  parseSearchQuery,
+  type ParsedQueryFilters,
+} from "@/lib/search-query-parse";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const SMA_ZIP = "37745";
@@ -99,6 +104,35 @@ export async function GET(req: NextRequest) {
   let sparseRows: any[] = [];
   let denseRows:  any[] = [];
 
+  let parsed: ParsedQueryFilters = {
+    keywordForSparse: query,
+    textForEmbedding: query,
+    source: "none",
+  };
+  if (query) {
+    parsed = await parseSearchQuery(query, category);
+    if (!parsed.keywordForSparse.trim()) {
+      parsed = { ...parsed, keywordForSparse: query };
+    }
+    if (!parsed.textForEmbedding.trim()) {
+      parsed = { ...parsed, textForEmbedding: query };
+    }
+  }
+
+  const sparsePhrase = parsed.keywordForSparse.trim() || query;
+  const embedPhrase = parsed.textForEmbedding.trim() || query;
+
+  function appendPriceToUrl(base: string): string {
+    let u = base;
+    if (parsed.maxPriceMxnCents != null) {
+      u += `&price_mxn=lte.${parsed.maxPriceMxnCents}`;
+    }
+    if (parsed.minPriceMxnCents != null) {
+      u += `&price_mxn=gte.${parsed.minPriceMxnCents}`;
+    }
+    return u;
+  }
+
   async function fetchWithFallback(url: string, selectFull: string, selectBase: string) {
     let res = await fetch(url.replace(selectFull, selectFull), { headers, cache: "no-store" });
     if (res.ok) return res.json();
@@ -109,24 +143,33 @@ export async function GET(req: NextRequest) {
   if (query) {
     // ── Layer 1: Sparse keyword search ──────────────────────────────────────
     try {
-      const baseUrl = `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(query)}*&select=${SELECT_COLS_FULL}&limit=20`;
+      const hasPrice = parsed.maxPriceMxnCents != null || parsed.minPriceMxnCents != null;
+      const keywordTooShort = !sparsePhrase || sparsePhrase.trim().length < 2;
+      const core =
+        hasPrice && keywordTooShort
+          ? `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`
+          : `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(sparsePhrase)}*&select=${SELECT_COLS_FULL}&limit=20`;
+      const baseUrl = appendPriceToUrl(core);
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
+      sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, parsed));
     } catch {}
 
     // ── Layer 2: Dense semantic search ──────────────────────────────────────
     try {
-      const vec = await embedQuery(query);
+      const vec = await embedQuery(embedPhrase);
       if (vec) {
         const dr = await fetch(`${supaUrl}/rest/v1/rpc/search_listings_dense`, {
           method: "POST", headers,
-          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 20 }),
+          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 40 }),
           cache: "no-store",
         });
         const data = dr.ok ? await dr.json() : [];
         if (Array.isArray(data) && data.length > 0) {
           const bestScore = Math.max(...data.map((l: any) => l.similarity ?? 0));
           const threshold = Math.max(ABS_THRESHOLD, bestScore * REL_FACTOR);
-          denseRows = data.filter((l: any) => (l.similarity ?? 0) >= threshold);
+          denseRows = data
+            .filter((l: any) => (l.similarity ?? 0) >= threshold)
+            .filter((l: any) => listingMatchesPriceFilters(l.price_mxn, parsed));
         }
       }
     } catch {}
@@ -134,8 +177,10 @@ export async function GET(req: NextRequest) {
   } else {
     // No query — return all active services
     try {
-      const baseUrl = `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
+      let baseUrl = `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
+      baseUrl = appendPriceToUrl(baseUrl);
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
+      sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, parsed));
     } catch {}
   }
 
@@ -176,6 +221,8 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  fused = fused.filter((l) => listingMatchesPriceFilters(l.price_mxn, parsed));
+
   const results = fused
     .sort((a, b) => b._score - a._score)
     .slice(0, 24);
@@ -183,7 +230,18 @@ export async function GET(req: NextRequest) {
   await enrichResultsWithSellerUsers(results, supaUrl, headers);
 
   const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
-  const debug = { hasOpenAIKey: !!OPENAI_KEY, sparseCount: sparseRows.length, denseCount: denseRows.length };
+  const debug = {
+    hasOpenAIKey: !!OPENAI_KEY,
+    sparseCount: sparseRows.length,
+    denseCount: denseRows.length,
+    parse: {
+      source: parsed.source,
+      keywordForSparse: sparsePhrase,
+      textForEmbedding: embedPhrase,
+      maxPriceMxnCents: parsed.maxPriceMxnCents ?? null,
+      minPriceMxnCents: parsed.minPriceMxnCents ?? null,
+    },
+  };
 
   return NextResponse.json({
     results, mode, query, total: results.length, debug,
