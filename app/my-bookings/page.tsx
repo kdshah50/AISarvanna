@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
@@ -19,6 +19,18 @@ type Booking = {
   package_session_count?: number | null;
   listing_title: string;
   seller_name: string;
+};
+
+type ReminderRow = {
+  id: string;
+  booking_id: string;
+  reminder_kind: string;
+  status: string;
+  remind_at: string;
+  notify_whatsapp?: boolean | null;
+  notify_email?: boolean | null;
+  delivery_email?: string | null;
+  listing_title?: string | null;
 };
 
 function formatMXN(cents: number, lang: "es" | "en") {
@@ -135,11 +147,21 @@ function ReviewBlock({
   );
 }
 
+const REBOOK_OPTIONS = [7, 14, 30, 90, 180] as const;
+const BEFORE_OPTIONS = [1, 6, 24, 48, 72] as const;
+
 export default function MyBookingsPage() {
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [reminders, setReminders] = useState<ReminderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [reminderMsg, setReminderMsg] = useState<Record<string, string>>({});
+  const [rebookDays, setRebookDays] = useState<Record<string, number>>({});
+  const [waOn, setWaOn] = useState<Record<string, boolean>>({});
+  const [emailOn, setEmailOn] = useState<Record<string, boolean>>({});
+  const [emailVal, setEmailVal] = useState<Record<string, string>>({});
+  const [apptLocal, setApptLocal] = useState<Record<string, string>>({});
+  const [apptBeforeH, setApptBeforeH] = useState<Record<string, number>>({});
   const [lang, setLang] = useState<"es" | "en">("es");
 
   useEffect(() => {
@@ -151,21 +173,39 @@ export default function MyBookingsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetch("/api/bookings?status=paid", { credentials: "same-origin" })
-      .then((r) => {
+  const loadData = useCallback(() => {
+    Promise.all([
+      fetch("/api/bookings?status=paid", { credentials: "same-origin" }).then((r) => {
         if (r.status === 401) {
           router.push("/auth/login?returnTo=/my-bookings");
           return { bookings: [] };
         }
         return r.ok ? r.json() : { bookings: [] };
-      })
-      .then((data) => {
-        setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+      }),
+      fetch("/api/reminders", { credentials: "same-origin" }).then((r) =>
+        r.ok ? r.json() : { reminders: [] },
+      ),
+    ])
+      .then(([bData, rData]) => {
+        const list = Array.isArray(bData.bookings) ? bData.bookings : [];
+        setBookings(list);
+        setReminders(Array.isArray(rData.reminders) ? rData.reminders : []);
+        const initDays: Record<string, number> = {};
+        const initWa: Record<string, boolean> = {};
+        for (const x of list as Booking[]) {
+          initDays[x.id] = 30;
+          initWa[x.id] = true;
+        }
+        setRebookDays((prev) => ({ ...initDays, ...prev }));
+        setWaOn((prev) => ({ ...initWa, ...prev }));
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [router]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const t =
     lang === "es"
@@ -176,7 +216,21 @@ export default function MyBookingsPage() {
           emptyTitle: "Aún no tienes reservas completadas.",
           explore: "Explorar servicios →",
           rebook: "Volver a reservar →",
-          remind: "⏰ Recordarme",
+          remindSection: "Recordatorios",
+          rebookLabel: "Volver a reservar en",
+          days: "días",
+          saveRebook: "Guardar recordatorio",
+          wa: "WhatsApp",
+          em: "Correo",
+          emPh: "tu@correo.com",
+          apptTitle: "Próxima cita (opcional)",
+          apptWhen: "Fecha y hora",
+          apptBefore: "Avisar antes",
+          hours: "h",
+          saveAppt: "Guardar aviso de cita",
+          pendingRebook: "Pendiente: volver a reservar",
+          pendingAppt: "Pendiente: cita",
+          cancelRem: "Cancelar",
           reviewed: "Reseña enviada",
         }
       : {
@@ -186,24 +240,128 @@ export default function MyBookingsPage() {
           emptyTitle: "You don’t have completed bookings yet.",
           explore: "Browse services →",
           rebook: "Book again →",
-          remind: "⏰ Remind me",
+          remindSection: "Reminders",
+          rebookLabel: "Remind me to rebook in",
+          days: "days",
+          saveRebook: "Save reminder",
+          wa: "WhatsApp",
+          em: "Email",
+          emPh: "you@email.com",
+          apptTitle: "Next appointment (optional)",
+          apptWhen: "Date & time",
+          apptBefore: "Notify me before",
+          hours: "h",
+          saveAppt: "Save appointment nudge",
+          pendingRebook: "Scheduled: rebook nudge",
+          pendingAppt: "Scheduled: appointment",
+          cancelRem: "Cancel",
           reviewed: "Review submitted",
         };
 
-  const scheduleReminder = async (booking: Booking) => {
+  const pendingFor = (bookingId: string) =>
+    reminders.filter((r) => r.booking_id === bookingId && r.status === "pending");
+
+  const cancelReminder = async (reminderId: string, bookingId: string) => {
+    try {
+      const res = await fetch("/api/reminders", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: reminderId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      setReminders((prev) => prev.filter((r) => r.id !== reminderId));
+      setReminderMsg((prev) => {
+        const next = { ...prev };
+        delete next[bookingId];
+        return next;
+      });
+    } catch (e: unknown) {
+      setReminderMsg((prev) => ({
+        ...prev,
+        [bookingId]: e instanceof Error ? e.message : "Error",
+      }));
+    }
+  };
+
+  const scheduleRebook = async (booking: Booking) => {
+    const days = rebookDays[booking.id] ?? 30;
+    const notifyWhatsapp = waOn[booking.id] !== false;
+    const notifyEmail = emailOn[booking.id] === true;
+    const deliveryEmail = (emailVal[booking.id] ?? "").trim();
     try {
       const res = await fetch("/api/reminders", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId: booking.id }),
+        body: JSON.stringify({
+          bookingId: booking.id,
+          kind: "rebook",
+          rebookInDays: days,
+          notifyWhatsapp,
+          notifyEmail,
+          deliveryEmail: notifyEmail ? deliveryEmail : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
       setReminderMsg((prev) => ({
         ...prev,
-        [booking.id]: lang === "es" ? "✓ Te recordaremos en 3 meses" : "✓ We’ll remind you in 3 months",
+        [booking.id]:
+          lang === "es"
+            ? `✓ Recordatorio en ${days} días (${notifyWhatsapp ? "WhatsApp" : ""}${notifyWhatsapp && notifyEmail ? " + " : ""}${notifyEmail ? "correo" : ""})`
+            : `✓ Reminder in ${days} days`,
       }));
+      const rRes = await fetch("/api/reminders", { credentials: "same-origin" });
+      const rJson = rRes.ok ? await rRes.json() : { reminders: [] };
+      setReminders(Array.isArray(rJson.reminders) ? rJson.reminders : []);
+    } catch (e: unknown) {
+      setReminderMsg((prev) => ({
+        ...prev,
+        [booking.id]: e instanceof Error ? e.message : "Error",
+      }));
+    }
+  };
+
+  const scheduleAppointment = async (booking: Booking) => {
+    const local = apptLocal[booking.id]?.trim();
+    if (!local) {
+      setReminderMsg((prev) => ({
+        ...prev,
+        [booking.id]: lang === "es" ? "Elige fecha y hora" : "Pick date & time",
+      }));
+      return;
+    }
+    const iso = new Date(local).toISOString();
+    const beforeH = apptBeforeH[booking.id] ?? 24;
+    const notifyWhatsapp = waOn[booking.id] !== false;
+    const notifyEmail = emailOn[booking.id] === true;
+    const deliveryEmail = (emailVal[booking.id] ?? "").trim();
+    try {
+      const res = await fetch("/api/reminders", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          kind: "appointment",
+          appointmentAt: iso,
+          remindBeforeHours: beforeH,
+          notifyWhatsapp,
+          notifyEmail,
+          deliveryEmail: notifyEmail ? deliveryEmail : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      setReminderMsg((prev) => ({
+        ...prev,
+        [booking.id]: lang === "es" ? "✓ Aviso de cita guardado" : "✓ Appointment reminder saved",
+      }));
+      const rRes = await fetch("/api/reminders", { credentials: "same-origin" });
+      const rJson = rRes.ok ? await rRes.json() : { reminders: [] };
+      setReminders(Array.isArray(rJson.reminders) ? rJson.reminders : []);
     } catch (e: unknown) {
       setReminderMsg((prev) => ({
         ...prev,
@@ -300,15 +458,139 @@ export default function MyBookingsPage() {
                     >
                       {t.rebook}
                     </Link>
+                  </div>
 
-                    <button
-                      type="button"
-                      onClick={() => scheduleReminder(b)}
-                      disabled={reminderMsg[b.id]?.startsWith("✓")}
-                      className="flex-1 min-w-[120px] py-2.5 rounded-xl border border-[#E5E0D8] text-xs font-semibold text-[#6B7280] hover:border-[#1B4332] hover:text-[#1B4332] transition-colors disabled:opacity-50"
-                    >
-                      {reminderMsg[b.id]?.startsWith("✓") ? reminderMsg[b.id] : t.remind}
-                    </button>
+                  {pendingFor(b.id).length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {pendingFor(b.id).map((r) => (
+                        <div
+                          key={r.id}
+                          className="flex flex-wrap items-center justify-between gap-2 text-[11px] bg-[#F0FDF4] border border-[#A7F3D0] rounded-lg px-2.5 py-1.5"
+                        >
+                          <span className="text-[#065F46]">
+                            {r.reminder_kind === "appointment" ? t.pendingAppt : t.pendingRebook}:{" "}
+                            {new Date(r.remind_at).toLocaleString(lang === "es" ? "es-MX" : "en-MX", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
+                            {r.notify_whatsapp !== false && " · WhatsApp"}
+                            {r.notify_email && " · Email"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void cancelReminder(r.id, b.id)}
+                            className="text-amber-800 font-semibold hover:underline"
+                          >
+                            {t.cancelRem}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-4 pt-3 border-t border-[#E5E0D8]">
+                    <p className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wide mb-2">{t.remindSection}</p>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="text-[#6B7280] shrink-0">{t.rebookLabel}</label>
+                        <select
+                          value={rebookDays[b.id] ?? 30}
+                          onChange={(e) =>
+                            setRebookDays((prev) => ({ ...prev, [b.id]: Number(e.target.value) }))
+                          }
+                          className="border border-[#E5E0D8] rounded-lg px-2 py-1 text-[#1C1917] bg-white"
+                        >
+                          {REBOOK_OPTIONS.map((d) => (
+                            <option key={d} value={d}>
+                              {d} {t.days}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={waOn[b.id] !== false}
+                            onChange={(e) => setWaOn((prev) => ({ ...prev, [b.id]: e.target.checked }))}
+                          />
+                          <span>{t.wa}</span>
+                        </label>
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={emailOn[b.id] === true}
+                            onChange={(e) => setEmailOn((prev) => ({ ...prev, [b.id]: e.target.checked }))}
+                          />
+                          <span>{t.em}</span>
+                        </label>
+                        {emailOn[b.id] && (
+                          <input
+                            type="email"
+                            placeholder={t.emPh}
+                            value={emailVal[b.id] ?? ""}
+                            onChange={(e) => setEmailVal((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                            className="flex-1 min-w-[140px] border border-[#E5E0D8] rounded-lg px-2 py-1"
+                          />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void scheduleRebook(b)}
+                        className="w-full py-2 rounded-xl bg-[#D4A017] text-white text-xs font-semibold hover:opacity-95"
+                      >
+                        {t.saveRebook}
+                      </button>
+                    </div>
+
+                    <details className="mt-3 group">
+                      <summary className="text-xs font-semibold text-[#1B4332] cursor-pointer list-none flex items-center gap-1">
+                        <span className="group-open:rotate-90 transition-transform inline-block">▸</span>
+                        {t.apptTitle}
+                      </summary>
+                      <div className="mt-2 space-y-2 pl-1">
+                        <div>
+                          <label className="block text-[10px] text-[#6B7280] mb-0.5">{t.apptWhen}</label>
+                          <input
+                            type="datetime-local"
+                            value={apptLocal[b.id] ?? ""}
+                            onChange={(e) => setApptLocal((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                            className="w-full border border-[#E5E0D8] rounded-lg px-2 py-1.5 text-[#1C1917]"
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="text-[#6B7280]">{t.apptBefore}</label>
+                          <select
+                            value={apptBeforeH[b.id] ?? 24}
+                            onChange={(e) =>
+                              setApptBeforeH((prev) => ({ ...prev, [b.id]: Number(e.target.value) }))
+                            }
+                            className="border border-[#E5E0D8] rounded-lg px-2 py-1 bg-white"
+                          >
+                            {BEFORE_OPTIONS.map((h) => (
+                              <option key={h} value={h}>
+                                {h} {t.hours}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void scheduleAppointment(b)}
+                          className="w-full py-2 rounded-xl border border-[#1B4332] text-[#1B4332] text-xs font-semibold hover:bg-[#F0FDF4]"
+                        >
+                          {t.saveAppt}
+                        </button>
+                      </div>
+                    </details>
+
+                    {reminderMsg[b.id] && (
+                      <p
+                        className={`text-[11px] mt-2 ${reminderMsg[b.id].startsWith("✓") ? "text-emerald-600" : "text-red-600"}`}
+                      >
+                        {reminderMsg[b.id]}
+                      </p>
+                    )}
                   </div>
 
                   {b.has_review ? (
