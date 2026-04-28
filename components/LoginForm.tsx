@@ -11,6 +11,13 @@ const COUNTRIES: { id: Country; flag: string; dial: string; label: string; place
   { id: "MX", flag: "🇲🇽", dial: "+52", label: "México", placeholder: "55 1234 5678" },
 ];
 
+function formatSendOtpError(message: string): string {
+  if (/invalid supabaseurl|must be a valid http/i.test(message)) {
+    return "App misconfigured: NEXT_PUBLIC_SUPABASE_URL must be your Supabase project URL (https://….supabase.co from Dashboard → Settings → API), not a publishable/API key. Update .env.local, then restart npm run dev.";
+  }
+  return message;
+}
+
 export default function LoginForm() {
   const [country, setCountry] = useState<Country>("US");
   const [phone, setPhone] = useState("");
@@ -44,7 +51,8 @@ export default function LoginForm() {
       const data = isJson ? await res.json() : null;
       if (!res.ok) {
         const fallback = "Could not send the OTP. Try again in a minute.";
-        throw new Error((data as { error?: string } | null)?.error ?? fallback);
+        const raw = (data as { error?: string } | null)?.error ?? fallback;
+        throw new Error(formatSendOtpError(raw));
       }
       const params = new URLSearchParams({ phone: e164 });
       if (data && typeof data === "object" && "devOtp" in data && data.devOtp) {

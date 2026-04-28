@@ -4,6 +4,7 @@ import { SignJWT } from "jose";
 import { canonicalizeAuthPhone, isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
 import { getJwtSecretBytes } from "@/lib/jwt-secret";
 import { TIANGUIS_TOKEN_COOKIE } from "@/lib/auth-server";
+import { getSupabaseUrl } from "@/lib/service-rest";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -21,10 +22,11 @@ function serverError(log: unknown) {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) {
+      return clientError(503, "Autenticación no configurada en el servidor (SUPABASE_SERVICE_ROLE_KEY)");
+    }
+    const supabase = createClient(getSupabaseUrl(), serviceKey);
     const body = await req.json();
     let phone = normalizeAuthPhone(String(body?.phone ?? ""));
     phone = canonicalizeAuthPhone(phone);

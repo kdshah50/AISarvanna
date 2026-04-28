@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { canonicalizeAuthPhone, isValidAuthPhone, normalizeAuthPhone } from "@/lib/phone";
 import { clientIpFromHeaders, rateLimitMemory } from "@/lib/rate-limit-memory";
+import { getSupabaseUrl } from "@/lib/service-rest";
 
 function generateOTP() {
   return Math.floor(Math.random() * 1000000)
@@ -46,10 +47,7 @@ export async function POST(req: NextRequest) {
   const requestId = newRequestId(req);
   let step: "validate" | "rate_limit" | "insert" | "twilio" | "done" = "validate";
   try {
-    const supabase = createClient(
-      getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
-      getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY")
-    );
+    const supabase = createClient(getSupabaseUrl(), getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"));
     const body = await req.json();
     let phone = normalizeAuthPhone(String(body?.phone ?? ""));
     phone = canonicalizeAuthPhone(phone);
