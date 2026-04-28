@@ -5,9 +5,19 @@ import "server-only";
  * The anon key must not be used for table access after RLS is enabled (no public policies).
  */
 export function getSupabaseUrl(): string {
-  const u = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const u = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   if (!u) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL is required");
+  }
+  try {
+    const parsed = new URL(u);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("invalid");
+    }
+  } catch {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL must be your project URL (e.g. https://abcdxyzcompany.supabase.co or http://127.0.0.1:54321), not an API key. Copy it from Supabase → Project Settings → API → Project URL.",
+    );
   }
   return u;
 }

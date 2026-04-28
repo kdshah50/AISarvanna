@@ -1,10 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import ListingGrid from "@/components/listings/ListingGrid";
-import ListingsMap from "@/components/listings/ListingsMap";
 import type { ListingCard } from "@/lib/types";
+
+const ListingsMap = dynamic(() => import("@/components/listings/ListingsMap"), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="w-full h-[min(70vh,520px)] rounded-2xl border border-[#E5E0D8] bg-[#E8E4DC] animate-pulse"
+      aria-hidden
+    />
+  ),
+});
 import { langFromParam, type Lang } from "@/lib/i18n-lang";
 
 type Props = {
