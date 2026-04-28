@@ -6,27 +6,165 @@ export interface ColoniaInfo {
   aliases: string[];
 }
 
+/** New Jersey counties (21) + `otro` = statewide default centroid. Keys are URL-safe slugs. */
 export const COLONIAS: Record<string, ColoniaInfo> = {
-  centro:        { lat: 20.9146, lng: -100.7439, label: "Centro Histórico",       label_en: "Centro Histórico",       aliases: ["centro", "centro historico", "centro histórico", "jardín principal", "jardin principal"] },
-  guadalupe:     { lat: 20.9168, lng: -100.7465, label: "Col. Guadalupe",          label_en: "Col. Guadalupe",          aliases: ["guadalupe", "colonia guadalupe"] },
-  san_antonio:   { lat: 20.9120, lng: -100.7468, label: "San Antonio",             label_en: "San Antonio",             aliases: ["san antonio"] },
-  aurora:        { lat: 20.9188, lng: -100.7442, label: "Col. Aurora",             label_en: "Col. Aurora",             aliases: ["aurora", "colonia aurora"] },
-  olimpo:        { lat: 20.9158, lng: -100.7420, label: "El Olimpo",               label_en: "El Olimpo",               aliases: ["olimpo", "el olimpo"] },
-  ojo_agua:      { lat: 20.9200, lng: -100.7480, label: "Ojo de Agua",             label_en: "Ojo de Agua",             aliases: ["ojo de agua"] },
-  balcones:      { lat: 20.9080, lng: -100.7510, label: "Los Balcones",            label_en: "Los Balcones",            aliases: ["balcones", "los balcones"] },
-  lindavista:    { lat: 20.9050, lng: -100.7490, label: "Linda Vista",             label_en: "Linda Vista",             aliases: ["lindavista", "linda vista"] },
-  insurgentes:   { lat: 20.9130, lng: -100.7500, label: "Insurgentes",             label_en: "Insurgentes",             aliases: ["insurgentes"] },
-  atascadero:    { lat: 20.9240, lng: -100.7430, label: "Atascadero",              label_en: "Atascadero",              aliases: ["atascadero"] },
-  la_lejona:     { lat: 20.8980, lng: -100.7450, label: "La Lejona",               label_en: "La Lejona",               aliases: ["lejona", "la lejona"] },
-  fracc_paloma:  { lat: 20.9100, lng: -100.7420, label: "Fracc. La Paloma",        label_en: "Fracc. La Paloma",        aliases: ["la paloma", "fracc la paloma", "fraccionamiento la paloma"] },
-  pedregal:      { lat: 20.9060, lng: -100.7470, label: "Pedregal de Lindavista",  label_en: "Pedregal de Lindavista",  aliases: ["pedregal", "pedregal de lindavista"] },
-  guadiana:      { lat: 20.9170, lng: -100.7500, label: "Guadiana",                label_en: "Guadiana",                aliases: ["guadiana"] },
-  colinas_san_j: { lat: 20.9220, lng: -100.7510, label: "Colinas de San Javier",   label_en: "Colinas de San Javier",   aliases: ["colinas", "san javier", "colinas de san javier"] },
-  la_canada:     { lat: 20.9000, lng: -100.7480, label: "La Cañada",               label_en: "La Cañada",               aliases: ["cañada", "la cañada", "canada", "la canada"] },
-  otro:          { lat: 20.9153, lng: -100.7439, label: "San Miguel de Allende",   label_en: "San Miguel de Allende",   aliases: [] },
+  atlantic: {
+    lat: 39.47,
+    lng: -74.65,
+    label: "Condado de Atlantic",
+    label_en: "Atlantic County",
+    aliases: ["atlantic", "atlantic county", "condado atlantic", "atlantic co"],
+  },
+  bergen: {
+    lat: 40.96,
+    lng: -74.0,
+    label: "Condado de Bergen",
+    label_en: "Bergen County",
+    aliases: ["bergen", "bergen county", "condado bergen"],
+  },
+  burlington: {
+    lat: 40.1,
+    lng: -74.72,
+    label: "Condado de Burlington",
+    label_en: "Burlington County",
+    aliases: ["burlington", "burlington county", "condado burlington"],
+  },
+  camden: {
+    lat: 39.8,
+    lng: -75.04,
+    label: "Condado de Camden",
+    label_en: "Camden County",
+    aliases: ["camden", "camden county", "condado camden"],
+  },
+  cape_may: {
+    lat: 39.11,
+    lng: -74.86,
+    label: "Condado de Cape May",
+    label_en: "Cape May County",
+    aliases: ["cape may", "cape may county", "condado cape may"],
+  },
+  cumberland: {
+    lat: 39.5,
+    lng: -75.12,
+    label: "Condado de Cumberland",
+    label_en: "Cumberland County",
+    aliases: ["cumberland", "cumberland county", "condado cumberland"],
+  },
+  essex: {
+    lat: 40.79,
+    lng: -74.21,
+    label: "Condado de Essex",
+    label_en: "Essex County",
+    aliases: ["essex", "essex county", "condado essex", "newark"],
+  },
+  gloucester: {
+    lat: 39.77,
+    lng: -75.09,
+    label: "Condado de Gloucester",
+    label_en: "Gloucester County",
+    aliases: ["gloucester", "gloucester county", "condado gloucester"],
+  },
+  hudson: {
+    lat: 40.74,
+    lng: -74.03,
+    label: "Condado de Hudson",
+    label_en: "Hudson County",
+    aliases: ["hudson", "hudson county", "condado hudson", "jersey city"],
+  },
+  hunterdon: {
+    lat: 40.51,
+    lng: -74.92,
+    label: "Condado de Hunterdon",
+    label_en: "Hunterdon County",
+    aliases: ["hunterdon", "hunterdon county", "condado hunterdon"],
+  },
+  mercer: {
+    lat: 40.28,
+    lng: -74.76,
+    label: "Condado de Mercer",
+    label_en: "Mercer County",
+    aliases: ["mercer", "mercer county", "condado mercer", "trenton"],
+  },
+  middlesex: {
+    lat: 40.44,
+    lng: -74.4,
+    label: "Condado de Middlesex",
+    label_en: "Middlesex County",
+    aliases: ["middlesex", "middlesex county", "condado middlesex", "new brunswick"],
+  },
+  monmouth: {
+    lat: 40.28,
+    lng: -74.01,
+    label: "Condado de Monmouth",
+    label_en: "Monmouth County",
+    aliases: ["monmouth", "monmouth county", "condado monmouth", "freehold"],
+  },
+  morris: {
+    lat: 40.86,
+    lng: -74.55,
+    label: "Condado de Morris",
+    label_en: "Morris County",
+    aliases: ["morris", "morris county", "condado morris", "morristown"],
+  },
+  ocean: {
+    lat: 39.97,
+    lng: -74.23,
+    label: "Condado de Ocean",
+    label_en: "Ocean County",
+    aliases: ["ocean", "ocean county", "condado ocean", "toms river"],
+  },
+  passaic: {
+    lat: 41.03,
+    lng: -74.3,
+    label: "Condado de Passaic",
+    label_en: "Passaic County",
+    aliases: ["passaic", "passaic county", "condado passaic", "paterson"],
+  },
+  salem: {
+    lat: 39.58,
+    lng: -75.35,
+    label: "Condado de Salem",
+    label_en: "Salem County",
+    aliases: ["salem", "salem county", "condado salem"],
+  },
+  somerset: {
+    lat: 40.57,
+    lng: -74.65,
+    label: "Condado de Somerset",
+    label_en: "Somerset County",
+    aliases: ["somerset", "somerset county", "condado somerset", "bridgewater"],
+  },
+  sussex: {
+    lat: 41.18,
+    lng: -74.68,
+    label: "Condado de Sussex",
+    label_en: "Sussex County",
+    aliases: ["sussex", "sussex county", "condado sussex"],
+  },
+  union: {
+    lat: 40.69,
+    lng: -74.28,
+    label: "Condado de Union",
+    label_en: "Union County",
+    aliases: ["union", "union county", "condado union", "elizabeth"],
+  },
+  warren: {
+    lat: 40.87,
+    lng: -74.97,
+    label: "Condado de Warren",
+    label_en: "Warren County",
+    aliases: ["warren", "warren county", "condado warren"],
+  },
+  otro: {
+    lat: 40.0583,
+    lng: -74.4057,
+    label: "Nueva Jersey",
+    label_en: "New Jersey",
+    aliases: [],
+  },
 };
 
-export const COLONIA_KEYS = Object.keys(COLONIAS).filter(k => k !== "otro");
+export const COLONIA_KEYS = Object.keys(COLONIAS).filter((k) => k !== "otro");
 
 export const ALL_COLONIA_KEYS = Object.keys(COLONIAS);
 
@@ -41,9 +179,9 @@ function normalize(s: string): string {
 }
 
 /**
- * Detect a colonia name inside a free-text query.
- * Returns the colonia key and the query with the colonia name removed,
- * or null if no colonia was found.
+ * Detect a county name inside a free-text query.
+ * Returns the county key and the query with the place name removed,
+ * or null if no county was found.
  */
 export function detectColoniaInQuery(query: string): { coloniaKey: string; cleanedQuery: string } | null {
   const norm = normalize(query);
@@ -77,20 +215,27 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/** Listings within this distance of a selected county centroid pass the county filter. */
+export const COLONIA_RADIUS_KM = 72;
+
 /**
- * Given a lat/lng, find the nearest colonia (excluding "otro").
- * Returns null if the nearest colonia is farther than maxKm.
+ * Given lat/lng, find the nearest county (excluding "otro").
+ * Returns null if the nearest county centroid is farther than maxKm.
  */
-export function nearestColonia(lat: number, lng: number, maxKm = 3.0): { key: string; label: string; distKm: number } | null {
+export function nearestColonia(
+  lat: number,
+  lng: number,
+  maxKm = COLONIA_RADIUS_KM,
+  lang: "en" | "es" = "en",
+): { key: string; label: string; distKm: number } | null {
   let best: { key: string; label: string; distKm: number } | null = null;
   for (const [key, info] of Object.entries(COLONIAS)) {
     if (key === "otro") continue;
     const d = haversineKm(lat, lng, info.lat, info.lng);
     if (d <= maxKm && (!best || d < best.distKm)) {
-      best = { key, label: info.label, distKm: Math.round(d * 10) / 10 };
+      const label = lang === "en" ? info.label_en : info.label;
+      best = { key, label, distKm: Math.round(d * 10) / 10 };
     }
   }
   return best;
 }
-
-export const COLONIA_RADIUS_KM = 2.0;

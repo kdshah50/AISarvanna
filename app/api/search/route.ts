@@ -9,7 +9,6 @@ import {
 } from "@/lib/search-query-parse";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
-const SMA_ZIP = "37745";
 
 const ABS_THRESHOLD = 0.20;
 const REL_FACTOR    = 0.60;

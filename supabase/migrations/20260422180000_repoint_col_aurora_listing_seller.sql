@@ -1,6 +1,6 @@
 -- One-time data fix: listing + thread pointed at old user (94a74ff0-…)
 -- while Carme signs in as 3d5522b3-… — repoint to the active account.
--- Listing: Cuidado adultos mayores — Col. Aurora, SMA
+-- Listing: Cuidado adultos mayores (legacy SMA sample; app geography is now NJ)
 
 UPDATE public.listings
 SET seller_id = '3d5522b3-aedf-4625-80a1-8a79708bb893'

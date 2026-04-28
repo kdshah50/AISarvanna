@@ -17,8 +17,8 @@ export default function TrustBar() {
       </div>
       <div className="max-w-5xl mx-auto mt-8 pt-8 border-t border-white/20 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="text-center sm:text-left">
-          <p className="text-white font-semibold text-sm">¿Ofreces un servicio en San Miguel de Allende?</p>
-          <p className="text-white/60 text-xs mt-0.5">Are you a local service provider in SMA?</p>
+          <p className="text-white font-semibold text-sm">¿Ofreces un servicio en Nueva Jersey?</p>
+          <p className="text-white/60 text-xs mt-0.5">Are you a local service provider in New Jersey?</p>
         </div>
         <a href="/unete"
           className="bg-[#D4A017] hover:bg-[#C4900D] text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors whitespace-nowrap">

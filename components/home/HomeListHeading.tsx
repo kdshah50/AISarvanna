@@ -47,27 +47,32 @@ export function HomeListHeading({
 
   const catWord = categoryLabel(categorySlug, lang);
   const isServices = categorySlug === "services";
+  const placeLabel = coloniaData
+    ? lang === "en"
+      ? coloniaData.label_en
+      : coloniaData.label
+    : "";
 
   const heading =
     query && coloniaData
       ? lang === "en"
-        ? `"${query}" in ${coloniaData.label}`
-        : `"${query}" en ${coloniaData.label}`
+        ? `"${query}" in ${placeLabel}`
+        : `"${query}" en ${placeLabel}`
       : query
         ? lang === "en"
           ? `Results for "${query}"`
           : `Resultados para "${query}"`
         : coloniaData
           ? lang === "en"
-            ? `${catWord} in ${coloniaData.label}`
-            : `${catWord} en ${coloniaData.label}`
+            ? `${catWord} in ${placeLabel}`
+            : `${catWord} en ${placeLabel}`
           : lang === "en"
             ? isServices
-              ? "Local Services — San Miguel de Allende"
-              : `${catWord} — San Miguel de Allende`
+              ? "Local Services — New Jersey"
+              : `${catWord} — New Jersey`
             : isServices
-              ? "Servicios locales — San Miguel de Allende"
-              : `${catWord} — San Miguel de Allende`;
+              ? "Servicios locales — Nueva Jersey"
+              : `${catWord} — Nueva Jersey`;
 
   return (
     <div>
@@ -86,11 +91,11 @@ export function HomeListHeading({
           )}
           {coloniaData && (
             <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#FDE68A] text-[#78350F] border border-[#F59E0B]">
-              📍 {coloniaData.label}
+              📍 {placeLabel}
             </span>
           )}
           <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#F4F0EB] text-[#6B7280] border border-[#E5E0D8]">
-            San Miguel de Allende
+            {lang === "en" ? "New Jersey" : "Nueva Jersey"}
           </span>
           <span className="text-xs px-3 py-1.5 rounded-full bg-[#F4F0EB] text-[#6B7280]">
             {cardCount}{" "}
@@ -99,7 +104,7 @@ export function HomeListHeading({
         </div>
       </div>
       <p className="text-sm text-[#6B7280] mb-6 flex items-center gap-2">
-        🏙️ San Miguel de Allende, Guanajuato
+        🏙️ {lang === "en" ? "New Jersey, USA" : "Nueva Jersey, EE. UU."}
         {hasGeo && (
           <span className="text-xs text-[#059669] font-medium">· GPS activo</span>
         )}

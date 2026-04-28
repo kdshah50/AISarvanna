@@ -16,9 +16,9 @@ import { langFromParam } from "@/lib/i18n-lang";
 
 export const dynamic = "force-dynamic";
 
-const SMA_ZIP   = "37745";
-const SMA_LAT   = 20.91528;
-const SMA_LNG   = -100.74389;
+/** Default map / fallback coordinates: geographic center of New Jersey */
+const NJ_LAT = 40.0583;
+const NJ_LNG = -74.4057;
 const APP_URL = getPublicAppUrl();
 
 function fmtMXN(c: number, lang: "en" | "es") {
@@ -66,15 +66,16 @@ export default async function HomePage({ searchParams }: Props) {
   const userLat     = parseFloat(searchParams?.lat ?? "NaN");
   const userLng     = parseFloat(searchParams?.lng ?? "NaN");
   const hasGeo      = !isNaN(userLat) && !isNaN(userLng);
-  const refLat      = hasGeo ? userLat : SMA_LAT;
-  const refLng      = hasGeo ? userLng : SMA_LNG;
+  const refLat      = hasGeo ? userLat : NJ_LAT;
+  const refLng      = hasGeo ? userLng : NJ_LNG;
 
   let cards: any[] = [];
   let searchMode = "sparse";
-  const supaHeaders = getServiceRoleRestHeaders();
-  const supaUrl = getSupabaseUrl();
 
   try {
+    const supaHeaders = getServiceRoleRestHeaders();
+    const supaUrl = getSupabaseUrl();
+
     if (query) {
       // ── Use hybrid search API when query present ──────────────────────────
       const params = new URLSearchParams({ q: query, category: categorySlug });
@@ -88,9 +89,9 @@ export default async function HomePage({ searchParams }: Props) {
         searchMode = data.mode ?? "sparse";
         const detectedColonia = data.colonia ?? null;
         cards = (data.results ?? []).map((row: any) => {
-          const rLat = row.location_lat ?? SMA_LAT;
-          const rLng = row.location_lng ?? SMA_LNG;
-          const near = nearestColonia(rLat, rLng);
+          const rLat = row.location_lat ?? NJ_LAT;
+          const rLng = row.location_lng ?? NJ_LNG;
+          const near = nearestColonia(rLat, rLng, undefined, lang);
           const u = embeddedSellerRow(row.users) as {
             display_name?: string | null;
             trust_badge?: string | null;
@@ -102,7 +103,7 @@ export default async function HomePage({ searchParams }: Props) {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
             price_display: fmtMXN(row.price_mxn, lang),
             category_id: row.category_id, condition: row.condition,
-            location_city: row.location_city ?? "San Miguel de Allende",
+            location_city: row.location_city ?? "New Jersey",
             colonia_label: near?.label ?? null,
             photo_url: row.photo_urls?.[0] ?? null,
             location_lat: row.location_lat ?? null,
@@ -139,16 +140,16 @@ export default async function HomePage({ searchParams }: Props) {
         if (coloniaData) {
           const cd = coloniaData;
           rows = rows.filter((row: any) => {
-            const km = distKm(cd.lat, cd.lng, row.location_lat ?? SMA_LAT, row.location_lng ?? SMA_LNG);
+            const km = distKm(cd.lat, cd.lng, row.location_lat ?? NJ_LAT, row.location_lng ?? NJ_LNG);
             return km <= COLONIA_RADIUS_KM;
           });
         }
 
         cards = rows.map((row: any) => {
-          const rLat = row.location_lat ?? SMA_LAT;
-          const rLng = row.location_lng ?? SMA_LNG;
+          const rLat = row.location_lat ?? NJ_LAT;
+          const rLng = row.location_lng ?? NJ_LNG;
           const km = distKm(refLat, refLng, rLat, rLng);
-          const near = nearestColonia(rLat, rLng);
+          const near = nearestColonia(rLat, rLng, undefined, lang);
           const u = embeddedSellerRow(row.users) as {
             display_name?: string | null;
             trust_badge?: string | null;
@@ -160,7 +161,7 @@ export default async function HomePage({ searchParams }: Props) {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
             price_display: fmtMXN(row.price_mxn, lang),
             category_id: row.category_id, condition: row.condition,
-            location_city: row.location_city ?? "San Miguel de Allende",
+            location_city: row.location_city ?? "New Jersey",
             colonia_label: near?.label ?? null,
             photo_url: row.photo_urls?.[0] ?? null,
             location_lat: row.location_lat ?? null,
@@ -182,10 +183,25 @@ export default async function HomePage({ searchParams }: Props) {
 
   const isHybrid = searchMode === "hybrid";
 
+  const devMissingSupabase =
+    process.env.NODE_ENV === "development" &&
+    (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+      !process.env.SUPABASE_SERVICE_ROLE_KEY?.trim());
+
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
       <Hero initialQuery={query} />
       <CategoryBar />
+      {devMissingSupabase && (
+        <div className="max-w-5xl mx-auto px-4 pt-4">
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <strong>Local setup:</strong> Add <code className="text-xs">.env.local</code> with{" "}
+            <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+            <code className="text-xs">SUPABASE_SERVICE_ROLE_KEY</code> (see <code className="text-xs">.env.example</code>
+            ). Then run <code className="text-xs">npm run dev</code> — not <code className="text-xs">npm dev</code>.
+          </div>
+        </div>
+      )}
       <section className="max-w-5xl mx-auto px-4 py-10">
         <Suspense
           fallback={

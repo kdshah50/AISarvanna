@@ -17,7 +17,7 @@ async function notifyAdmin(form: any) {
       `📱 ${form.whatsapp}`,
       `🔧 ${form.service_label}`,
       `💰 $${form.price} MXN`,
-      `📍 ${form.colonia ? (COLONIAS[form.colonia]?.label ?? form.colonia) : form.city}, SMA`,
+      `📍 ${form.colonia ? (COLONIAS[form.colonia]?.label_en ?? form.colonia) : form.city}, NJ`,
       ...(form.curp ? [`🪪 CURP: ${form.curp}`] : []),
       ...(form.rfc ? [`📋 RFC: ${form.rfc}`] : []),
       ``,
@@ -129,25 +129,26 @@ export async function POST(req: NextRequest) {
     // 2. Create listing — is_verified=false (pending admin approval)
     // Get precise coordinates from colonia
     const coloniaData = COLONIAS[colonia ?? "otro"] ?? COLONIAS["otro"];
-    const coloniaLabel = coloniaData.label;
-    const locationCity = `${coloniaLabel}, San Miguel de Allende`;
-    const descWithAddress = address
-      ? `${description}\n\nZona: ${coloniaLabel}${address ? ". Ref: " + address : ""}`
-      : `${description}\n\nZona: ${coloniaLabel}`;
+    const coloniaLabelEs = coloniaData.label;
+    const coloniaLabelEn = coloniaData.label_en;
+    const locationCity = `${coloniaLabelEn}, NJ`;
+    const description_es = address
+      ? `${description}\n\nCondado: ${coloniaLabelEs}. Ref: ${address}`
+      : `${description}\n\nCondado: ${coloniaLabelEs}`;
 
     const listing = {
       seller_id:          sellerId,
-      title_es:           `${service_label} — ${coloniaLabel}, SMA`,
-      title_en:           `${service_label} — ${coloniaLabel}, SMA`,
-      description_es:     descWithAddress,
+      title_es:           `${service_label} — ${coloniaLabelEs}, NJ`,
+      title_en:           `${service_label} — ${coloniaLabelEn}, NJ`,
+      description_es:     description_es,
       price_mxn:          price_mxn > 0 ? price_mxn : 50000,
       category_id:        "services",
       condition:          "new",
       status:             "active",
       is_verified:        false,          // hidden until admin approves
       location_city:      locationCity,
-      location_state:     "Guanajuato",
-      zip_code:           "37745",
+      location_state:     "New Jersey",
+      zip_code:           "08854",
       location_lat:       coloniaData.lat,
       location_lng:       coloniaData.lng,
       shipping_available: false,

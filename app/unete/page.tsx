@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { ALL_COLONIA_KEYS, COLONIAS as COLONIAS_MAP, coloniaLabel } from "@/lib/colonias";
+import { COLONIA_KEYS, COLONIAS as COLONIAS_MAP, coloniaLabel } from "@/lib/colonias";
 
-const COLONIAS_LIST = ALL_COLONIA_KEYS.map(key => ({
+const COLONIAS_LIST = COLONIA_KEYS.map(key => ({
   value: key,
   es: COLONIAS_MAP[key].label,
   en: COLONIAS_MAP[key].label_en,
@@ -60,8 +60,8 @@ const T = {
     price:        "Precio aproximado (MXN)",
     pricePh:      "Ej. $500 por visita",
     payment:      "¿Cómo aceptas pago?",
-    city:         "Ciudad / Colonia",
-    colonia:      "Colonia / Barrio",
+    city:         "Ciudad / área",
+    colonia:      "Condado (NJ)",
     address:      "Dirección de referencia (opcional)",
     addressPh:    "Ej. Cerca del jardín principal, frente al parque...",
     next:         "Continuar →",
@@ -111,8 +111,8 @@ const T = {
     price:        "Approximate price (MXN)",
     pricePh:      "e.g. $500 per visit",
     payment:      "How do you accept payment?",
-    city:         "City / Neighborhood",
-    colonia:      "Neighborhood / Colonia",
+    city:         "City / area",
+    colonia:      "County (NJ)",
     address:      "Reference address (optional)",
     addressPh:    "e.g. Near the main garden, by the park...",
     next:         "Continue →",
@@ -153,7 +153,7 @@ export default function UnetePage() {
   const [form, setForm] = useState({
     name: "", whatsapp: "", service: "",
     description: "", price: "", curp: "", rfc: "",
-    city: "San Miguel de Allende",
+    city: "New Jersey",
     colonia: "",
     address: "",
     payment_methods: ["efectivo", "whatsapp"] as string[],
@@ -275,7 +275,7 @@ export default function UnetePage() {
                 <label className="block text-xs font-semibold text-[#6B7280] mb-2">{t.colonia}</label>
                 <select value={form.colonia} onChange={e => set("colonia", e.target.value)}
                   className="w-full border border-[#E5E0D8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#1B4332] transition-colors bg-white">
-                  <option value="">— {lang === "es" ? "Selecciona tu colonia" : "Select your neighborhood"} —</option>
+                  <option value="">— {lang === "es" ? "Selecciona tu condado" : "Select your county"} —</option>
                   {COLONIAS_LIST.map(c => (
                     <option key={c.value} value={c.value}>{c[lang]}</option>
                   ))}
