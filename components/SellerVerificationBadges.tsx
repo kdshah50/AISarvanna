@@ -56,7 +56,7 @@ export function SellerVerificationBadges({
   if (tier) {
     const title =
       lang === "en"
-        ? `${tierLabel(tier, lang)} trust level on Naranjogo`
+        ? `${tierLabel(tier, lang)} trust level on AISaravanna`
         : `Nivel de confianza: ${tierLabel(tier, lang)}`;
     parts.push(
       <span
@@ -87,7 +87,7 @@ export function SellerVerificationBadges({
 
   if (rfcVerified) {
     const title =
-      lang === "en" ? "Verified: RFC reviewed by Naranjogo" : "Verificado: RFC revisado por Naranjogo";
+      lang === "en" ? "Verified: RFC reviewed by AISaravanna" : "Verificado: RFC revisado por AISaravanna";
     parts.push(
       <span
         key="rfc"
@@ -128,8 +128,8 @@ export function SellerVerificationBadges({
   if (parts.length === 0 && platformListingVerified) {
     const title =
       lang === "en"
-        ? "Listing reviewed and approved on Naranjogo"
-        : "Anuncio revisado y aprobado en Naranjogo";
+        ? "Listing reviewed and approved on AISaravanna"
+        : "Anuncio revisado y aprobado en AISaravanna";
     const label = lang === "en" ? "Verified" : "Verificado";
     parts.push(
       <span

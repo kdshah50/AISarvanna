@@ -128,7 +128,7 @@ export default function ClaimsPage() {
           <GuaranteeBadge />
         </div>
 
-        <h1 className="font-serif text-2xl font-bold text-[#1B4332] mb-2">Garantía NaranjoGo</h1>
+        <h1 className="font-serif text-2xl font-bold text-[#1B4332] mb-2">AISaravanna guarantee</h1>
         <p className="text-sm text-[#6B7280] mb-6">
           Si pagaste por un servicio y el proveedor no cumplió, puedes solicitar un reembolso.
           Revisaremos tu caso en 24-48 horas.

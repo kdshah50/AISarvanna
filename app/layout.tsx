@@ -10,21 +10,22 @@ const siteUrl = getPublicAppUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Tianguis — El Mercado Digital de México",
-  description: "El mercado digital más seguro de México. Compra y vende con confianza.",
+  title: "AISaravanna — AI-powered local services",
+  description: "Find, book, and pay for verified local services in the United States. English by default; Spanish available.",
   openGraph: {
-    title: "Tianguis — El Mercado Digital de México",
-    description: "Compra y vende con confianza. Sin estafas, sin spam.",
+    title: "AISaravanna — AI-powered local services",
+    description: "Find, book, and pay for verified local services. English & Spanish.",
     url: siteUrl,
-    siteName: "Tianguis",
-    locale: "es_MX",
+    siteName: "AISaravanna",
+    locale: "en_US",
+    alternateLocale: ["es_US"],
     type: "website",
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body className="font-sans min-h-screen flex flex-col">
         <CartProvider>
           <Header />

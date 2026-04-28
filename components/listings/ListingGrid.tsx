@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { ListingCard } from "@/lib/types";
 import { WhatsAppBadgeLocked } from "@/components/WhatsAppCTA";
 import { SellerVerificationBadges } from "@/components/SellerVerificationBadges";
-import type { Lang } from "@/lib/i18n-lang";
+import { DEFAULT_LANG, langFromParam, type Lang } from "@/lib/i18n-lang";
 
 function fmtMXN(centavos: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -23,13 +23,12 @@ type Props = {
   initialLang?: Lang;
 };
 
-export default function ListingGrid({ listings, initialLang = "es" }: Props) {
+export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Props) {
   const params = useSearchParams();
   const [lang, setLang] = useState<Lang>(initialLang);
 
   useEffect(() => {
-    const p = (params.get("lang") || "es") as string;
-    if (p === "en" || p === "es") setLang(p);
+    setLang(langFromParam(params.get("lang")));
   }, [params]);
 
   if (!listings.length) {
@@ -49,7 +48,7 @@ export default function ListingGrid({ listings, initialLang = "es" }: Props) {
       {listings.map((listing) => (
         <Link
           key={listing.id}
-          href={lang === "en" ? `/listing/${listing.id}?lang=en` : `/listing/${listing.id}`}
+          href={lang === "es" ? `/listing/${listing.id}?lang=es` : `/listing/${listing.id}`}
           className="group block"
         >
           <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E0D8] hover:shadow-lg hover:-translate-y-1 transition-all duration-200">

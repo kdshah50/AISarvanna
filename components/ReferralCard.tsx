@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 type Lang = "es" | "en";
 
-export default function ReferralCard({ lang = "es" }: { lang?: Lang }) {
+export default function ReferralCard({ lang = "en" }: { lang?: Lang }) {
   const [link, setLink] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [bonus, setBonus] = useState<number>(25);

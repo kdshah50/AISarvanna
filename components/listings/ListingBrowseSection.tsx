@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import ListingGrid from "@/components/listings/ListingGrid";
 import ListingsMap from "@/components/listings/ListingsMap";
 import type { ListingCard } from "@/lib/types";
-import type { Lang } from "@/lib/i18n-lang";
+import { langFromParam, type Lang } from "@/lib/i18n-lang";
 
 type Props = {
   listings: ListingCard[];
@@ -23,7 +23,7 @@ export default function ListingBrowseSection({
   const params = useSearchParams();
   const [mode, setMode] = useState<"list" | "map">("list");
 
-  const lang = (params.get("lang") === "en" ? "en" : "es") as Lang;
+  const lang = langFromParam(params.get("lang"));
 
   const withCoords = useMemo(
     () =>

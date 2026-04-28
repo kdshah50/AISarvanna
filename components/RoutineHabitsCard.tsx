@@ -5,16 +5,16 @@ type Lang = "es" | "en";
 /**
  * Static reminder (phase D) — nudges multi-visit and reminders without new DB fields.
  */
-export default function RoutineHabitsCard({ lang = "es" }: { lang?: Lang }) {
+export default function RoutineHabitsCard({ lang = "en" }: { lang?: Lang }) {
   const t =
     lang === "es"
       ? {
-          title: "Haz de NaranjoGo tu rutina",
+          title: "Haz de AISaravanna tu rutina",
           body: "Reserva de nuevo con tus proveedores de confianza, usa “Recordarme” en Mis reservas para servicios periódicos, y agrega favoritos para volver en un clic.",
           cta: "Mis reservas",
         }
       : {
-          title: "Make NaranjoGo your routine",
+          title: "Make AISaravanna your routine",
           body: "Rebook trusted providers, use “Remind me” on My bookings for repeat services, and save favorites to return in one tap.",
           cta: "My bookings",
         };

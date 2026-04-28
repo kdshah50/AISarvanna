@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacidad | Tianguis",
-  description: "Información sobre el tratamiento de datos en Tianguis.",
+  title: "Privacy | AISaravanna",
+  description: "How AISaravanna handles your data.",
   robots: { index: true, follow: true },
 };
 
@@ -19,7 +19,7 @@ export default function PrivacyPage() {
         <h1 className="text-2xl font-serif font-bold text-[#1B4332] mb-6">Aviso de privacidad</h1>
         <div className="prose prose-stone max-w-none text-[#1C1917] text-sm space-y-4 leading-relaxed">
           <p>
-            Tianguis (Naranjogo) recopila y trata datos personales que nos proporcionas al usar el
+            AISaravanna recopila y trata datos personales que nos proporcionas al usar el
             servicio (por ejemplo, teléfono para verificación, mensajes con otros usuarios, y datos
             de anuncios). Usamos la información para operar el marketplace, la seguridad de las
             cuentas, y el cumplimiento de obligaciones legales aplicables.

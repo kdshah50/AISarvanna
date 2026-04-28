@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Términos de uso | Tianguis",
-  description: "Condiciones generales de uso de la plataforma Tianguis.",
+  title: "Terms of use | AISaravanna",
+  description: "General terms for using the AISaravanna platform (English & Spanish UI).",
   robots: { index: true, follow: true },
 };
 
@@ -19,7 +19,7 @@ export default function TermsPage() {
         <h1 className="text-2xl font-serif font-bold text-[#1B4332] mb-6">Términos de uso</h1>
         <div className="prose prose-stone max-w-none text-[#1C1917] text-sm space-y-4 leading-relaxed">
           <p>
-            Al usar Tianguis aceptas utilizar el servicio de buena fe: publicar información veraz
+            Al usar AISaravanna aceptas utilizar el servicio de buena fe: publicar información veraz
             en los anuncios, respetar a compradores y vendedores, y no emplear la plataforma para
             actividades ilícitas, spam o fraude. Las transacciones entre usuarios son acuerdos
             entre ustedes; la plataforma facilita el contacto y, cuando aplique, pagos a través

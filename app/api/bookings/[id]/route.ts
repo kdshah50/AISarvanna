@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const phone = isPaid ? (booking.seller_phone_snapshot || seller?.phone) : null;
     const waDigits = phone?.replace(/\D/g, "") ?? "";
     const waUrl = isPaid && waDigits
-      ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`Hola! Ya reservé tu servicio "${listing?.title_es ?? ""}" en Naranjogo.`)}`
+      ? `https://wa.me/${waDigits}?text=${encodeURIComponent(`Hi! I booked your service "${listing?.title_es ?? ""}" on AISaravanna.`)}`
       : null;
 
     return NextResponse.json({

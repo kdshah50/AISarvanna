@@ -1,8 +1,8 @@
-const DEFAULT = "https://naranjogo.com.mx";
+const DEFAULT = "https://aisaravanna.com";
 
 /**
  * Public site origin (no trailing slash). NEXT_PUBLIC_APP_URL wins when set (e.g. on Vercel).
- * Default is the apex domain naranjogo.com.mx (not www).
+ * Default is the AISaravanna apex (override with NEXT_PUBLIC_APP_URL in production).
  * Tolerates values missing `https://` or malformed URLs so `metadataBase` in layout never throws.
  */
 export function getPublicAppUrl(): string {

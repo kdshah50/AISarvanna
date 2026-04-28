@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { ListingCard } from "@/lib/types";
+import { langFromParam } from "@/lib/i18n-lang";
 
 type Props = {
   listings: ListingCard[];
@@ -42,7 +43,7 @@ export default function ListingsMap({ listings, centerLat, centerLng }: Props) {
 
     group.clearLayers();
     const pts: L.LatLngExpression[] = [];
-    const lang = params.get("lang") === "en" ? "en" : "es";
+    const lang = langFromParam(params.get("lang"));
 
     for (const l of listings) {
       const lat = l.location_lat;
@@ -58,7 +59,7 @@ export default function ListingsMap({ listings, centerLat, centerLng }: Props) {
         fillOpacity: 0.88,
       });
       m.on("click", () => {
-        router.push(lang === "en" ? `/listing/${l.id}?lang=en` : `/listing/${l.id}`);
+        router.push(lang === "es" ? `/listing/${l.id}?lang=es` : `/listing/${l.id}`);
       });
       m.addTo(group);
       pts.push([lat, lng]);

@@ -253,7 +253,7 @@ export default function ServiceBookingBlock({
         <h3 className="text-sm font-bold text-[#1C1917]">{isService ? "Reservar servicio" : "Comprar / contactar"}</h3>
         {booking.hasPackage && booking.packageSessionCount && booking.packageTotalMxnCents != null && (
           <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-950">
-            <strong>Plan aprobado (Naranjogo):</strong> {booking.packageSessionCount} sesiones por{" "}
+            <strong>Plan aprobado (AISaravanna):</strong> {booking.packageSessionCount} sesiones por{" "}
             {formatMXN(booking.packageTotalMxnCents)} en total. La tarifa de plataforma abajo se calcula sobre este
             monto acordado con el proveedor.
           </div>
@@ -275,7 +275,7 @@ export default function ServiceBookingBlock({
               ) : (
                 <>
                   El precio del artículo lo acuerdas con el vendedor (o pagas fuera de la app). Aquí solo pagas la{" "}
-                  <strong>tarifa de conexión</strong> de Naranjogo (comisión; mín. $10 MXN) para desbloquear su WhatsApp.
+                  <strong>tarifa de conexión</strong> de AISaravanna (comisión; mín. $10 MXN) para desbloquear su WhatsApp.
                 </>
               )}
             </>

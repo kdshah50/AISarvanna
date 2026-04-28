@@ -43,8 +43,11 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   );
   const rows = res.ok ? await res.json() : [];
   const user = rows[0];
-  if (!user) return { title: "Vendedor - Naranjogo" };
-  return { title: `${user.display_name ?? "Vendedor"} - Naranjogo`, description: "Perfil del vendedor en Naranjogo." };
+  if (!user) return { title: "Provider | AISaravanna" };
+  return {
+    title: `${user.display_name ?? "Provider"} | AISaravanna`,
+    description: "Service provider profile on AISaravanna.",
+  };
 }
 
 export default async function SellerPage({ params }: { params: { id: string } }) {

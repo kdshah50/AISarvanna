@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
               currency: "mxn",
               unit_amount: pricing.commissionCents,
               product_data: {
-                name: "Tarifa Naranjogo (comisión)",
+                name: "AISaravanna platform fee (commission)",
                 description: "Comisión de plataforma según cada anuncio (definida por admin)",
               },
             },

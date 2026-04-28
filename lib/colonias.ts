@@ -30,7 +30,7 @@ export const COLONIA_KEYS = Object.keys(COLONIAS).filter(k => k !== "otro");
 
 export const ALL_COLONIA_KEYS = Object.keys(COLONIAS);
 
-export function coloniaLabel(key: string, lang: "es" | "en" = "es"): string {
+export function coloniaLabel(key: string, lang: "es" | "en" = "en"): string {
   const c = COLONIAS[key];
   if (!c) return key;
   return lang === "en" ? c.label_en : c.label;

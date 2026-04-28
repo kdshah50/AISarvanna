@@ -6,6 +6,7 @@ import LoyaltyCard from "@/components/LoyaltyCard";
 import ReferralCard from "@/components/ReferralCard";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
 import SellerStripePayoutCard from "@/components/SellerStripePayoutCard";
+import { LANG_STORAGE_KEY, readStoredLang, type Lang } from "@/lib/i18n-lang";
 
 type User = {
   id: string;
@@ -55,7 +56,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [lang, setLang] = useState<"es" | "en">("es");
+  const [lang, setLang] = useState<Lang>("en");
   const [ineUploading, setIneUploading] = useState(false);
   const [ineMsg, setIneMsg] = useState("");
   const [favorites, setFavorites] = useState<
@@ -63,12 +64,8 @@ export default function ProfilePage() {
   >([]);
 
   useEffect(() => {
-    try {
-      const s = localStorage.getItem("naranjo_lang");
-      if (s === "en" || s === "es") setLang(s);
-    } catch {
-      /* ignore */
-    }
+    const s = readStoredLang();
+    if (s) setLang(s);
   }, []);
 
   useEffect(() => {
@@ -216,10 +213,10 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between mb-6">
           <Link href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">← {lang === "es" ? "Inicio" : "Home"}</Link>
           <div className="flex bg-[#F4F0EB] rounded-lg p-1 gap-1">
-            {(["es", "en"] as const).map(l => (
+            {(["en", "es"] as const).map(l => (
               <button key={l} onClick={() => {
                 setLang(l);
-                try { localStorage.setItem("naranjo_lang", l); } catch { /* ignore */ }
+                try { localStorage.setItem(LANG_STORAGE_KEY, l); } catch { /* ignore */ }
               }}
                 className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${lang === l ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280]"}`}>
                 {l.toUpperCase()}
@@ -315,8 +312,8 @@ export default function ProfilePage() {
             <div className="bg-indigo-50 border border-indigo-200/80 rounded-xl p-4 text-sm text-indigo-900 font-medium flex items-center gap-2 mb-3">
               ✓{" "}
               {lang === "es"
-                ? "Tu RFC fue revisado por el equipo de Naranjogo"
-                : "Your RFC has been reviewed by the Naranjogo team"}
+                ? "Tu RFC fue revisado por el equipo de AISaravanna"
+                : "Your RFC has been reviewed by the AISaravanna team"}
             </div>
           )}
 
@@ -490,7 +487,9 @@ export default function ProfilePage() {
                 <path d="m9 12 2 2 4-4" />
               </svg>
               <div>
-                <p className="text-sm font-bold text-emerald-900">Garantía NaranjoGo</p>
+                <p className="text-sm font-bold text-emerald-900">
+                  {lang === "es" ? "Garantía AISaravanna" : "AISaravanna guarantee"}
+                </p>
                 <p className="text-xs text-emerald-700">
                   {lang === "es"
                     ? "¿Problemas con un servicio? Solicita un reembolso."

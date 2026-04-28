@@ -16,7 +16,7 @@ export function getStripe(): Stripe {
     httpClient: Stripe.createFetchHttpClient(),
     timeout: 60_000,
     maxNetworkRetries: 4,
-    appInfo: { name: "NaranjoGo", version: "1.0.0" },
+    appInfo: { name: "AISaravanna", version: "1.0.0" },
   });
   return _stripe;
 }

@@ -12,7 +12,7 @@ async function notifyAdmin(form: any) {
   if (!TWILIO_SID || !TWILIO_TOKEN || !ADMIN_WHATSAPP || !TWILIO_FROM) return;
   try {
     const msg = [
-      `🆕 *Naranjogo — Nuevo proveedor*`,
+      `🆕 *AISaravanna — New provider*`,
       `👤 ${form.name}`,
       `📱 ${form.whatsapp}`,
       `🔧 ${form.service_label}`,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
+import { LANG_STORAGE_KEY, readStoredLang, type Lang } from "@/lib/i18n-lang";
 
 type Booking = {
   id: string;
@@ -162,15 +163,11 @@ export default function MyBookingsPage() {
   const [emailVal, setEmailVal] = useState<Record<string, string>>({});
   const [apptLocal, setApptLocal] = useState<Record<string, string>>({});
   const [apptBeforeH, setApptBeforeH] = useState<Record<string, number>>({});
-  const [lang, setLang] = useState<"es" | "en">("es");
+  const [lang, setLang] = useState<Lang>("en");
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("naranjo_lang");
-      if (stored === "en" || stored === "es") setLang(stored);
-    } catch {
-      /* ignore */
-    }
+    const stored = readStoredLang();
+    if (stored) setLang(stored);
   }, []);
 
   const loadData = useCallback(() => {
@@ -386,14 +383,14 @@ export default function MyBookingsPage() {
             {t.back}
           </Link>
           <div className="flex bg-[#F4F0EB] rounded-lg p-1 gap-1">
-            {(["es", "en"] as const).map((l) => (
+            {(["en", "es"] as const).map((l) => (
               <button
                 key={l}
                 type="button"
                 onClick={() => {
                   setLang(l);
                   try {
-                    localStorage.setItem("naranjo_lang", l);
+                    localStorage.setItem(LANG_STORAGE_KEY, l);
                   } catch {
                     /* ignore */
                   }

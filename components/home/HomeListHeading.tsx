@@ -4,8 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ColoniaInfo } from "@/lib/colonias";
 import { categoryLabel, normalizeBrowseCategory } from "@/lib/marketplace-categories";
-
-type Lang = "en" | "es";
+import { langFromParam, type Lang } from "@/lib/i18n-lang";
 
 type Props = {
   /** Must match `searchParams.lang` used on the server (first render / SSR). */
@@ -39,8 +38,7 @@ export function HomeListHeading({
   const [categorySlug, setCategorySlug] = useState(() => normalizeBrowseCategory(initialCategory));
 
   useEffect(() => {
-    const p = (params.get("lang") || "es") as string;
-    if (p === "en" || p === "es") setLang(p);
+    setLang(langFromParam(params.get("lang")));
   }, [params]);
 
   useEffect(() => {

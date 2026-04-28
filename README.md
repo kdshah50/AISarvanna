@@ -1,6 +1,6 @@
-# NaranjoGo / Tianguis (Next.js)
+# AISaravanna (Next.js)
 
-Marketplace web app (Next.js 14 App Router). This document focuses on **WhatsApp OTP login**, **Supabase**, **Twilio**, and **deployment**—the pieces that were wired end-to-end for production.
+US-first marketplace web app (Next.js 14 App Router): **English by default**, **Spanish** via `?lang=es` or the header toggle. This document still covers **WhatsApp OTP**, **Supabase**, **Twilio**, and **deployment**.
 
 ## WhatsApp OTP authentication (high level)
 
@@ -17,9 +17,9 @@ Copy `.env.example` to `.env.local` for local development.
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL (must match where you run SQL migrations). |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | **Service role** key (not `anon`). Used by OTP routes and `/api/auth/me`. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | For other pages | Public anon key for client-side Supabase where used. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | **AISaravanna-only** Supabase project URL (must match where you run SQL migrations). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | **Service role** key from that same project (not `anon`). Used by OTP routes and `/api/auth/me`. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | For other pages | **Anon** key from that same project (client-side Supabase where used). |
 | `JWT_SECRET` | Strongly recommended in production | Secret for signing/verifying `tianguis_token` JWT. Must stay stable across deploys. |
 | `TWILIO_ACCOUNT_SID` | For real WhatsApp sends | Twilio Account SID. |
 | `TWILIO_AUTH_TOKEN` | For real WhatsApp sends | Twilio auth token. |
@@ -28,6 +28,17 @@ Copy `.env.example` to `.env.local` for local development.
 | `FASTAPI_INTERNAL_URL` / `INTERNAL_API_SECRET` | Optional | Rewrites to FastAPI when configured. |
 
 **Common production mistake:** `SUPABASE_SERVICE_ROLE_KEY` left as placeholder text. OTP and profile APIs will fail until it is the real **service_role** key from Supabase **Project Settings → API**.
+
+## Local development
+
+Run the app on your machine first; deploy to Vercel (or another host) when you are ready.
+
+1. **Node.js 20+** recommended (matches typical Next.js 14 setups).
+2. `cp .env.example .env.local` and fill at least **`NEXT_PUBLIC_SUPABASE_URL`**, **`NEXT_PUBLIC_SUPABASE_ANON_KEY`**, **`SUPABASE_SERVICE_ROLE_KEY`**, and **`JWT_SECRET`** (any long random string locally) so auth and API routes can talk to Supabase.
+3. `npm install`
+4. `npm run dev` → open **http://localhost:3000**
+
+Without Twilio, OTP may still be **logged in the terminal** in dev so you can verify flows. Optional: set `NEXT_PUBLIC_APP_URL=http://localhost:3000` in `.env.local` for URLs that depend on the site origin.
 
 ## Phone number format (app contract)
 
@@ -39,6 +50,10 @@ Numbers are normalized to **E.164 digits without `+`**:
 Validation lives in `lib/phone.ts` (`isValidAuthPhone`, `normalizeAuthPhone`).
 
 ## Supabase database
+
+### Use a separate project from Mexico
+
+AISaravanna should use its **own Supabase project** (empty or migrated schema), not the same `NEXT_PUBLIC_SUPABASE_URL` / keys as the Mexico site. Same stack (Postgres via Supabase), **different database** — no code fork required, only different env vars on Vercel and in `.env.local`. Run the migrations in `supabase/migrations/` only on the AISaravanna project.
 
 ### `otp_codes` table
 
@@ -105,12 +120,16 @@ Shared JWT + Supabase admin client helpers live in `lib/auth-server.ts` (also us
 
 Open a specific thread on the listing page: `/listing/{id}?chat={conversationId}`.
 
-## Deploy (GitHub → Vercel)
+## Deploy & CI (Vercel only — AISaravanna)
 
-1. Commit and push to **`main`** (or the branch connected to Vercel production).
-2. Vercel builds automatically; wait until deployment status is **Ready**.
-3. Ensure **all** env vars above are set for **Production** in Vercel.
-4. After DB changes, run SQL in Supabase; redeploy is not strictly required for SQL-only changes, but code changes need a new deployment.
+**This project does not use GitLab CI.** The Next.js app is built and hosted on **Vercel**, connected to **this GitHub repository**. Cron jobs for this app are defined in `vercel.json` (`/api/cron/*`).
+
+1. In [Vercel](https://vercel.com): **Add New Project** → import the GitHub repo → framework **Next.js** (Vercel will pick up `vercel.json`).
+2. Set **Production** environment variables (same names as `.env.example` / the table above).
+3. Deploy by pushing to **`main`** (or the branch you set as Production).
+4. After Supabase SQL migrations, run them in the Supabase project; code-only changes need a new Vercel deployment if you want the latest bundle live.
+
+Optional sibling services (`ml-service`, `listings-api`) are separate processes—deploy them on your chosen host (e.g. Railway, Fly) if you use them; they are not part of Vercel’s Next.js build.
 
 ## Troubleshooting (quick)
 

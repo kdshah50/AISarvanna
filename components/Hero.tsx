@@ -2,6 +2,7 @@
 import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { COLONIAS, COLONIA_KEYS, detectColoniaInQuery, coloniaLabel } from "@/lib/colonias";
+import { langFromParam } from "@/lib/i18n-lang";
 
 /** Slider top = “no upper cap” in the URL (pmax omitted). Whole MXN pesos. */
 const PRICE_MAX_UI = 5_000_000;
@@ -17,28 +18,28 @@ function fmtPesos(n: number, lang: "es" | "en") {
 
 const T = {
   es: {
-    badge: "CP 37745 • SERVICIOS",
+    badge: "EE. UU. • SERVICIOS",
     line1: "eCommerce",
     line2: "con Confianza",
-    sub: "Servicios locales verificados en código postal 37745.",
-    placeholder: "Ej. plomero en Centro, dentista en Aurora...",
+    sub: "Servicios locales verificados en Estados Unidos.",
+    placeholder: "Ej. reparación de AC hoy, dentista cerca...",
     btn: "Buscar",
     near: "Cerca de mí",
-    chipLabel: "Buscar por colonia:",
+    chipLabel: "Buscar por zona:",
     priceTitle: "Precio (MXN)",
     priceMin: "Mín.",
     priceMax: "Máx.",
     noMax: "Sin límite",
   },
   en: {
-    badge: "ZIP 37745 • SERVICES",
+    badge: "UNITED STATES • SERVICES",
     line1: "eCommerce",
     line2: "with Confidence",
-    sub: "Verified local services in ZIP code 37745.",
-    placeholder: "E.g. plumber in Centro, dentist in Aurora...",
+    sub: "Verified local services across the United States.",
+    placeholder: "E.g. AC repair today under $150, dentist near me...",
     btn: "Search",
     near: "Near me",
-    chipLabel: "Search by colonia:",
+    chipLabel: "Search by area:",
     priceTitle: "Price (MXN)",
     priceMin: "Min.",
     priceMax: "Max.",
@@ -53,7 +54,7 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
   const [geoLoading, setGeoLoading] = useState(false);
   const router = useRouter();
   const params = useSearchParams();
-  const lang = (params.get("lang") || "es") as "es" | "en";
+  const lang = langFromParam(params.get("lang"));
   const t = T[lang];
   const activeColonia = params.get("colonia") ?? "";
 

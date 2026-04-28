@@ -95,8 +95,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       if (revealedPhone) {
         const digits = revealedPhone.replace(/\D/g, "");
         const waIntro = isServicesCategory
-          ? `Hola! Ya reservé tu servicio "${listing.title_es}" en Naranjogo.`
-          : `Hola! Vi tu anuncio "${listing.title_es}" en Naranjogo y ya completé el contacto por la app.`;
+          ? `Hi! I booked your service "${listing.title_es}" on AISaravanna.`
+          : `Hi! I saw your listing "${listing.title_es}" on AISaravanna and completed contact in the app.`;
         revealedWhatsappUrl = `https://wa.me/${digits}?text=${encodeURIComponent(waIntro)}`;
       }
     }

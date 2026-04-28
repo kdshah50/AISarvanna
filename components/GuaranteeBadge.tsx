@@ -6,7 +6,7 @@ export default function GuaranteeBadge({ compact }: { compact?: boolean }) {
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           <path d="m9 12 2 2 4-4" />
         </svg>
-        Garantía NaranjoGo
+        AISaravanna guarantee
       </div>
     );
   }
@@ -21,10 +21,10 @@ export default function GuaranteeBadge({ compact }: { compact?: boolean }) {
           </svg>
         </div>
         <div>
-          <p className="text-sm font-bold text-emerald-900">Garantía NaranjoGo</p>
+          <p className="text-sm font-bold text-emerald-900">AISaravanna guarantee</p>
           <p className="text-xs text-emerald-700 mt-0.5 leading-relaxed">
-            Tu pago está protegido. Si el proveedor no se presenta o el servicio no cumple lo acordado,
-            puedes solicitar un reembolso.
+            Your payment is protected. If the provider does not show up or the service does not match what was agreed,
+            you can request a refund.
           </p>
         </div>
       </div>

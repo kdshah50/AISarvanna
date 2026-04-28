@@ -39,8 +39,8 @@ const SERVICES = [
 
 const T = {
   es: {
-    title:        "Ofrece tu servicio en Naranjogo",
-    sub:          "Llega a cientos de familias y expatriados en San Miguel de Allende.",
+    title:        "Ofrece tu servicio en AISaravanna",
+    sub:          "Llega a clientes en Estados Unidos. Perfil bilingüe (inglés y español).",
     step1:        "Tu información",
     step2:        "Tu servicio",
     step3:        "Términos y condiciones",
@@ -70,28 +70,28 @@ const T = {
     submitting:   "Enviando...",
     doneTitle:    "¡Solicitud recibida!",
     doneSub:      "Revisaremos tu perfil en las próximas 24 horas y te contactaremos por WhatsApp para confirmar tu registro.",
-    doneNote:     "Una vez aprobado, tu servicio aparecerá automáticamente en las búsquedas de Naranjogo.",
+    doneNote:     "Una vez aprobado, tu servicio aparecerá automáticamente en las búsquedas de AISaravanna.",
     free:         "Registro gratuito",
     verified:     "Perfil verificado",
-    reach:        "Clientes reales en SMA",
+    reach:        "Clientes en EE. UU.",
     termsTitle:   "Términos y condiciones para proveedores",
     term1Title:   "Publicación gratuita",
-    term1:        "Registrar tu servicio en Naranjogo es completamente gratuito. No cobramos por aparecer en el directorio.",
+    term1:        "Registrar tu servicio en AISaravanna es completamente gratuito. No cobramos por aparecer en el directorio.",
     term2Title:   "Modelo de negocio",
-    term2:        "Naranjogo puede establecer una comisión o cuota de servicio en el futuro. Los términos comerciales específicos se acordarán contigo directamente antes de cualquier cobro.",
+    term2:        "AISaravanna puede establecer una comisión o cuota de servicio en el futuro. Los términos comerciales específicos se acordarán contigo directamente antes de cualquier cobro.",
     term3Title:   "Calidad y veracidad",
-    term3:        "Debes ser el proveedor real del servicio. La información que proporciones debe ser veraz. Naranjogo puede retirar tu perfil si recibe reportes negativos verificados.",
+    term3:        "Debes ser el proveedor real del servicio. La información que proporciones debe ser veraz. AISaravanna puede retirar tu perfil si recibe reportes negativos verificados.",
     term4Title:   "Proceso de aprobación",
-    term4:        "Todos los proveedores son revisados manualmente por el equipo de Naranjogo antes de aparecer en el directorio. Nos reservamos el derecho de aprobar o rechazar cualquier solicitud.",
+    term4:        "Todos los proveedores son revisados manualmente por el equipo de AISaravanna antes de aparecer en el directorio. Nos reservamos el derecho de aprobar o rechazar cualquier solicitud.",
     term5Title:   "Privacidad",
     term5:        "Tu número de WhatsApp no se muestra públicamente. Solo los clientes que hagan clic en 'Contactar' pueden iniciar una conversación contigo.",
     acceptAll:    "He leído y acepto los términos y condiciones",
-    acceptPricing:"Entiendo que Naranjogo puede establecer términos comerciales en el futuro, los cuales me serán comunicados antes de cualquier cobro.",
+    acceptPricing:"Entiendo que AISaravanna puede establecer términos comerciales en el futuro, los cuales me serán comunicados antes de cualquier cobro.",
     mustAccept:   "Debes aceptar los términos para continuar",
   },
   en: {
-    title:        "List your service on Naranjogo",
-    sub:          "Reach hundreds of families and expats in San Miguel de Allende.",
+    title:        "List your service on AISaravanna",
+    sub:          "Reach customers across the United States. Bilingual-friendly listings.",
     step1:        "Your info",
     step2:        "Your service",
     step3:        "Terms & conditions",
@@ -121,29 +121,29 @@ const T = {
     submitting:   "Submitting...",
     doneTitle:    "Application received!",
     doneSub:      "We'll review your profile within 24 hours and contact you via WhatsApp to confirm your registration.",
-    doneNote:     "Once approved, your service will automatically appear in Naranjogo searches.",
+    doneNote:     "Once approved, your service will automatically appear in AISaravanna searches.",
     free:         "Free to register",
     verified:     "Verified profile",
-    reach:        "Real clients in SMA",
+    reach:        "Real clients in the US",
     termsTitle:   "Provider terms & conditions",
     term1Title:   "Free listing",
-    term1:        "Registering your service on Naranjogo is completely free. We do not charge for appearing in the directory.",
+    term1:        "Registering your service on AISaravanna is completely free. We do not charge for appearing in the directory.",
     term2Title:   "Business model",
-    term2:        "Naranjogo may establish a commission or service fee in the future. Specific commercial terms will be agreed with you directly before any charges apply.",
+    term2:        "AISaravanna may establish a commission or service fee in the future. Specific commercial terms will be agreed with you directly before any charges apply.",
     term3Title:   "Quality & accuracy",
-    term3:        "You must be the actual service provider. All information you provide must be accurate. Naranjogo may remove your profile if verified negative reports are received.",
+    term3:        "You must be the actual service provider. All information you provide must be accurate. AISaravanna may remove your profile if verified negative reports are received.",
     term4Title:   "Approval process",
-    term4:        "All providers are manually reviewed by the Naranjogo team before appearing in the directory. We reserve the right to approve or reject any application.",
+    term4:        "All providers are manually reviewed by the AISaravanna team before appearing in the directory. We reserve the right to approve or reject any application.",
     term5Title:   "Privacy",
     term5:        "Your WhatsApp number is not shown publicly. Only clients who click 'Contact' can start a conversation with you.",
     acceptAll:    "I have read and agree to the terms and conditions",
-    acceptPricing:"I understand that Naranjogo may establish commercial terms in the future, which will be communicated to me before any charges apply.",
+    acceptPricing:"I understand that AISaravanna may establish commercial terms in the future, which will be communicated to me before any charges apply.",
     mustAccept:   "You must accept the terms to continue",
   },
 };
 
 export default function UnetePage() {
-  const [lang, setLang] = useState<"es"|"en">("es");
+  const [lang, setLang] = useState<"es"|"en">("en");
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -217,9 +217,9 @@ export default function UnetePage() {
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <a href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">← Naranjogo</a>
+          <a href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">← AISaravanna</a>
           <div className="flex bg-[#F4F0EB] rounded-lg p-1 gap-1">
-            {(["es","en"] as const).map(l => (
+            {(["en","es"] as const).map(l => (
               <button key={l} onClick={() => setLang(l)}
                 className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${lang===l ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280]"}`}>
                 {l.toUpperCase()}
@@ -504,8 +504,8 @@ export default function UnetePage() {
         {/* Footer note */}
         <p className="text-center text-xs text-[#A8A095] mt-6">
           {lang === "es"
-            ? "¿Preguntas? Escríbenos a naranjogo.com.mx"
-            : "Questions? Contact us at naranjogo.com.mx"}
+            ? "¿Preguntas? Escríbenos a soporte@aisaravanna.com"
+            : "Questions? Contact us at support@aisaravanna.com"}
         </p>
       </div>
     </main>

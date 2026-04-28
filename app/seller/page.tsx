@@ -44,10 +44,10 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     { headers: h, cache: "no-store" }
   );
   const [user] = res.ok ? await res.json() : [];
-  if (!user) return { title: "Vendedor — Tianguis" };
+  if (!user) return { title: "Seller | AISaravanna" };
   return {
-    title: `${user.display_name ?? "Vendedor"} — Tianguis`,
-    description: `Perfil del vendedor en Tianguis. Artículos verificados con ${user.trust_badge ?? "none"} badge.`,
+    title: `${user.display_name ?? "Seller"} | AISaravanna`,
+    description: `Seller profile on AISaravanna. Trust: ${user.trust_badge ?? "none"}.`,
   };
 }
 

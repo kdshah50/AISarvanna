@@ -83,25 +83,24 @@ export async function processDueBookingReminders(limit = 35): Promise<{
     const title = listing?.title_es ?? "tu servicio";
     const link = `${appUrl}/listing/${row.listing_id}`;
     const name = buyer?.display_name?.trim();
-    const hello = name ? `Hola ${name}` : "Hola";
-
-    const msgEs =
+    const helloEn = name ? `Hi ${name}` : "Hi";
+    const msg =
       row.reminder_kind === "appointment"
-        ? `${hello}: te recordamos tu próxima cita relacionada con «${title}». Abre Naranjogo: ${link}`
-        : `${hello}: es un buen momento para volver a reservar «${title}». Abre el anuncio: ${link}`;
+        ? `${helloEn}: reminder for your upcoming appointment for "${title}". Open AISaravanna: ${link}`
+        : `${helloEn}: good time to rebook "${title}". Open your listing: ${link}`;
 
     let anyOk = false;
 
     if (notifyWa && buyer?.phone) {
-      const ok = await sendWhatsApp(buyer.phone, msgEs);
+      const ok = await sendWhatsApp(buyer.phone, msg);
       if (ok) anyOk = true;
     }
 
     if (notifyEm && row.delivery_email?.includes("@")) {
       const ok = await sendReminderEmail({
         to: row.delivery_email,
-        subject: `Recordatorio — ${title.slice(0, 80)}`,
-        html: `<p>${escapeHtml(msgEs)}</p><p><a href="${escapeHtml(link)}">Ver en Naranjogo</a></p>`,
+        subject: `Reminder — ${title.slice(0, 80)}`,
+        html: `<p>${escapeHtml(msg)}</p><p><a href="${escapeHtml(link)}">Open AISaravanna</a></p>`,
       });
       if (ok) anyOk = true;
     }

@@ -25,12 +25,12 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     cache: "no-store",
   });
   const [data] = res.ok ? await res.json() : [];
-  if (!data) return { title: "Artículo no encontrado - Naranjogo" };
+  if (!data) return { title: "Listing not found | AISaravanna" };
 
-  const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(data.price_mxn / 100);
+  const price = new Intl.NumberFormat("en-US", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(data.price_mxn / 100);
   return {
-    title: `${data.title_es} - ${price} | Naranjogo`,
-    description: data.description_es?.slice(0, 160) ?? `${data.title_es} en venta en Naranjogo`,
+    title: `${data.title_es} - ${price} | AISaravanna`,
+    description: data.description_es?.slice(0, 160) ?? `${data.title_es} on AISaravanna`,
     openGraph: {
       title: data.title_es,
       description: data.description_es ?? "",

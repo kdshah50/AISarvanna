@@ -41,16 +41,16 @@ export default function VerifyForm() {
         const ct = res.headers.get("content-type") ?? "";
         const data = ct.includes("application/json") ? await res.json() : null;
         if (!res.ok) {
-          throw new Error((data as { error?: string } | null)?.error ?? "Código incorrecto");
+          throw new Error((data as { error?: string } | null)?.error ?? "Invalid code");
         }
-        if (!(data as { user?: unknown } | null)?.user) throw new Error("Respuesta inválida del servidor");
+        if (!(data as { user?: unknown } | null)?.user) throw new Error("Invalid server response");
         // Session cookie is HttpOnly; set by /api/auth/verify-otp
         const dest = returnTo && returnTo.startsWith("/") ? returnTo : "/profile";
         window.location.href = dest;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error("[verify] error", msg);
-        setError(msg || "Error al verificar");
+        setError(msg || "Could not verify");
         setCode(["", "", "", "", "", ""]);
         inputRefs.current[0]?.focus();
       } finally {
@@ -97,9 +97,9 @@ export default function VerifyForm() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-4xl mb-3">💬</div>
-          <h1 className="font-serif text-2xl font-bold text-[#1C1917] mb-2">Código enviado</h1>
+          <h1 className="font-serif text-2xl font-bold text-[#1C1917] mb-2">Code sent</h1>
           <p className="text-sm text-[#6B7280]">
-            Enviamos un código de 6 dígitos por WhatsApp a
+            We sent a 6-digit code via WhatsApp to
             <br />
             <span className="font-semibold text-[#1C1917]">
               {phonePrefix} {displayNational}
@@ -138,24 +138,24 @@ export default function VerifyForm() {
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Verificando...
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Verifying...
               </>
             ) : (
-              "Verificar código"
+              "Verify code"
             )}
           </button>
           <div className="text-center mt-4">
             {resendCountdown > 0 ? (
-              <p className="text-sm text-[#9CA3AF]">Reenviar en {resendCountdown}s</p>
+              <p className="text-sm text-[#9CA3AF]">Resend in {resendCountdown}s</p>
             ) : (
               <button onClick={handleResend} className="text-sm text-[#1B4332] font-semibold hover:underline">
-                Reenviar código por WhatsApp
+                Resend code on WhatsApp
               </button>
             )}
           </div>
         </div>
         <button onClick={() => router.push("/auth/login")} className="w-full text-center text-sm text-[#6B7280] mt-4 hover:text-[#1B4332]">
-          ← Cambiar número
+          ← Change number
         </button>
       </div>
     </main>

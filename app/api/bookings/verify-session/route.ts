@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
     const waUrl =
       isPaid && waDigits
         ? `https://wa.me/${waDigits}?text=${encodeURIComponent(
-            `Hola! Ya reservé tu servicio "${listing?.title_es ?? ""}" en Naranjogo.`
+            `Hi! I booked your service "${listing?.title_es ?? ""}" on AISaravanna.`
           )}`
         : null;
 

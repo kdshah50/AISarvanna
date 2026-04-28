@@ -12,6 +12,7 @@ import {
   isSellerPhoneVerifiedForDisplay,
 } from "@/lib/seller-trust-display";
 import { normalizeBrowseCategory } from "@/lib/marketplace-categories";
+import { langFromParam } from "@/lib/i18n-lang";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,12 @@ const SMA_LAT   = 20.91528;
 const SMA_LNG   = -100.74389;
 const APP_URL = getPublicAppUrl();
 
-function fmtMXN(c: number) {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(c / 100);
+function fmtMXN(c: number, lang: "en" | "es") {
+  return new Intl.NumberFormat(lang === "en" ? "en-US" : "es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 0,
+  }).format(c / 100);
 }
 
 function distKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -52,8 +57,7 @@ interface Props {
 export default async function HomePage({ searchParams }: Props) {
   const categorySlug = normalizeBrowseCategory(searchParams?.category);
   const query       = searchParams?.q ?? "";
-  const rawLang     = searchParams?.lang;
-  const lang        = rawLang === "en" || rawLang === "es" ? rawLang : "es";
+  const lang        = langFromParam(searchParams?.lang);
   const initialLang = lang;
   const coloniaKey  = searchParams?.colonia ?? "";
   const pminPesos   = parsePricePesos(searchParams?.pmin);
@@ -96,7 +100,7 @@ export default async function HomePage({ searchParams }: Props) {
           } | null;
           return {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
-            price_display: fmtMXN(row.price_mxn),
+            price_display: fmtMXN(row.price_mxn, lang),
             category_id: row.category_id, condition: row.condition,
             location_city: row.location_city ?? "San Miguel de Allende",
             colonia_label: near?.label ?? null,
@@ -154,7 +158,7 @@ export default async function HomePage({ searchParams }: Props) {
           } | null;
           return {
             id: row.id, title: row.title_es, price_mxn: row.price_mxn,
-            price_display: fmtMXN(row.price_mxn),
+            price_display: fmtMXN(row.price_mxn, lang),
             category_id: row.category_id, condition: row.condition,
             location_city: row.location_city ?? "San Miguel de Allende",
             colonia_label: near?.label ?? null,

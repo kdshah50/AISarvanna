@@ -394,7 +394,7 @@ export default function AdminPage() {
     <main className="min-h-screen bg-[#FDF8F1] flex items-center justify-center px-4">
       <div className="bg-white rounded-3xl border border-[#E5E0D8] p-10 max-w-sm w-full text-center shadow-sm">
         <div className="text-4xl mb-4">🔐</div>
-        <h1 className="font-serif text-xl font-bold text-[#1B4332] mb-6">Admin — Naranjogo</h1>
+        <h1 className="font-serif text-xl font-bold text-[#1B4332] mb-6">Admin — AISaravanna</h1>
         <div className="relative mb-3">
           <input
             type={showPin ? "text" : "password"}
@@ -438,7 +438,7 @@ export default function AdminPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h1 className="font-serif text-2xl font-bold text-[#1B4332]">Naranjogo Admin</h1>
+            <h1 className="font-serif text-2xl font-bold text-[#1B4332]">AISaravanna Admin</h1>
             <p className="text-sm text-[#6B7280]">Provider approval, verification & trust management</p>
           </div>
           <div className="flex items-center flex-wrap gap-2 justify-end">
@@ -921,7 +921,7 @@ export default function AdminPage() {
                     <p className="text-[#6B7280] text-xs">{l.users?.phone ?? "No phone"}</p>
                     {l.users?.phone && (
                       <a
-                        href={`https://wa.me/${(l.users.phone).replace(/\D/g, "")}?text=Hola%20${encodeURIComponent(l.users.display_name ?? "")}%2C%20somos%20Naranjogo%20%E2%80%94%20revisamos%20tu%20solicitud.`}
+                        href={`https://wa.me/${(l.users.phone).replace(/\D/g, "")}?text=Hola%20${encodeURIComponent(l.users.display_name ?? "")}%2C%20somos%20AISaravanna%20%E2%80%94%20revisamos%20tu%20solicitud.`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-[#25D366] font-semibold mt-1 hover:underline">

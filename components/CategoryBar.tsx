@@ -2,11 +2,12 @@
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MARKETPLACE_CATEGORIES, normalizeBrowseCategory } from "@/lib/marketplace-categories";
+import { langFromParam } from "@/lib/i18n-lang";
 
 function CategoryBarInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const lang = (params.get("lang") || "es") as "es" | "en";
+  const lang = langFromParam(params.get("lang"));
   const activeId = normalizeBrowseCategory(params.get("category"));
 
   const selectCategory = (id: string) => {
@@ -47,7 +48,7 @@ function CategoryBarInner() {
                   {cat.label[lang]}
                   {!enabled && (
                     <span className="text-[9px] font-bold ml-1 px-1 py-0.5 rounded bg-[#E5E0D8] text-[#A8A095]">
-                      Próximo
+                      {lang === "es" ? "Próximo" : "Soon"}
                     </span>
                   )}
                 </button>

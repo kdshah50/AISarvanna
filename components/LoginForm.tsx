@@ -7,12 +7,12 @@ import { formatMxLocalInput, formatUsLocalInput } from "@/lib/phone";
 type Country = "MX" | "US";
 
 const COUNTRIES: { id: Country; flag: string; dial: string; label: string; placeholder: string }[] = [
-  { id: "MX", flag: "🇲🇽", dial: "+52", label: "México", placeholder: "55 1234 5678" },
   { id: "US", flag: "🇺🇸", dial: "+1", label: "United States", placeholder: "(555) 123-4567" },
+  { id: "MX", flag: "🇲🇽", dial: "+52", label: "México", placeholder: "55 1234 5678" },
 ];
 
 export default function LoginForm() {
-  const [country, setCountry] = useState<Country>("MX");
+  const [country, setCountry] = useState<Country>("US");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,7 +29,7 @@ export default function LoginForm() {
     setLoading(true);
     const clean = phone.replace(/\D/g, "");
     if (clean.length < 10) {
-      setError("Ingresa un número válido de 10 dígitos");
+      setError("Enter a valid 10-digit number");
       setLoading(false);
       return;
     }
@@ -43,7 +43,7 @@ export default function LoginForm() {
       const isJson = (res.headers.get("content-type") ?? "").includes("application/json");
       const data = isJson ? await res.json() : null;
       if (!res.ok) {
-        const fallback = "No se pudo enviar el código OTP. Intenta de nuevo en un minuto.";
+        const fallback = "Could not send the OTP. Try again in a minute.";
         throw new Error((data as { error?: string } | null)?.error ?? fallback);
       }
       const params = new URLSearchParams({ phone: e164 });
@@ -63,17 +63,17 @@ export default function LoginForm() {
   return (
     <main className="min-h-screen bg-[#FDF8F1] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <Link href="/" className="flex justify-center mb-8">
-          <span className="font-serif text-3xl font-bold text-[#1B4332]">T</span>
-          <span className="font-serif text-2xl text-[#1C1917]">ianguis</span>
+        <Link href="/" className="flex justify-center mb-8 font-serif text-2xl font-bold tracking-tight">
+          <span className="text-[#1B4332]">AI</span>
+          <span className="text-[#1C1917]">Saravanna</span>
           <span className="text-[#D4A017] text-sm font-bold ml-0.5 mt-1">✦</span>
         </Link>
         <div className="bg-white rounded-2xl border border-[#E5E0D8] p-8 shadow-sm">
-          <h1 className="font-serif text-2xl font-bold text-[#1C1917] mb-2">Inicia sesión</h1>
-          <p className="text-sm text-[#6B7280] mb-6">Te enviamos un código por WhatsApp para verificar tu número.</p>
+          <h1 className="font-serif text-2xl font-bold text-[#1C1917] mb-2">Log in</h1>
+          <p className="text-sm text-[#6B7280] mb-6">We’ll send a code via WhatsApp to verify your number.</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-[#6B7280] block mb-2 tracking-wide">PAÍS / REGIÓN</label>
+              <label className="text-xs font-semibold text-[#6B7280] block mb-2 tracking-wide">COUNTRY / REGION</label>
               <select
                 value={country}
                 onChange={(e) => {
@@ -90,7 +90,7 @@ export default function LoginForm() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-[#6B7280] block mb-2 tracking-wide">NÚMERO DE WHATSAPP</label>
+              <label className="text-xs font-semibold text-[#6B7280] block mb-2 tracking-wide">WHATSAPP NUMBER</label>
               <div className="flex items-center border border-[#E5E0D8] rounded-xl overflow-hidden focus-within:border-[#1B4332] transition-colors">
                 <div className="px-4 py-3 bg-[#F4F0EB] border-r border-[#E5E0D8] flex items-center gap-1.5 flex-shrink-0 min-w-[5.5rem]">
                   <span className="text-base">{selected.flag}</span>
@@ -117,20 +117,24 @@ export default function LoginForm() {
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Enviando...
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending...
                 </>
               ) : (
                 <>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                   </svg>
-                  Recibir código por WhatsApp
+                  Get code on WhatsApp
                 </>
               )}
             </button>
           </form>
           <p className="text-xs text-[#9CA3AF] text-center mt-4">
-            Al continuar aceptas nuestros <span className="text-[#1B4332]">Términos de uso</span>.
+            By continuing you agree to our{" "}
+            <Link href="/terms" className="text-[#1B4332] hover:underline">
+              Terms of use
+            </Link>
+            .
           </p>
         </div>
       </div>

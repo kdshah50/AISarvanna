@@ -26,7 +26,7 @@ type LoyaltyData = {
   transactions?: Tx[];
 };
 
-export default function LoyaltyCard({ lang = "es" }: { lang?: "es" | "en" }) {
+export default function LoyaltyCard({ lang = "en" }: { lang?: "es" | "en" }) {
   const [data, setData] = useState<LoyaltyData | null>(null);
 
   useEffect(() => {

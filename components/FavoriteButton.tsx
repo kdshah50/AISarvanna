@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 type Lang = "es" | "en";
 
-export default function FavoriteButton({ listingId, lang = "es" }: { listingId: string; lang?: Lang }) {
+export default function FavoriteButton({ listingId, lang = "en" }: { listingId: string; lang?: Lang }) {
   const [favorited, setFavorited] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
 
