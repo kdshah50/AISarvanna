@@ -16,6 +16,7 @@ import {
   isSellerPhoneVerifiedForDisplay,
 } from "@/lib/seller-trust-display";
 import { normalizeBrowseCategory } from "@/lib/marketplace-categories";
+import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
 import { langFromParam } from "@/lib/i18n-lang";
 
 export const dynamic = "force-dynamic";
@@ -145,9 +146,9 @@ export default async function HomePage({ searchParams }: Props) {
         }
       }
     } else {
-      // ── No query: show active verified listings for selected category ───────
+      // ── No query: show active listings for selected category (verified-only, or + pending services in dev) ───────
       let browsePath =
-        `/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${categorySlug}`
+        `/rest/v1/listings?${postgrestActiveListingVerificationFragment(categorySlug)}&category_id=eq.${categorySlug}`
         + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)`
         + `&order=created_at.desc&limit=24`;
       if (pminPesos != null && pminPesos > 0) browsePath += `&price_mxn=gte.${pminPesos * 100}`;
@@ -208,6 +209,9 @@ export default async function HomePage({ searchParams }: Props) {
     (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
       !process.env.SUPABASE_SERVICE_ROLE_KEY?.trim());
 
+  const devPendingServices =
+    process.env.NODE_ENV === "development" && process.env.SHOW_PENDING_SERVICES === "true";
+
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
       <CategoryBar />
@@ -219,6 +223,14 @@ export default async function HomePage({ searchParams }: Props) {
             <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
             <code className="text-xs">SUPABASE_SERVICE_ROLE_KEY</code> (see <code className="text-xs">.env.example</code>
             ). Then run <code className="text-xs">npm run dev</code> — not <code className="text-xs">npm dev</code>.
+          </div>
+        </div>
+      )}
+      {devPendingServices && (
+        <div className="max-w-5xl mx-auto px-4 pt-4">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+            <strong>Dev only:</strong> <code className="text-xs">SHOW_PENDING_SERVICES=true</code> — service listings
+            include <em>unverified</em> rows. Production still requires admin verification.
           </div>
         </div>
       )}

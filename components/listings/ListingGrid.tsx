@@ -45,7 +45,7 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
           : "No matching listings.";
       if (category === "services") {
         hint =
-          "AISaravanna only shows service listings after admin approval (is_verified = true in Supabase, or via your /admin flow). New sign-ups from /unete start as pending. If you chose a county filter, listings must fall within that county’s area—try opening the homepage without a county chip or clear ?colonia= in the URL.";
+          "AISaravanna only shows service listings after admin approval (is_verified = true in Supabase, or via your /admin flow). New sign-ups from /unete start as pending. If you chose a county filter, listings must fall within that county’s area—try opening the homepage without a county chip or clear ?colonia= in the URL. For local development, add SHOW_PENDING_SERVICES=true to .env.local and restart npm run dev to also list pending services.";
       }
     } else {
       emptyMsg =
@@ -54,7 +54,7 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
           : "No hay artículos que coincidan.";
       if (category === "services") {
         hint =
-          "AISaravanna solo muestra servicios aprobados (is_verified = true en Supabase, o desde /admin). Los registros en /unete quedan pendientes. Si filtraste por condado, los anuncios deben caer en esa zona—prueba sin condado o quita ?colonia= de la URL.";
+          "AISaravanna solo muestra servicios aprobados (is_verified = true en Supabase, o desde /admin). Los registros en /unete quedan pendientes. Si filtraste por condado, los anuncios deben caer en esa zona—prueba sin condado o quita ?colonia= de la URL. En local, añade SHOW_PENDING_SERVICES=true a .env.local y reinicia npm run dev para ver también servicios pendientes.";
       }
     }
 

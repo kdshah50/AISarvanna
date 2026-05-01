@@ -7,6 +7,7 @@ import {
   parseSearchQuery,
   type ParsedQueryFilters,
 } from "@/lib/search-query-parse";
+import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
@@ -173,10 +174,11 @@ export async function GET(req: NextRequest) {
     try {
       const hasPrice = effective.maxPriceMxnCents != null || effective.minPriceMxnCents != null;
       const keywordTooShort = !sparsePhrase || sparsePhrase.trim().length < 2;
+      const verifyFrag = postgrestActiveListingVerificationFragment(category);
       const core =
         hasPrice && keywordTooShort
-          ? `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`
-          : `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(sparsePhrase)}*&select=${SELECT_COLS_FULL}&limit=20`;
+          ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`
+          : `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(sparsePhrase)}*&select=${SELECT_COLS_FULL}&limit=20`;
       const baseUrl = appendPriceToUrl(core);
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
       sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
@@ -205,7 +207,8 @@ export async function GET(req: NextRequest) {
   } else {
     // No query — return all active services
     try {
-      let baseUrl = `${supaUrl}/rest/v1/listings?status=eq.active&is_verified=eq.true&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
+      const verifyFrag = postgrestActiveListingVerificationFragment(category);
+      let baseUrl = `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
       baseUrl = appendPriceToUrl(baseUrl);
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
       sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
