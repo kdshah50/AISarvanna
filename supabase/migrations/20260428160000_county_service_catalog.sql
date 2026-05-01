@@ -1,10 +1,3 @@
-/*
- county_service_catalog — NJ (Middlesex + Monmouth).
- Drives county service chips on home when ?colonia=<county_key>.
- Public read for active rows (anon + authenticated).
- Run only on the AISaravanna Supabase project, not Mexico/other DBs.
-*/
-
 CREATE TABLE IF NOT EXISTS public.county_service_catalog (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   county_key TEXT NOT NULL,
@@ -44,7 +37,6 @@ USING (active = TRUE);
 
 GRANT SELECT ON public.county_service_catalog TO anon, authenticated;
 
--- ── Middlesex County (initial set) ─────────────────────────────────────────
 INSERT INTO public.county_service_catalog (
   county_key, service_slug, label_en, label_es, blurb_en, blurb_es, strategy_tag, sort_order
 ) VALUES
@@ -70,7 +62,6 @@ INSERT INTO public.county_service_catalog (
    'Initial consults for local counsel — high-trust vertical.', 'Consultas iniciales con abogados locales — vertical de confianza.', 'high_ticket', 100)
 ON CONFLICT (county_key, service_slug) DO NOTHING;
 
--- ── Monmouth County (initial set) ──────────────────────────────────────────
 INSERT INTO public.county_service_catalog (
   county_key, service_slug, label_en, label_es, blurb_en, blurb_es, strategy_tag, sort_order
 ) VALUES
