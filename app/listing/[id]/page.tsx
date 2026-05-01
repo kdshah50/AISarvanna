@@ -10,7 +10,6 @@ import GuaranteeBadge from "@/components/GuaranteeBadge";
 import FavoriteButton from "@/components/FavoriteButton";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import { isServicesListing } from "@/lib/listing-category";
-import { PAYMENT_METHODS_MX } from "@/lib/types";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { SellerVerificationBadges } from "@/components/SellerVerificationBadges";
 import { embeddedSellerRow, verificationPropsFromSellerRow } from "@/lib/seller-trust-display";
@@ -18,30 +17,29 @@ import { langFromParam } from "@/lib/i18n-lang";
 import ListingPhotoGallery from "@/components/ListingPhotoGallery";
 import { listingTitle, listingDescription } from "@/lib/listing-language";
 import { formatUsdCents } from "@/lib/money";
+import { fetchListingForDetailPage, fetchListingMetaRow } from "@/lib/listing-detail-fetch";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const supaUrl = getSupabaseUrl();
   const h = getServiceRoleRestHeaders();
-  const res = await fetch(
-    `${supaUrl}/rest/v1/listings?id=eq.${params.id}&select=title_es,title_en,description_es,description_en,photo_urls,price_mxn`,
-    {
-      headers: h,
-      cache: "no-store",
-    }
-  );
-  const [data] = res.ok ? await res.json() : [];
+  const data = await fetchListingMetaRow(supaUrl, params.id, h);
   if (!data) return { title: "Listing not found | AISaravanna" };
 
-  const headTitle = listingTitle(data, "en");
-  const headDesc = listingDescription(data, "en");
-  const price = formatUsdCents(data.price_mxn, "en");
+  const headTitle = listingTitle(data as Parameters<typeof listingTitle>[0], "en");
+  const headDesc = listingDescription(data as Parameters<typeof listingDescription>[0], "en");
+  const priceMxn = Number((data as { price_mxn?: unknown }).price_mxn);
+  const price = formatUsdCents(Number.isFinite(priceMxn) ? priceMxn : 0, "en");
   return {
     title: `${headTitle} — ${price} | AISaravanna`,
     description: (headDesc || headTitle).slice(0, 160),
     openGraph: {
       title: headTitle,
       description: headDesc ?? "",
-      images: data.photo_urls?.[0] ? [{ url: data.photo_urls[0], width: 800, height: 600 }] : [],
+      images: (() => {
+        const photos = (data as { photo_urls?: unknown }).photo_urls;
+        const first = Array.isArray(photos) && typeof photos[0] === "string" ? photos[0] : null;
+        return first ? [{ url: first, width: 800, height: 600 }] : [];
+      })(),
     },
   };
 }
@@ -55,12 +53,10 @@ export default async function ListingPage({
 }) {
   const supaUrl = getSupabaseUrl();
   const h = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
-  const res = await fetch(
-    `${supaUrl}/rest/v1/listings?id=eq.${params.id}&status=eq.active&select=*,users!fk_listings_seller(id,display_name,avatar_url,trust_badge,ine_verified,rfc_verified,phone_verified,whatsapp_optin,created_at)`,
-    { headers: h, cache: "no-store" }
-  );
-  const [listing] = res.ok ? await res.json() : [];
+  const listing = await fetchListingForDetailPage(supaUrl, params.id, h);
   if (!listing) notFound();
+
+  const listingActive = String(listing.status ?? "") === "active";
 
   fetch(`${supaUrl}/rest/v1/rpc/increment_view_count`, {
     method: "POST",
@@ -104,6 +100,16 @@ export default async function ListingPage({
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
       <div className="max-w-3xl mx-auto px-4 py-8">
+        {!listingActive && (
+          <div
+            className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+            role="status"
+          >
+            {listingLang === "en"
+              ? "This listing is not published for booking (status is not active). You can still view the details; contact features may be limited."
+              : "Este anuncio no está publicado para reservas (el estado no es activo). Puedes ver los detalles; algunas acciones pueden estar limitadas."}
+          </div>
+        )}
         <ListingPhotoGallery photos={Array.isArray(listing.photo_urls) ? listing.photo_urls : []} title={displayTitle} />
         <div className="flex items-start justify-between mb-3">
           <span className="text-3xl font-bold text-[#1B4332]">{price}</span>
