@@ -22,6 +22,12 @@ function CategoryBarInner() {
     <div className="bg-white border-b border-[#E5E0D8] sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-4 overflow-x-auto">
         <div className="flex gap-1 py-3 min-w-max items-center">
+          <span
+            className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-[#6B7280] pr-2 mr-1 border-r border-[#E5E0D8] shrink-0 self-center max-w-[5.5rem] leading-tight"
+            title={lang === "en" ? "Browse by marketplace category" : "Navega por categoría"}
+          >
+            {lang === "en" ? "Categories" : "Categorías"}
+          </span>
           {MARKETPLACE_CATEGORIES.map((cat) => {
             const enabled = cat.browseEnabled;
             const isActive = activeId === cat.id;

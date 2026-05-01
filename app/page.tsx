@@ -4,7 +4,11 @@ import Hero from "@/components/Hero";
 import CategoryBar from "@/components/CategoryBar";
 import TrustBar from "@/components/TrustBar";
 import { HomeListHeading } from "@/components/home/HomeListHeading";
-import { COLONIAS, COLONIA_RADIUS_KM, nearestColonia, coloniaLabel } from "@/lib/colonias";
+import {
+  CountyServiceCatalogSection,
+  type CountyServiceCatalogRow,
+} from "@/components/home/CountyServiceCatalogSection";
+import { COLONIAS, COLONIA_RADIUS_KM, nearestColonia } from "@/lib/colonias";
 import { getPublicAppUrl } from "@/lib/app-url";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import {
@@ -71,10 +75,26 @@ export default async function HomePage({ searchParams }: Props) {
 
   let cards: any[] = [];
   let searchMode = "sparse";
+  let countyCatalog: CountyServiceCatalogRow[] = [];
 
   try {
     const supaHeaders = getServiceRoleRestHeaders();
     const supaUrl = getSupabaseUrl();
+
+    if (categorySlug === "services" && coloniaKey && coloniaKey !== "otro") {
+      try {
+        const catPath =
+          `/rest/v1/county_service_catalog?county_key=eq.${encodeURIComponent(coloniaKey)}&active=eq.true` +
+          `&select=service_slug,label_en,label_es,blurb_en,blurb_es,strategy_tag&order=sort_order.asc`;
+        const catRes = await fetch(`${supaUrl}${catPath}`, { headers: supaHeaders, cache: "no-store" });
+        if (catRes.ok) {
+          const raw = await catRes.json();
+          if (Array.isArray(raw)) countyCatalog = raw as CountyServiceCatalogRow[];
+        }
+      } catch {
+        /* catalog is optional until migration is applied */
+      }
+    }
 
     if (query) {
       // ── Use hybrid search API when query present ──────────────────────────
@@ -190,8 +210,8 @@ export default async function HomePage({ searchParams }: Props) {
 
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
-      <Hero initialQuery={query} />
       <CategoryBar />
+      <Hero initialQuery={query} />
       {devMissingSupabase && (
         <div className="max-w-5xl mx-auto px-4 pt-4">
           <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -208,6 +228,9 @@ export default async function HomePage({ searchParams }: Props) {
             <div className="h-32 mb-6 rounded-xl bg-[#F4F0EB] animate-pulse" aria-hidden />
           }
         >
+          {categorySlug === "services" && coloniaKey && coloniaKey !== "otro" && (
+            <CountyServiceCatalogSection lang={lang} countyKey={coloniaKey} items={countyCatalog} />
+          )}
           <HomeListHeading
             initialLang={initialLang}
             initialCategory={categorySlug}
