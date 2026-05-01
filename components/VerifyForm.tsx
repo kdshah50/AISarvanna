@@ -16,6 +16,7 @@ export default function VerifyForm() {
   const devOtp = (params.get("otp") ?? "").replace(/\D/g, "").slice(0, 6);
   const returnTo = params.get("returnTo") ?? "";
   const referralCode = (params.get("ref") ?? "").trim();
+  const devTwilioFallback = params.get("devTwilio") === "1";
   const { prefix: phonePrefix, formatted: displayNational } = useMemo(() => nationalDigitsForDisplay(phone), [phone]);
 
   useEffect(() => {
@@ -107,6 +108,14 @@ export default function VerifyForm() {
           </p>
         </div>
         <div className="bg-white rounded-2xl border border-[#E5E0D8] p-8 shadow-sm">
+          {devTwilioFallback && (
+            <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950 text-left leading-relaxed">
+              <strong>Dev:</strong> WhatsApp delivery failed, but a code was still created. It should fill and submit automatically—if not, use{" "}
+              <strong>Resend</strong> and check the terminal running <code className="text-[10px]">npm run dev</code> for{" "}
+              <code className="text-[10px]">[DEV OTP]</code> or clear <code className="text-[10px]">TWILIO_*</code> in{" "}
+              <code className="text-[10px]">.env.local</code>.
+            </div>
+          )}
           <div className="flex gap-2 justify-center mb-6">
             {code.map((digit, i) => (
               <input

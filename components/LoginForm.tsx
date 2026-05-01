@@ -56,7 +56,10 @@ export default function LoginForm() {
       }
       const params = new URLSearchParams({ phone: e164 });
       if (data && typeof data === "object" && "devOtp" in data && data.devOtp) {
-        params.set("otp", String(data.devOtp));
+        params.set("otp", String((data as { devOtp?: string }).devOtp));
+      }
+      if (data && typeof data === "object" && (data as { devTwilioFailed?: boolean }).devTwilioFailed) {
+        params.set("devTwilio", "1");
       }
       if (returnTo) params.set("returnTo", returnTo);
       if (refParam) params.set("ref", refParam);

@@ -176,6 +176,24 @@ export async function POST(req: NextRequest) {
           twilioCode === 63016 || /63016|not a valid WhatsApp user|join.*sandbox/i.test(twilioError)
             ? " Si usas el sandbox de Twilio, envía primero el mensaje de unión al número de prueba."
             : "";
+
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[send-otp] Twilio failed in development — returning devOtp so you can still log in", {
+            requestId,
+            phone,
+            twilioError,
+          });
+          step = "done";
+          return NextResponse.json({
+            ok: true,
+            devOtp: code,
+            requestId,
+            devTwilioFailed: true,
+            devTwilioHint:
+              `WhatsApp did not deliver (${twilioError || "see terminal log"}). The verify page will use the dev code. For local work you can comment out TWILIO_* in .env.local.${sandboxHint}`,
+          });
+        }
+
         return NextResponse.json(
           {
             error: `No se pudo enviar el código OTP${twilioError ? `: ${twilioError}` : ""}${sandboxHint}`,
