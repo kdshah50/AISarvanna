@@ -1,6 +1,9 @@
--- NJ county-scoped service catalog (initial rollout: Middlesex + Monmouth).
--- Drives “what we’re building toward” chips on the home page when ?colonia=<county_key>.
--- Public read for active rows (anon + authenticated).
+/*
+ county_service_catalog — NJ (Middlesex + Monmouth).
+ Drives county service chips on home when ?colonia=<county_key>.
+ Public read for active rows (anon + authenticated).
+ Run only on the AISaravanna Supabase project, not Mexico/other DBs.
+*/
 
 CREATE TABLE IF NOT EXISTS public.county_service_catalog (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
