@@ -55,11 +55,15 @@ Validation lives in `lib/phone.ts` (`isValidAuthPhone`, `normalizeAuthPhone`).
 
 AISaravanna should use its **own Supabase project** (empty or migrated schema), not the same `NEXT_PUBLIC_SUPABASE_URL` / keys as the Mexico site. Same stack (Postgres via Supabase), **different database** — no code fork required, only different env vars on Vercel and in `.env.local`. Run the migrations in `supabase/migrations/` only on the AISaravanna project.
 
+### Fresh project (no `listings` table yet)
+
+If **Table Editor** shows no `public.listings` (or SQL says `relation "public.listings" does not exist`), run **`20260502100000_bootstrap_users_listings_otp.sql`** first in **SQL Editor**. That creates **`users`**, **`listings`** (including **`is_verified`**), and **`otp_codes`**. Then run other migrations (e.g. **`county_service_catalog`**, RLS read policies **`20260423120000_rls_public_read_listings_users.sql`**) as needed.
+
 ### `otp_codes` table
 
-OTP storage for `send-otp` / `verify-otp`. Apply on the **same** Supabase project as `NEXT_PUBLIC_SUPABASE_URL`:
+OTP storage for `send-otp` / `verify-otp`. It is **included in the bootstrap** above; separately you can still apply:
 
-- `supabase/migrations/20260415140000_otp_codes.sql` — creates `public.otp_codes`
+- `supabase/migrations/20260415140000_otp_codes.sql` — creates `public.otp_codes` (skip if bootstrap already ran)
 - `supabase/migrations/20260415141000_otp_codes_ensure_columns.sql` — adds missing columns if an older partial table existed
 
 Run these in **Supabase → SQL Editor** (or your migration pipeline). Pushing to GitHub **does not** apply SQL to Supabase automatically.
