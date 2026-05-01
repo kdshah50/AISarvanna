@@ -32,11 +32,41 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
   }, [params]);
 
   if (!listings.length) {
-    const emptyMsg = lang === "en" ? "No matching listings." : "No hay artículos que coincidan.";
+    const category = (params.get("category") ?? "services").toLowerCase();
+    const colonia = params.get("colonia")?.trim() ?? "";
+
+    let emptyMsg: string;
+    let hint: string | null = null;
+
+    if (lang === "en") {
+      emptyMsg =
+        category === "services"
+          ? "No verified services to show yet."
+          : "No matching listings.";
+      if (category === "services") {
+        hint =
+          "AISaravanna only shows service listings after admin approval (is_verified = true in Supabase, or via your /admin flow). New sign-ups from /unete start as pending. If you chose a county filter, listings must fall within that county’s area—try opening the homepage without a county chip or clear ?colonia= in the URL.";
+      }
+    } else {
+      emptyMsg =
+        category === "services"
+          ? "Aún no hay servicios verificados para mostrar."
+          : "No hay artículos que coincidan.";
+      if (category === "services") {
+        hint =
+          "AISaravanna solo muestra servicios aprobados (is_verified = true en Supabase, o desde /admin). Los registros en /unete quedan pendientes. Si filtraste por condado, los anuncios deben caer en esa zona—prueba sin condado o quita ?colonia= de la URL.";
+      }
+    }
+
     return (
-      <div className="text-center py-16">
+      <div className="text-center py-16 max-w-lg mx-auto px-4">
         <div className="text-5xl mb-4">🔍</div>
-        <p className="text-[#6B7280] text-lg">{emptyMsg}</p>
+        <p className="text-[#374151] text-lg font-medium">{emptyMsg}</p>
+        {hint && (
+          <p className="text-[#6B7280] text-sm mt-4 leading-relaxed text-left bg-[#F4F0EB] rounded-xl p-4 border border-[#E5E0D8]">
+            {hint}
+          </p>
+        )}
       </div>
     );
   }
