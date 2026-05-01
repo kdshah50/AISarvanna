@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     const { data: listings, error: lErr } = await supabase
       .from("listings")
-      .select("id, title_es, price_mxn, location_city, status, is_verified")
+      .select("id, title_es, title_en, price_mxn, location_city, status, is_verified")
       .in("id", ids);
     if (lErr) return NextResponse.json({ error: lErr.message }, { status: 500 });
     const byId = new Map((listings ?? []).map((l) => [l.id, l]));
@@ -48,7 +48,8 @@ export async function GET(req: NextRequest) {
         return {
           listing_id: r.listing_id,
           created_at: r.created_at,
-          title: L.title_es,
+          title_es: L.title_es,
+          title_en: L.title_en,
           price_mxn: L.price_mxn,
           location_city: L.location_city,
           status: L.status,

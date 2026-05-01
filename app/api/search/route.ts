@@ -48,27 +48,34 @@ function parsePesosParam(v: string | null): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
-/** Slider / URL caps (whole MXN) tighten NL-parsed price bounds. */
-function mergeUiPricePesosIntoParsed(
+/** Slider / URL caps (whole USD) tighten NL-parsed price bounds. */
+function mergeUiPriceUsdIntoParsed(
   parsed: ParsedQueryFilters,
-  pminPesos?: number,
-  pmaxPesos?: number,
+  pminUsd?: number,
+  pmaxUsd?: number,
 ): ParsedQueryFilters {
   const out: ParsedQueryFilters = { ...parsed };
-  if (pminPesos != null && pminPesos > 0) {
-    const c = pminPesos * 100;
-    out.minPriceMxnCents = out.minPriceMxnCents != null ? Math.max(out.minPriceMxnCents, c) : c;
+  if (pminUsd != null && pminUsd > 0) {
+    const c = pminUsd * 100;
+    out.minPriceCents = out.minPriceCents != null ? Math.max(out.minPriceCents, c) : c;
   }
-  if (pmaxPesos != null && pmaxPesos > 0) {
-    const c = pmaxPesos * 100;
-    out.maxPriceMxnCents =
-      out.maxPriceMxnCents != null ? Math.min(out.maxPriceMxnCents, c) : c;
+  if (pmaxUsd != null && pmaxUsd > 0) {
+    const c = pmaxUsd * 100;
+    out.maxPriceCents = out.maxPriceCents != null ? Math.min(out.maxPriceCents, c) : c;
   }
   return out;
 }
 
-const SELECT_COLS_FULL = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
-const SELECT_COLS_BASE = "id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
+/** PostgREST `or` filter value: match title in Spanish OR English. */
+function titleIlikeOrValue(sparsePhrase: string): string {
+  const safe = sparsePhrase.replace(/[*%,()]/g, "").trim();
+  if (!safe) return "";
+  const pat = `*${safe}*`;
+  return `(title_es.ilike.${pat},title_en.ilike.${pat})`;
+}
+
+const SELECT_COLS_FULL = "id,title_es,title_en,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
+const SELECT_COLS_BASE = "id,title_es,title_en,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
 
 const USER_EMBED_SELECT =
   "id,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
@@ -115,8 +122,8 @@ export async function GET(req: NextRequest) {
   const lat        = parseFloat(searchParams.get("lat") ?? "NaN");
   const lng        = parseFloat(searchParams.get("lng") ?? "NaN");
   let hasGeo       = !isNaN(lat) && !isNaN(lng);
-  const pminPesos  = parsePesosParam(searchParams.get("pmin"));
-  const pmaxPesos  = parsePesosParam(searchParams.get("pmax"));
+  const pminUsd  = parsePesosParam(searchParams.get("pmin"));
+  const pmaxUsd  = parsePesosParam(searchParams.get("pmax"));
 
   if (!coloniaKey && query) {
     const detected = detectColoniaInQuery(query);
@@ -149,15 +156,15 @@ export async function GET(req: NextRequest) {
   const sparsePhrase = parsed.keywordForSparse.trim() || query;
   const embedPhrase = parsed.textForEmbedding.trim() || query;
 
-  const effective = mergeUiPricePesosIntoParsed(parsed, pminPesos, pmaxPesos);
+  const effective = mergeUiPriceUsdIntoParsed(parsed, pminUsd, pmaxUsd);
 
   function appendPriceToUrl(base: string): string {
     let u = base;
-    if (effective.maxPriceMxnCents != null) {
-      u += `&price_mxn=lte.${effective.maxPriceMxnCents}`;
+    if (effective.maxPriceCents != null) {
+      u += `&price_mxn=lte.${effective.maxPriceCents}`;
     }
-    if (effective.minPriceMxnCents != null) {
-      u += `&price_mxn=gte.${effective.minPriceMxnCents}`;
+    if (effective.minPriceCents != null) {
+      u += `&price_mxn=gte.${effective.minPriceCents}`;
     }
     return u;
   }
@@ -172,13 +179,16 @@ export async function GET(req: NextRequest) {
   if (query) {
     // ── Layer 1: Sparse keyword search ──────────────────────────────────────
     try {
-      const hasPrice = effective.maxPriceMxnCents != null || effective.minPriceMxnCents != null;
+      const hasPrice = effective.maxPriceCents != null || effective.minPriceCents != null;
       const keywordTooShort = !sparsePhrase || sparsePhrase.trim().length < 2;
       const verifyFrag = postgrestActiveListingVerificationFragment(category);
+      const orVal = titleIlikeOrValue(sparsePhrase);
       const core =
         hasPrice && keywordTooShort
           ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`
-          : `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&title_es=ilike.*${encodeURIComponent(sparsePhrase)}*&select=${SELECT_COLS_FULL}&limit=20`;
+          : orVal
+            ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&or=${encodeURIComponent(orVal)}&select=${SELECT_COLS_FULL}&limit=20`
+            : `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=20`;
       const baseUrl = appendPriceToUrl(core);
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
       sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
@@ -269,10 +279,10 @@ export async function GET(req: NextRequest) {
       source: parsed.source,
       keywordForSparse: sparsePhrase,
       textForEmbedding: embedPhrase,
-      maxPriceMxnCents: effective.maxPriceMxnCents ?? null,
-      minPriceMxnCents: effective.minPriceMxnCents ?? null,
-      pminPesos: pminPesos ?? null,
-      pmaxPesos: pmaxPesos ?? null,
+      maxPriceCents: effective.maxPriceCents ?? null,
+      minPriceCents: effective.minPriceCents ?? null,
+      pminUsd: pminUsd ?? null,
+      pmaxUsd: pmaxUsd ?? null,
     },
   };
 

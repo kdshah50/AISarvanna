@@ -6,6 +6,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReviewForm } from "@/components/SellerReviews";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
+import { langFromParam } from "@/lib/i18n-lang";
+import { formatUsdCents } from "@/lib/money";
 
 type BookingData = {
   id: string;
@@ -19,14 +21,6 @@ type BookingData = {
   seller: { displayName: string; avatarUrl: string | null } | null;
   contact: { phone: string | null; whatsappUrl: string | null } | null;
 };
-
-function formatMXN(cents: number): string {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 export default function BookingSuccessPage() {
   return (
@@ -54,6 +48,7 @@ function isTerminalPaymentStatus(ps: string | undefined) {
 
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
+  const lang = langFromParam(searchParams.get("lang"));
   const stripeSessionId = searchParams.get("session_id");
   const bookingId = searchParams.get("id");
   const [data, setData] = useState<BookingData | null>(null);
@@ -202,7 +197,7 @@ function BookingSuccessContent() {
                     <p className="text-xs text-[#6B7280]">Proveedor: {data.seller.displayName}</p>
                   )}
                   <p className="text-xs text-[#6B7280] mt-0.5">
-                    Tarifa pagada: {formatMXN(data.commissionAmountCents)}
+                    Tarifa pagada: {formatUsdCents(data.commissionAmountCents, lang)}
                   </p>
                 </div>
               </div>

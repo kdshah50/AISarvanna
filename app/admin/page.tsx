@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { formatUsdCents } from "@/lib/money";
 
 type Listing = {
   id: string;
@@ -34,8 +35,8 @@ type UserRow = {
   review_avg?: number;
 };
 
-function fmtMXN(c: number) {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(c / 100);
+function fmtMoney(c: number) {
+  return formatUsdCents(c, "es");
 }
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
@@ -323,12 +324,12 @@ export default function AdminPage() {
       return { package_session_count: null as number | null, package_total_price_mxn: null as number | null };
     }
     if (!s || !p) {
-      throw new Error("Complete package sessions and total MXN, or leave both empty");
+      throw new Error("Complete package sessions and total USD, or leave both empty");
     }
     const n = parseInt(s, 10);
     const pesos = parseFloat(p.replace(/,/g, "."));
     if (!Number.isFinite(n) || n < 2 || !Number.isFinite(pesos) || pesos <= 0) {
-      throw new Error("Package: 2+ sessions and positive total MXN, or both empty");
+      throw new Error("Package: 2+ sessions and positive total USD, or both empty");
     }
     return { package_session_count: n, package_total_price_mxn: Math.round(pesos * 100) };
   };
@@ -820,7 +821,7 @@ export default function AdminPage() {
                       <div className="flex flex-wrap gap-4 text-xs text-[#6B7280] mb-2">
                         <span>Comprador: {c.buyer_name}</span>
                         <span>Vendedor: {c.seller_name}</span>
-                        <span>Comisión pagada: {fmtMXN(c.commission_cents)}</span>
+                        <span>Comisión pagada: {fmtMoney(c.commission_cents)}</span>
                       </div>
 
                       {c.details && (
@@ -911,7 +912,7 @@ export default function AdminPage() {
                     </div>
                     <h2 className="font-semibold text-[#1C1917] text-base">{l.title_es}</h2>
                     <p className="text-sm text-[#6B7280] mt-0.5">
-                      📍 {l.location_city} · 💰 {fmtMXN(l.price_mxn)}
+                      📍 {l.location_city} · 💰 {fmtMoney(l.price_mxn)}
                     </p>
                   </div>
 
@@ -938,7 +939,7 @@ export default function AdminPage() {
 
                 {/* Optional package: N sessions for $X total (commission base) */}
                 <div className="mb-4 p-3 rounded-xl bg-amber-50/80 border border-amber-200/80">
-                  <p className="text-xs font-semibold text-amber-950 mb-2">Package (optional) — N sessions, total $ MXN (agreed with provider)</p>
+                  <p className="text-xs font-semibold text-amber-950 mb-2">Package (optional) — N sessions, total $ USD (agreed with provider)</p>
                   <div className="flex flex-wrap gap-3 items-end">
                     <div>
                       <label className="text-[10px] text-amber-900 block">Sessions (≥2)</label>
@@ -952,7 +953,7 @@ export default function AdminPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-amber-900 block">Total MXN</label>
+                      <label className="text-[10px] text-amber-900 block">Total USD</label>
                       <input
                         type="text"
                         inputMode="decimal"

@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { formatUsdWhole } from "@/lib/money";
 
 const MAX_PHOTOS = 10;
 
@@ -16,10 +17,6 @@ const CATEGORIES = [
   { id: "realestate",  icon: "🏡", label: "Bienes Raíces" },
   { id: "sports",      icon: "⚽", label: "Deportes" },
 ];
-
-function fmtMXN(n: number) {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n);
-}
 
 export default function SellModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -333,7 +330,7 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
                   <span className="text-xs text-[#047857]">{aiComparables} artículos similares</span>
                 </div>
                 <p className="text-lg font-bold text-[#065F46]">
-                  Precio sugerido: {fmtMXN(aiSuggestedPrice)}
+                  Precio sugerido (USD): {aiSuggestedPrice != null ? formatUsdWhole(aiSuggestedPrice, "en") : "—"}
                 </p>
                 <p className="text-xs text-[#047857] mt-0.5">
                   Pre-llenado abajo — ajusta si lo deseas
@@ -364,10 +361,10 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
               </div>
               <div>
                 <label className="text-xs font-semibold text-[#6B7280] block mb-1">
-                  PRECIO — MXN $
+                  PRECIO — USD ($)
                   {aiSuggestedPrice && (
                     <span className="ml-2 text-[#059669] font-normal">
-                      · sugerido: {fmtMXN(aiSuggestedPrice)}
+                      · sugerido: {aiSuggestedPrice != null ? formatUsdWhole(aiSuggestedPrice, "en") : "—"}
                     </span>
                   )}
                 </label>

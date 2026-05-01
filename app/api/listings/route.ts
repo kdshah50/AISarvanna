@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { getUserIdFromRequest } from "@/lib/auth-server";
+import { formatUsdCents } from "@/lib/money";
 
 const PRICE_FLOORS: Record<string, number> = {
   electronics:  50000,
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
     if (price_mxn < floor) {
       return NextResponse.json(
-        { error: `Precio muy bajo para esta categoría. Mínimo: $${Math.round(floor / 100).toLocaleString("es-MX")} MXN.` },
+        { error: `Precio muy bajo para esta categoría. Mínimo: ${formatUsdCents(floor, "es")}.` },
         { status: 400 }
       );
     }

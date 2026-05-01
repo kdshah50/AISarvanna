@@ -3,18 +3,11 @@ import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { COLONIAS, COLONIA_KEYS, detectColoniaInQuery, coloniaLabel } from "@/lib/colonias";
 import { langFromParam } from "@/lib/i18n-lang";
+import { formatUsdWhole } from "@/lib/money";
 
-/** Slider top = “no upper cap” in the URL (pmax omitted). Whole MXN pesos. */
-const PRICE_MAX_UI = 5_000_000;
-const PRICE_SLIDER_STEP = 25_000;
-
-function fmtPesos(n: number, lang: "es" | "en") {
-  return new Intl.NumberFormat(lang === "en" ? "en-MX" : "es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
+/** Slider top = “no upper cap” in the URL (pmax omitted). Whole US dollars. */
+const PRICE_MAX_UI = 50_000;
+const PRICE_SLIDER_STEP = 50;
 
 const T = {
   es: {
@@ -26,7 +19,7 @@ const T = {
     btn: "Buscar",
     near: "Cerca de mí",
     chipLabel: "Buscar por condado:",
-    priceTitle: "Precio (MXN)",
+    priceTitle: "Precio (USD)",
     priceMin: "Mín.",
     priceMax: "Máx.",
     noMax: "Sin límite",
@@ -40,7 +33,7 @@ const T = {
     btn: "Search",
     near: "Near me",
     chipLabel: "Search by county:",
-    priceTitle: "Price (MXN)",
+    priceTitle: "Price (USD)",
     priceMin: "Min.",
     priceMax: "Max.",
     noMax: "No max",
@@ -180,7 +173,7 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
             <div>
               <div className="flex justify-between text-[11px] text-white/80 mb-1">
                 <span>{t.priceMin}</span>
-                <span className="font-semibold text-white">{fmtPesos(priceMin, lang)}</span>
+                <span className="font-semibold text-white">{formatUsdWhole(priceMin, lang)}</span>
               </div>
               <input
                 type="range"
@@ -196,7 +189,7 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
               <div className="flex justify-between text-[11px] text-white/80 mb-1">
                 <span>{t.priceMax}</span>
                 <span className="font-semibold text-white">
-                  {priceMax >= PRICE_MAX_UI ? t.noMax : fmtPesos(priceMax, lang)}
+                  {priceMax >= PRICE_MAX_UI ? t.noMax : formatUsdWhole(priceMax, lang)}
                 </span>
               </div>
               <input

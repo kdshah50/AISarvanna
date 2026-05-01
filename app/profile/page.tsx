@@ -7,6 +7,8 @@ import ReferralCard from "@/components/ReferralCard";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
 import SellerStripePayoutCard from "@/components/SellerStripePayoutCard";
 import { LANG_STORAGE_KEY, readStoredLang, type Lang } from "@/lib/i18n-lang";
+import { listingTitle } from "@/lib/listing-language";
+import { formatUsdCents } from "@/lib/money";
 
 type User = {
   id: string;
@@ -26,6 +28,7 @@ type User = {
 type Listing = {
   id: string;
   title_es: string;
+  title_en?: string | null;
   price_mxn: number;
   status: string;
   is_verified: boolean;
@@ -34,8 +37,8 @@ type Listing = {
   created_at: string;
 };
 
-function fmtMXN(c: number) {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(c / 100);
+function fmtPrice(c: number, lang: Lang) {
+  return formatUsdCents(c, lang);
 }
 
 function badgeInfo(badge: string) {
@@ -60,7 +63,13 @@ export default function ProfilePage() {
   const [ineUploading, setIneUploading] = useState(false);
   const [ineMsg, setIneMsg] = useState("");
   const [favorites, setFavorites] = useState<
-    { listing_id: string; title: string; price_mxn: number; location_city: string | null }[]
+    {
+      listing_id: string;
+      title_es: string;
+      title_en?: string | null;
+      price_mxn: number;
+      location_city: string | null;
+    }[]
   >([]);
 
   useEffect(() => {
@@ -402,8 +411,8 @@ export default function ProfilePage() {
               {listings.map(l => (
                 <div key={l.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#F4F0EB]">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#1C1917] truncate">{l.title_es}</p>
-                    <p className="text-xs text-[#6B7280] mt-0.5">{fmtMXN(l.price_mxn)} · {l.location_city}</p>
+                    <p className="text-sm font-semibold text-[#1C1917] truncate">{listingTitle(l, lang)}</p>
+                    <p className="text-xs text-[#6B7280] mt-0.5">{fmtPrice(l.price_mxn, lang)} · {l.location_city}</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${
                     l.is_verified && l.status === "active"
@@ -446,9 +455,9 @@ export default function ProfilePage() {
                     href={`/listing/${f.listing_id}`}
                     className="block p-3 rounded-xl bg-[#F4F0EB] hover:bg-[#EDE8E0] transition-colors"
                   >
-                    <p className="text-sm font-semibold text-[#1C1917] truncate">{f.title}</p>
+                    <p className="text-sm font-semibold text-[#1C1917] truncate">{listingTitle(f, lang)}</p>
                     <p className="text-xs text-[#6B7280]">
-                      {fmtMXN(f.price_mxn)}
+                      {fmtPrice(f.price_mxn, lang)}
                       {f.location_city ? ` · ${f.location_city}` : ""}
                     </p>
                   </Link>

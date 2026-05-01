@@ -1,6 +1,8 @@
 export interface ListingCard {
   id: string;
   title: string;
+  /** Preformatted USD (from server) when present; avoids client/server drift. */
+  price_display?: string;
   price_mxn: number;
   category_id: string;
   condition: string;

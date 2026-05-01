@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
-// 1 point per $1 MXN of commission paid
+// 1 loyalty point per $1 USD of commission paid (amounts stored in cents)
 export const POINTS_PER_MXN = 1;
 
 // Every 5th booking = 15% discount

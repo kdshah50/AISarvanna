@@ -18,6 +18,8 @@ import {
 import { normalizeBrowseCategory } from "@/lib/marketplace-categories";
 import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
 import { langFromParam } from "@/lib/i18n-lang";
+import { listingTitle } from "@/lib/listing-language";
+import { formatUsdCents } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -26,21 +28,14 @@ const NJ_LAT = 40.0583;
 const NJ_LNG = -74.4057;
 const APP_URL = getPublicAppUrl();
 
-function fmtMXN(c: number, lang: "en" | "es") {
-  return new Intl.NumberFormat(lang === "en" ? "en-US" : "es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(c / 100);
-}
-
 function distKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371, d2r = Math.PI / 180;
   const a = Math.sin(((lat2-lat1)*d2r)/2)**2 + Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(((lng2-lng1)*d2r)/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function parsePricePesos(s: string | undefined): number | undefined {
+/** Hero `pmin` / `pmax`: whole US dollars (applied as USD cents on `price_mxn`). */
+function parseWholeUsd(s: string | undefined): number | undefined {
   if (s == null || s === "") return undefined;
   const n = parseInt(s, 10);
   return Number.isFinite(n) && n >= 0 ? n : undefined;
@@ -65,8 +60,8 @@ export default async function HomePage({ searchParams }: Props) {
   const lang        = langFromParam(searchParams?.lang);
   const initialLang = lang;
   const coloniaKey  = searchParams?.colonia ?? "";
-  const pminPesos   = parsePricePesos(searchParams?.pmin);
-  const pmaxPesos   = parsePricePesos(searchParams?.pmax);
+  const pminUsd     = parseWholeUsd(searchParams?.pmin);
+  const pmaxUsd     = parseWholeUsd(searchParams?.pmax);
   let coloniaData   = coloniaKey ? COLONIAS[coloniaKey] : null;
   const userLat     = parseFloat(searchParams?.lat ?? "NaN");
   const userLng     = parseFloat(searchParams?.lng ?? "NaN");
@@ -102,8 +97,8 @@ export default async function HomePage({ searchParams }: Props) {
       const params = new URLSearchParams({ q: query, category: categorySlug });
       if (hasGeo) { params.set("lat", String(userLat)); params.set("lng", String(userLng)); }
       if (coloniaKey) { params.set("colonia", coloniaKey); }
-      if (pminPesos != null && pminPesos > 0) params.set("pmin", String(pminPesos));
-      if (pmaxPesos != null && pmaxPesos > 0) params.set("pmax", String(pmaxPesos));
+      if (pminUsd != null && pminUsd > 0) params.set("pmin", String(pminUsd));
+      if (pmaxUsd != null && pmaxUsd > 0) params.set("pmax", String(pmaxUsd));
       const res = await fetch(`${APP_URL}/api/search?${params}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
@@ -121,8 +116,10 @@ export default async function HomePage({ searchParams }: Props) {
             phone_verified?: boolean | null;
           } | null;
           return {
-            id: row.id, title: row.title_es, price_mxn: row.price_mxn,
-            price_display: fmtMXN(row.price_mxn, lang),
+            id: row.id,
+            title: listingTitle(row, lang),
+            price_mxn: row.price_mxn,
+            price_display: formatUsdCents(row.price_mxn, lang),
             category_id: row.category_id, condition: row.condition,
             location_city: row.location_city ?? "New Jersey",
             colonia_label: near?.label ?? null,
@@ -149,10 +146,10 @@ export default async function HomePage({ searchParams }: Props) {
       // ── No query: show active listings for selected category (verified-only, or + pending services in dev) ───────
       let browsePath =
         `/rest/v1/listings?${postgrestActiveListingVerificationFragment(categorySlug)}&category_id=eq.${categorySlug}`
-        + `&select=id,title_es,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)`
+        + `&select=id,title_es,title_en,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)`
         + `&order=created_at.desc&limit=24`;
-      if (pminPesos != null && pminPesos > 0) browsePath += `&price_mxn=gte.${pminPesos * 100}`;
-      if (pmaxPesos != null && pmaxPesos > 0) browsePath += `&price_mxn=lte.${pmaxPesos * 100}`;
+      if (pminUsd != null && pminUsd > 0) browsePath += `&price_mxn=gte.${pminUsd * 100}`;
+      if (pmaxUsd != null && pmaxUsd > 0) browsePath += `&price_mxn=lte.${pmaxUsd * 100}`;
       const res = await fetch(`${supaUrl}${browsePath}`, { headers: supaHeaders, cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
@@ -179,8 +176,10 @@ export default async function HomePage({ searchParams }: Props) {
             phone_verified?: boolean | null;
           } | null;
           return {
-            id: row.id, title: row.title_es, price_mxn: row.price_mxn,
-            price_display: fmtMXN(row.price_mxn, lang),
+            id: row.id,
+            title: listingTitle(row, lang),
+            price_mxn: row.price_mxn,
+            price_display: formatUsdCents(row.price_mxn, lang),
             category_id: row.category_id, condition: row.condition,
             location_city: row.location_city ?? "New Jersey",
             colonia_label: near?.label ?? null,

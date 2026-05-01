@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { langFromParam } from "@/lib/i18n-lang";
+import { formatUsdCents } from "@/lib/money";
 
 type BookingState = {
   isService: boolean;
@@ -24,14 +27,6 @@ type BookingState = {
   packageTotalMxnCents?: number | null;
 };
 
-function formatMXN(cents: number): string {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
-
 /** Match auth-server: JWT sub is lowercased; `users.id` in DB can differ in letter case. */
 function sameUserId(a: string | null | undefined, b: string | null | undefined) {
   if (a == null || b == null) return false;
@@ -47,6 +42,8 @@ export default function ServiceBookingBlock({
   isService: boolean;
   sellerId: string | null;
 }) {
+  const searchParams = useSearchParams();
+  const lang = langFromParam(searchParams.get("lang"));
   const [meId, setMeId] = useState<string | null | undefined>(undefined);
   const [booking, setBooking] = useState<BookingState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -254,7 +251,7 @@ export default function ServiceBookingBlock({
         {booking.hasPackage && booking.packageSessionCount && booking.packageTotalMxnCents != null && (
           <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-950">
             <strong>Plan aprobado (AISaravanna):</strong> {booking.packageSessionCount} sesiones por{" "}
-            {formatMXN(booking.packageTotalMxnCents)} en total. La tarifa de plataforma abajo se calcula sobre este
+            {formatUsdCents(booking.packageTotalMxnCents!, lang)} en total. La tarifa de plataforma abajo se calcula sobre este
             monto acordado con el proveedor.
           </div>
         )}
@@ -262,7 +259,9 @@ export default function ServiceBookingBlock({
           {booking.hasPackage ? (
             <span>
               El precio publicado en el anuncio es referencia. Pagas la{" "}
-              <strong>tarifa de plataforma</strong> (comisión, mín. $10 MXN) calculada sobre el total del plan aprobado, para
+              <strong>tarifa de plataforma</strong> (
+              {lang === "en" ? "commission, min. $10 USD" : "comisión, mín. $10 USD"})
+              {" "}calculada sobre el total del plan aprobado, para
               desbloquear el WhatsApp del proveedor.
             </span>
           ) : (
@@ -270,12 +269,15 @@ export default function ServiceBookingBlock({
               {isService ? (
                 <>
                   El precio del anuncio lo acuerdas con el proveedor. Aquí solo pagas la{" "}
-                  <strong>tarifa de la plataforma</strong> (~comisión; mín. $10 MXN por Stripe) para desbloquear su WhatsApp.
+                  <strong>tarifa de la plataforma</strong>{" "}
+                  ({lang === "en" ? "~commission; min. $10 USD via Stripe" : "~comisión; mín. $10 USD por Stripe"}) para
+                  desbloquear su WhatsApp.
                 </>
               ) : (
                 <>
                   El precio del artículo lo acuerdas con el vendedor (o pagas fuera de la app). Aquí solo pagas la{" "}
-                  <strong>tarifa de conexión</strong> de AISaravanna (comisión; mín. $10 MXN) para desbloquear su WhatsApp.
+                  <strong>tarifa de conexión</strong> de AISaravanna (
+                  {lang === "en" ? "commission; min. $10 USD" : "comisión; mín. $10 USD"}) para desbloquear su WhatsApp.
                 </>
               )}
             </>
@@ -298,7 +300,7 @@ export default function ServiceBookingBlock({
             {hasPaid ? "✓" : "2"}
           </span>
           <span>
-            Paga la tarifa {isService ? "de servicio" : "de conexión"} ({formatMXN(booking.commissionAmountCents)})
+            Paga la tarifa {isService ? "de servicio" : "de conexión"} ({formatUsdCents(booking.commissionAmountCents, lang)})
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -358,9 +360,8 @@ export default function ServiceBookingBlock({
               <p className="text-xs text-[#6B7280]">
                 Tarifa {isService ? "de servicio" : "de conexión"} ({booking.commissionPct}%)
               </p>
-              <p className="text-lg font-bold text-[#1C1917]">{formatMXN(booking.commissionAmountCents)}</p>
+              <p className="text-lg font-bold text-[#1C1917]">{formatUsdCents(booking.commissionAmountCents, lang)}</p>
             </div>
-            <span className="text-xs text-[#6B7280]">MXN</span>
           </div>
 
           <button
@@ -369,7 +370,7 @@ export default function ServiceBookingBlock({
             onClick={() => void startCheckout()}
             className="w-full py-3 rounded-xl bg-[#1B4332] text-white text-sm font-semibold disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            {busy ? "Procesando…" : `Pagar ${formatMXN(booking.commissionAmountCents)} y obtener contacto`}
+            {busy ? "Procesando…" : `Pagar ${formatUsdCents(booking.commissionAmountCents, lang)} y obtener contacto`}
           </button>
 
           <p className="text-center text-xs text-[#6B7280]">

@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
 
     const { data: listings, error: listingsError } = await supabase
       .from("listings")
-      .select("id,title_es,price_mxn,status,is_verified,category_id,location_city,created_at")
+      .select("id,title_es,title_en,price_mxn,status,is_verified,category_id,location_city,created_at")
       .in("seller_id", idMatchVariantsForIn(userId))
       .order("created_at", { ascending: false });
 

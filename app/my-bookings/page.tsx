@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
 import { LANG_STORAGE_KEY, readStoredLang, type Lang } from "@/lib/i18n-lang";
+import { formatUsdCents } from "@/lib/money";
 
 type Booking = {
   id: string;
@@ -33,14 +34,6 @@ type ReminderRow = {
   delivery_email?: string | null;
   listing_title?: string | null;
 };
-
-function formatMXN(cents: number, lang: "es" | "en") {
-  return new Intl.NumberFormat(lang === "es" ? "es-MX" : "en-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 function timeAgo(dateStr: string, lang: "es" | "en"): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -443,7 +436,7 @@ export default function MyBookingsPage() {
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-[#1B4332]">{formatMXN(b.commission_amount_cents, lang)}</p>
+                      <p className="text-sm font-bold text-[#1B4332]">{formatUsdCents(b.commission_amount_cents, lang)}</p>
                       <p className="text-[10px] text-[#9CA3AF]">{ago}</p>
                     </div>
                   </div>

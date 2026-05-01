@@ -1,4 +1,4 @@
-import { DEFAULT_COMMISSION_PCT, MIN_COMMISSION_CENTS_MXN } from "@/lib/stripe";
+import { DEFAULT_COMMISSION_PCT, MIN_COMMISSION_CENTS_USD } from "@/lib/stripe";
 
 export type CartLineInput = {
   listingId: string;
@@ -56,7 +56,7 @@ export function computeCartPricing(lines: CartLineInput[]): CartPricingBreakdown
     });
   }
 
-  const commissionCents = Math.max(rawCommissionSum, subtotalCents > 0 ? MIN_COMMISSION_CENTS_MXN : 0);
+  const commissionCents = Math.max(rawCommissionSum, subtotalCents > 0 ? MIN_COMMISSION_CENTS_USD : 0);
 
   const taxableCents = subtotalCents + commissionCents;
   const vatCents = Math.round((taxableCents * vatPercent) / 100);

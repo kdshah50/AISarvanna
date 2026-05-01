@@ -33,7 +33,7 @@ SELECT
   'Limpieza hogar — demo servicio NJ (Middlesex)',
   'Home cleaning — NJ demo service (Middlesex)',
   'Anuncio de demostración para Middlesex, New Jersey. Puedes borrarlo en Supabase cuando quieras.',
-  150000,
+  15000,
   'services',
   'new',
   'active',

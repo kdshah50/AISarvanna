@@ -3,11 +3,10 @@ import Link from "next/link";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import Image from "next/image";
 import type { Metadata } from "next";
+import { langFromParam } from "@/lib/i18n-lang";
+import { listingTitle } from "@/lib/listing-language";
+import { formatUsdCents } from "@/lib/money";
 
-
-function fmtMXN(centavos: number) {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(centavos / 100);
-}
 
 function TrustBadge({ badge }: { badge: string }) {
   const map: Record<string, { label: string; color: string; bg: string; desc: string }> = {
@@ -51,9 +50,16 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function SellerPage({ params }: { params: { id: string } }) {
+export default async function SellerPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { lang?: string };
+}) {
   const supaUrl = getSupabaseUrl();
   const h = getServiceRoleRestHeaders();
+  const lang = langFromParam(searchParams?.lang);
 
   // Fetch seller info
   const sellerRes = await fetch(
@@ -65,7 +71,7 @@ export default async function SellerPage({ params }: { params: { id: string } })
 
   // Fetch seller's active listings
   const listingsRes = await fetch(
-    `${supaUrl}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.active&order=created_at.desc&select=id,title_es,price_mxn,category_id,condition,location_city,photo_urls,shipping_available,negotiable`,
+    `${supaUrl}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.active&order=created_at.desc&select=id,title_es,title_en,price_mxn,category_id,condition,location_city,photo_urls,shipping_available,negotiable`,
     { headers: h, cache: "no-store" }
   );
   const listings = listingsRes.ok ? await listingsRes.json() : [];
@@ -155,14 +161,14 @@ export default async function SellerPage({ params }: { params: { id: string } })
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {safeListings.map((listing: any) => (
-                <Link key={listing.id} href={`/listing/${listing.id}`} className="group">
+                <Link key={listing.id} href={lang === "es" ? `/listing/${listing.id}?lang=es` : `/listing/${listing.id}`} className="group">
                   <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E0D8] hover:shadow-lg hover:-translate-y-1 transition-all duration-200">
                     {/* Image */}
                     <div className="relative aspect-[4/3] bg-[#F4F0EB]">
                       {listing.photo_urls?.[0] ? (
                         <Image
                           src={listing.photo_urls[0]}
-                          alt={listing.title_es}
+                          alt={listingTitle(listing, lang)}
                           fill
                           className="object-cover"
                           sizes="(max-width: 640px) 50vw, 33vw"
@@ -181,10 +187,14 @@ export default async function SellerPage({ params }: { params: { id: string } })
                     {/* Info */}
                     <div className="p-3">
                       <p className="text-base font-bold text-[#1C1917] mb-0.5">
-                        {fmtMXN(listing.price_mxn)}
-                        {listing.negotiable && <span className="text-xs font-normal text-[#6B7280] ml-1">· neg.</span>}
+                        {formatUsdCents(listing.price_mxn, lang)}
+                        {listing.negotiable && (
+                          <span className="text-xs font-normal text-[#6B7280] ml-1">
+                            · {lang === "en" ? "neg." : "neg."}
+                          </span>
+                        )}
                       </p>
-                      <p className="text-xs text-[#374151] line-clamp-2 leading-snug">{listing.title_es}</p>
+                      <p className="text-xs text-[#374151] line-clamp-2 leading-snug">{listingTitle(listing, lang)}</p>
                       {listing.location_city && (
                         <p className="text-[10px] text-[#9CA3AF] mt-1">📍 {listing.location_city}</p>
                       )}

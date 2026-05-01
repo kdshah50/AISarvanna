@@ -92,11 +92,11 @@ export async function POST(req: NextRequest) {
     try {
       session = await stripe.checkout.sessions.create({
         mode: "payment",
-        currency: "mxn",
+        currency: "usd",
         line_items: [
           {
             price_data: {
-              currency: "mxn",
+              currency: "usd",
               unit_amount: pricing.subtotalCents,
               product_data: {
                 name: "Artículos (vendedor)",
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
           },
           {
             price_data: {
-              currency: "mxn",
+              currency: "usd",
               unit_amount: pricing.commissionCents,
               product_data: {
                 name: "AISaravanna platform fee (commission)",
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
           },
           {
             price_data: {
-              currency: "mxn",
+              currency: "usd",
               unit_amount: pricing.vatCents,
               product_data: {
                 name: `IVA (${vatPct}%)`,

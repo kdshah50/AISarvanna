@@ -23,8 +23,11 @@ export function getStripe(): Stripe {
 
 export const DEFAULT_COMMISSION_PCT = 10;
 
-/** Stripe minimum charge for MXN is 10.00 MXN (see stripe.com/docs/currencies — minimum charge amounts). */
-export const MIN_COMMISSION_CENTS_MXN = 1000;
+/** Minimum platform commission in USD cents ($10.00). */
+export const MIN_COMMISSION_CENTS_USD = 1000;
+
+/** @deprecated use MIN_COMMISSION_CENTS_USD — same value; Stripe currency is `usd`. */
+export const MIN_COMMISSION_CENTS_MXN = MIN_COMMISSION_CENTS_USD;
 
 /** Checkout Session / webhook may return PaymentIntent as id string or expanded object. */
 export function stripePaymentIntentId(
@@ -45,5 +48,5 @@ export function computeCommissionCents(
   const price = Number(priceMxnCents);
   const pct = Number(commissionPct ?? DEFAULT_COMMISSION_PCT);
   const raw = Math.round((Number.isFinite(price) ? price : 0) * (Number.isFinite(pct) ? pct : DEFAULT_COMMISSION_PCT) / 100);
-  return Math.max(raw, MIN_COMMISSION_CENTS_MXN);
+  return Math.max(raw, MIN_COMMISSION_CENTS_USD);
 }

@@ -16,24 +16,31 @@ import { SellerVerificationBadges } from "@/components/SellerVerificationBadges"
 import { embeddedSellerRow, verificationPropsFromSellerRow } from "@/lib/seller-trust-display";
 import { langFromParam } from "@/lib/i18n-lang";
 import ListingPhotoGallery from "@/components/ListingPhotoGallery";
+import { listingTitle, listingDescription } from "@/lib/listing-language";
+import { formatUsdCents } from "@/lib/money";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const supaUrl = getSupabaseUrl();
   const h = getServiceRoleRestHeaders();
-  const res = await fetch(`${supaUrl}/rest/v1/listings?id=eq.${params.id}&select=title_es,description_es,photo_urls,price_mxn`, {
-    headers: h,
-    cache: "no-store",
-  });
+  const res = await fetch(
+    `${supaUrl}/rest/v1/listings?id=eq.${params.id}&select=title_es,title_en,description_es,description_en,photo_urls,price_mxn`,
+    {
+      headers: h,
+      cache: "no-store",
+    }
+  );
   const [data] = res.ok ? await res.json() : [];
   if (!data) return { title: "Listing not found | AISaravanna" };
 
-  const price = new Intl.NumberFormat("en-US", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(data.price_mxn / 100);
+  const headTitle = listingTitle(data, "en");
+  const headDesc = listingDescription(data, "en");
+  const price = formatUsdCents(data.price_mxn, "en");
   return {
-    title: `${data.title_es} - ${price} | AISaravanna`,
-    description: data.description_es?.slice(0, 160) ?? `${data.title_es} on AISaravanna`,
+    title: `${headTitle} — ${price} | AISaravanna`,
+    description: (headDesc || headTitle).slice(0, 160),
     openGraph: {
-      title: data.title_es,
-      description: data.description_es ?? "",
+      title: headTitle,
+      description: headDesc ?? "",
       images: data.photo_urls?.[0] ? [{ url: data.photo_urls[0], width: 800, height: 600 }] : [],
     },
   };
@@ -85,9 +92,11 @@ export default async function ListingPage({
         : 0;
   }
 
-  const price = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(listing.price_mxn / 100);
-  const isServiceListing = isServicesListing(listing);
   const listingLang = langFromParam(searchParams?.lang);
+  const displayTitle = listingTitle(listing, listingLang);
+  const displayDescription = listingDescription(listing, listingLang);
+  const price = formatUsdCents(listing.price_mxn, listingLang);
+  const isServiceListing = isServicesListing(listing);
   const sellerTrust = verificationPropsFromSellerRow(
     listing.users as Parameters<typeof verificationPropsFromSellerRow>[0]
   );
@@ -95,30 +104,35 @@ export default async function ListingPage({
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <ListingPhotoGallery photos={Array.isArray(listing.photo_urls) ? listing.photo_urls : []} title={listing.title_es} />
+        <ListingPhotoGallery photos={Array.isArray(listing.photo_urls) ? listing.photo_urls : []} title={displayTitle} />
         <div className="flex items-start justify-between mb-3">
-          <span className="text-3xl font-bold text-[#1B4332]">
-            {price}
-            <span className="text-base font-semibold text-[#6B7280] ml-2">MXN</span>
-          </span>
-          {listing.negotiable && <span className="text-sm text-[#6B7280] italic">Negociable</span>}
+          <span className="text-3xl font-bold text-[#1B4332]">{price}</span>
+          {listing.negotiable && (
+            <span className="text-sm text-[#6B7280] italic">
+              {listingLang === "en" ? "Negotiable" : "Negociable"}
+            </span>
+          )}
         </div>
         <div className="flex items-start justify-between gap-3 mb-4">
-          <h1 className="text-xl font-semibold text-[#1C1917] flex-1 min-w-0">{listing.title_es}</h1>
+          <h1 className="text-xl font-semibold text-[#1C1917] flex-1 min-w-0">{displayTitle}</h1>
           <FavoriteButton listingId={params.id} />
         </div>
         {isServiceListing && listing.package_session_count >= 2 && listing.package_total_price_mxn > 0 && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <strong>Approved package:</strong> {listing.package_session_count} sessions for{" "}
-            {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(
-              listing.package_total_price_mxn / 100
-            )}{" "}
-            total (platform fee is calculated on this amount when you book).
+            <strong>{listingLang === "en" ? "Approved package:" : "Paquete aprobado:"}</strong>{" "}
+            {listing.package_session_count}{" "}
+            {listingLang === "en" ? "sessions for" : "sesiones por"}{" "}
+            {formatUsdCents(listing.package_total_price_mxn, listingLang)}{" "}
+            {listingLang === "en"
+              ? "total (platform fee is calculated on this amount when you book)."
+              : "en total (la tarifa de plataforma se calcula sobre este monto al reservar)."}
           </div>
         )}
         <div className="flex flex-wrap gap-2 mb-6">
           {listing.shipping_available && (
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">Envio disponible</span>
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+              {listingLang === "en" ? "Shipping available" : "Envío disponible"}
+            </span>
           )}
           <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#F4F0EB] text-[#6B7280]">{listing.condition}</span>
           {listing.location_city && (
@@ -130,8 +144,12 @@ export default async function ListingPage({
           <WhatsAppCTA listingId={params.id} />
           <p className="text-center text-xs text-[#6B7280] mt-2">
             {isServiceListing
-              ? "Platica primero, paga la tarifa y recibe el WhatsApp del proveedor"
-              : "Escribe por la app, paga la tarifa de conexión y desbloquea el WhatsApp del vendedor"}
+              ? listingLang === "en"
+                ? "Chat first, pay the fee, then get the provider’s WhatsApp."
+                : "Platica primero, paga la tarifa y recibe el WhatsApp del proveedor"
+              : listingLang === "en"
+                ? "Message in the app, pay the connection fee, then unlock the seller’s WhatsApp."
+                : "Escribe por la app, paga la tarifa de conexión y desbloquea el WhatsApp del vendedor"}
           </p>
         </div>
 
@@ -139,17 +157,18 @@ export default async function ListingPage({
           <div className="mb-6 space-y-2">
             <AddToCartButton
               listingId={params.id}
-              titleEs={listing.title_es}
+              titleEs={displayTitle}
               priceMxnCents={Number(listing.price_mxn) || 0}
             />
             <p className="text-xs text-[#6B7280] text-center">
-              O compra por carrito: verás comisión (admin), IVA y total antes de pagar. Con Stripe Connect activo para
-              vendedores, el subtotal va al vendedor; si no, el cargo es a la plataforma (reparto manual).
+              {listingLang === "en"
+                ? "Or use the cart: you’ll see commission (admin), VAT, and total before paying. With Stripe Connect enabled for sellers, subtotal goes to the seller; otherwise the charge is to the platform (manual settlement)."
+                : "O compra por carrito: verás comisión (admin), IVA y total antes de pagar. Con Stripe Connect activo para vendedores, el subtotal va al vendedor; si no, el cargo es a la plataforma (reparto manual)."}
             </p>
           </div>
         )}
 
-        {listing.description_es && <p className="text-[#374151] leading-relaxed mb-6">{listing.description_es}</p>}
+        {displayDescription ? <p className="text-[#374151] leading-relaxed mb-6">{displayDescription}</p> : null}
 
         {/* Payment methods section — hidden until commission collection is enabled via Stripe */}
 
@@ -161,7 +180,9 @@ export default async function ListingPage({
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <span className="font-semibold text-sm">{seller?.display_name ?? "Vendedor"}</span>
+                  <span className="font-semibold text-sm">
+                    {seller?.display_name ?? (listingLang === "en" ? "Seller" : "Vendedor")}
+                  </span>
                   <SellerVerificationBadges
                     trustBadge={sellerTrust.trustBadge}
                     ineVerified={sellerTrust.ineVerified}
@@ -174,7 +195,7 @@ export default async function ListingPage({
                   {reviewCount > 0 && <RatingSummary average={avgRating} total={reviewCount} />}
                 </div>
                 <span className="text-xs text-[#6B7280]">
-                  Miembro desde{" "}
+                  {listingLang === "en" ? "Member since" : "Miembro desde"}{" "}
                   {seller?.created_at ? new Date(seller.created_at).getFullYear() : "—"}
                 </span>
               </div>
@@ -199,7 +220,7 @@ export default async function ListingPage({
         {sellerId && (
           <div className="mt-8">
             <h2 className="font-serif text-xl font-bold text-[#1C1917] mb-4">
-              Reseñas del vendedor
+              {listingLang === "en" ? "Seller reviews" : "Reseñas del vendedor"}
               {reviewCount > 0 && <span className="ml-2 text-sm font-normal text-[#6B7280]">({reviewCount})</span>}
             </h2>
             <SellerReviews sellerId={sellerId} />

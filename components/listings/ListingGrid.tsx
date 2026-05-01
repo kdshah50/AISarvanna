@@ -8,14 +8,7 @@ import { ListingCard } from "@/lib/types";
 import { WhatsAppBadgeLocked } from "@/components/WhatsAppCTA";
 import { SellerVerificationBadges } from "@/components/SellerVerificationBadges";
 import { DEFAULT_LANG, langFromParam, type Lang } from "@/lib/i18n-lang";
-
-function fmtMXN(centavos: number) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-    maximumFractionDigits: 0,
-  }).format(centavos / 100);
-}
+import { formatUsdCents } from "@/lib/money";
 
 type Props = {
   listings: ListingCard[];
@@ -105,8 +98,7 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
 
             <div className="p-4">
               <p className="text-lg font-bold text-[#1B4332] mb-1">
-                {fmtMXN(listing.price_mxn)}
-                <span className="text-xs font-semibold text-[#6B7280] ml-1">MXN</span>
+                {listing.price_display ?? formatUsdCents(listing.price_mxn, lang)}
                 {listing.negotiable && (
                   <span className="text-xs font-normal text-[#6B7280] ml-1">{negotiableHint}</span>
                 )}

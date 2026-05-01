@@ -4,10 +4,9 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
-
-function fmtMXN(centavos: number) {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(centavos / 100);
-}
+import { langFromParam } from "@/lib/i18n-lang";
+import { listingTitle } from "@/lib/listing-language";
+import { formatUsdCents } from "@/lib/money";
 
 function TrustBadge({ badge }: { badge: string }) {
   const styles: Record<string, { label: string; color: string; bg: string; desc: string }> = {
@@ -50,9 +49,16 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function SellerPage({ params }: { params: { id: string } }) {
+export default async function SellerPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { lang?: string };
+}) {
   const supaUrl = getSupabaseUrl();
   const h = getServiceRoleRestHeaders();
+  const lang = langFromParam(searchParams?.lang);
 
   const sellerRes = await fetch(
     `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,ine_verified,rfc_verified,phone_verified,created_at`,
@@ -63,7 +69,7 @@ export default async function SellerPage({ params }: { params: { id: string } })
   if (!seller) notFound();
 
   const listingsRes = await fetch(
-    `${supaUrl}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.active&order=created_at.desc&select=id,title_es,price_mxn,condition,location_city,photo_urls,shipping_available,negotiable`,
+    `${supaUrl}/rest/v1/listings?seller_id=eq.${params.id}&status=eq.active&order=created_at.desc&select=id,title_es,title_en,price_mxn,condition,location_city,photo_urls,shipping_available,negotiable`,
     { headers: h, cache: "no-store" }
   );
   const listings = listingsRes.ok ? await listingsRes.json() : [];
@@ -169,18 +175,24 @@ export default async function SellerPage({ params }: { params: { id: string } })
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {listings.map((listing: any) => (
-                <Link key={listing.id} href={`/listing/${listing.id}`} className="group">
+                <Link key={listing.id} href={lang === "es" ? `/listing/${listing.id}?lang=es` : `/listing/${listing.id}`} className="group">
                   <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E0D8] hover:shadow-lg transition-all duration-200">
                     <div className="relative aspect-[4/3] bg-[#F4F0EB]">
                       {listing.photo_urls?.[0] ? (
-                        <Image src={listing.photo_urls[0]} alt={listing.title_es} fill className="object-cover" sizes="(max-width: 640px) 50vw, 33vw" />
+                        <Image
+                          src={listing.photo_urls[0]}
+                          alt={listingTitle(listing, lang)}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 640px) 50vw, 33vw"
+                        />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-4xl text-[#E5E0D8]">box</div>
                       )}
                     </div>
                     <div className="p-3">
-                      <p className="text-base font-bold text-[#1C1917] mb-0.5">{fmtMXN(listing.price_mxn)}</p>
-                      <p className="text-xs text-[#374151] line-clamp-2 leading-snug">{listing.title_es}</p>
+                      <p className="text-base font-bold text-[#1C1917] mb-0.5">{formatUsdCents(listing.price_mxn, lang)}</p>
+                      <p className="text-xs text-[#374151] line-clamp-2 leading-snug">{listingTitle(listing, lang)}</p>
                       {listing.location_city && <p className="text-[10px] text-[#9CA3AF] mt-1">{listing.location_city}</p>}
                     </div>
                   </div>

@@ -1,16 +1,16 @@
 /**
  * Turn free-text search (EN/ES) into structured hints: price caps/floors + cleaner keyword/embedding strings.
  * Used by /api/search — LLM when OPENAI_API_KEY is set, else regex heuristics.
+ *
+ * Prices are **USD**: whole dollars in NLP output, stored/filtered as **USD cents** (same as `listings.price_mxn`).
  */
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const CHAT_MODEL = process.env.SEARCH_PARSE_MODEL ?? "gpt-4o-mini";
-/** Whole pesos per 1 USD when user says "dollars" / "usd" without MXN. */
-const MXN_PER_USD = Math.max(1, parseFloat(process.env.SEARCH_MXN_PER_USD ?? "17.5") || 17.5);
 
 export type ParsedQueryFilters = {
-  maxPriceMxnCents?: number;
-  minPriceMxnCents?: number;
+  maxPriceCents?: number;
+  minPriceCents?: number;
   /** Short phrase for title ilike (no price junk). */
   keywordForSparse: string;
   /** Fuller line for embedding similarity. */
@@ -18,9 +18,9 @@ export type ParsedQueryFilters = {
   source: "llm" | "regex" | "none";
 };
 
-function pesosToCentavos(wholePesos: number): number {
-  if (!Number.isFinite(wholePesos) || wholePesos < 0) return 0;
-  return Math.round(wholePesos * 100);
+function wholeUsdToCents(wholeUsd: number): number {
+  if (!Number.isFinite(wholeUsd) || wholeUsd < 0) return 0;
+  return Math.round(wholeUsd * 100);
 }
 
 function parseNumber(raw: string): number {
@@ -29,50 +29,44 @@ function parseNumber(raw: string): number {
 }
 
 /**
- * Regex extraction: "under $50", "menos de 500 pesos", "max 900 mxn", "less than 1000 usd".
+ * Regex extraction: "under $50", "less than 200 dollars", "max 900", "hasta 100".
  * Strips matched segments from the query for keyword search.
+ * All monetary amounts are treated as **USD** (whole dollars) for this US marketplace.
  */
 export function regexParseSearchQuery(input: string): ParsedQueryFilters {
   let rest = input.trim();
-  let maxPesos: number | undefined;
-  let minPesos: number | undefined;
+  let maxUsd: number | undefined;
+  let minUsd: number | undefined;
 
   const priceClause =
     /\b(under|below|less\s+than|menos\s+de|hasta|máximo|maximo|max|at\s+most|por\s+menos\s+de)\s*\$?\s*([\d,.]+)\s*(usd|us\s*\$|dollars?|dlls?|mxn|mx\$|pesos?)?\b/gi;
   const priceClauseMin =
     /\b(over|above|more\s+than|más\s+de|al\s+menos|min|minimum|at\s+least|desde)\s*\$?\s*([\d,.]+)\s*(usd|us\s*\$|dollars?|dlls?|mxn|mx\$|pesos?)?\b/gi;
-  const priceLessNumber =
-    /\b<\s*\$?\s*([\d,.]+)\s*(usd|mxn|pesos?)?\b/gi;
+  const priceLessNumber = /\b<\s*\$?\s*([\d,.]+)\s*(usd|mxn|pesos?)?\b/gi;
 
-  const applyMax = (amount: number, unit?: string) => {
-    const u = (unit ?? "").toLowerCase();
-    const isUsd = /\b(usd|us|dollar|dll)\b/.test(u) || u === "$";
-    const pesos = isUsd ? amount * MXN_PER_USD : amount;
-    if (!Number.isFinite(pesos)) return;
-    maxPesos = maxPesos === undefined ? pesos : Math.min(maxPesos, pesos);
+  const applyMax = (amount: number) => {
+    if (!Number.isFinite(amount)) return;
+    maxUsd = maxUsd === undefined ? amount : Math.min(maxUsd, amount);
   };
 
-  const applyMin = (amount: number, unit?: string) => {
-    const u = (unit ?? "").toLowerCase();
-    const isUsd = /\b(usd|us|dollar|dll)\b/.test(u) || u === "$";
-    const pesos = isUsd ? amount * MXN_PER_USD : amount;
-    if (!Number.isFinite(pesos)) return;
-    minPesos = minPesos === undefined ? pesos : Math.max(minPesos, pesos);
+  const applyMin = (amount: number) => {
+    if (!Number.isFinite(amount)) return;
+    minUsd = minUsd === undefined ? amount : Math.max(minUsd, amount);
   };
 
-  rest = rest.replace(priceClause, (_, _op, num, unit) => {
+  rest = rest.replace(priceClause, (_, _op, num) => {
     const amount = parseNumber(num);
-    if (!Number.isNaN(amount)) applyMax(amount, unit);
+    if (!Number.isNaN(amount)) applyMax(amount);
     return " ";
   });
-  rest = rest.replace(priceClauseMin, (_, _op, num, unit) => {
+  rest = rest.replace(priceClauseMin, (_, _op, num) => {
     const amount = parseNumber(num);
-    if (!Number.isNaN(amount)) applyMin(amount, unit);
+    if (!Number.isNaN(amount)) applyMin(amount);
     return " ";
   });
-  rest = rest.replace(priceLessNumber, (_, num, unit) => {
+  rest = rest.replace(priceLessNumber, (_, num) => {
     const amount = parseNumber(num);
-    if (!Number.isNaN(amount)) applyMax(amount, unit);
+    if (!Number.isNaN(amount)) applyMax(amount);
     return " ";
   });
 
@@ -82,33 +76,33 @@ export function regexParseSearchQuery(input: string): ParsedQueryFilters {
   const out: ParsedQueryFilters = {
     keywordForSparse,
     textForEmbedding,
-    source: maxPesos !== undefined || minPesos !== undefined ? "regex" : "none",
+    source: maxUsd !== undefined || minUsd !== undefined ? "regex" : "none",
   };
-  if (maxPesos !== undefined) out.maxPriceMxnCents = pesosToCentavos(maxPesos);
-  if (minPesos !== undefined) out.minPriceMxnCents = pesosToCentavos(minPesos);
+  if (maxUsd !== undefined) out.maxPriceCents = wholeUsdToCents(maxUsd);
+  if (minUsd !== undefined) out.minPriceCents = wholeUsdToCents(minUsd);
   return out;
 }
 
 type LlmExtract = {
   keyword_phrase?: string | null;
   semantic_query?: string | null;
-  max_price_mxn?: number | null;
-  min_price_mxn?: number | null;
+  max_price_usd?: number | null;
+  min_price_usd?: number | null;
 };
 
 async function llmParseSearchQuery(query: string, category: string): Promise<ParsedQueryFilters | null> {
   if (!OPENAI_KEY || !query.trim()) return null;
 
-  const system = `You extract search filters for a Mexican marketplace (listings in Spanish titles/descriptions; users may type English or Spanish).
+  const system = `You extract search filters for a US local marketplace (bilingual English/Spanish listings).
 Return ONLY valid JSON with keys:
-- keyword_phrase: short phrase for SQL ILIKE on listing title (include both languages if helpful, e.g. "niñera babysitter"; omit price words).
+- keyword_phrase: short phrase for SQL ILIKE on listing title (English and/or Spanish; omit price words).
 - semantic_query: one natural sentence for vector search (English or Spanish, preserve intent).
-- max_price_mxn: maximum price in whole MXN pesos (integer), or null if not stated.
-- min_price_mxn: minimum price in whole MXN pesos (integer), or null if not stated.
+- max_price_usd: maximum price in whole US dollars (integer), or null if not stated.
+- min_price_usd: minimum price in whole US dollars (integer), or null if not stated.
 
 Rules:
-- If the user gives USD or "dollars" without saying MXN/pesos, convert to MXN using ${MXN_PER_USD} MXN per USD.
-- "Under $50" with dollar context → max_price_mxn = floor(50 * ${MXN_PER_USD}).
+- All prices are US dollars. "Under $50" or "under 50 dollars" → max_price_usd = 50.
+- "Under 500 pesos" in a US context still treat as dollars if no conversion is explicit (use 500).
 - Ignore availability words like "today", "now", "urgent" for price (leave price null unless a number is given).
 - category hint (for context only): ${category}`;
 
@@ -161,11 +155,11 @@ Rules:
       source: "llm",
     };
 
-    if (parsed.max_price_mxn != null && Number.isFinite(Number(parsed.max_price_mxn))) {
-      out.maxPriceMxnCents = pesosToCentavos(Math.floor(Number(parsed.max_price_mxn)));
+    if (parsed.max_price_usd != null && Number.isFinite(Number(parsed.max_price_usd))) {
+      out.maxPriceCents = wholeUsdToCents(Math.floor(Number(parsed.max_price_usd)));
     }
-    if (parsed.min_price_mxn != null && Number.isFinite(Number(parsed.min_price_mxn))) {
-      out.minPriceMxnCents = pesosToCentavos(Math.ceil(Number(parsed.min_price_mxn)));
+    if (parsed.min_price_usd != null && Number.isFinite(Number(parsed.min_price_usd))) {
+      out.minPriceCents = wholeUsdToCents(Math.ceil(Number(parsed.min_price_usd)));
     }
 
     return out;
@@ -192,29 +186,29 @@ export async function parseSearchQuery(query: string, category: string): Promise
     keywordForSparse: llm.keywordForSparse || trimmed,
     textForEmbedding: llm.textForEmbedding || trimmed,
     source: "llm",
-    maxPriceMxnCents: llm.maxPriceMxnCents ?? rx.maxPriceMxnCents,
-    minPriceMxnCents: llm.minPriceMxnCents ?? rx.minPriceMxnCents,
+    maxPriceCents: llm.maxPriceCents ?? rx.maxPriceCents,
+    minPriceCents: llm.minPriceCents ?? rx.minPriceCents,
   };
 
-  if (merged.maxPriceMxnCents != null && rx.maxPriceMxnCents != null) {
-    merged.maxPriceMxnCents = Math.min(merged.maxPriceMxnCents, rx.maxPriceMxnCents);
+  if (merged.maxPriceCents != null && rx.maxPriceCents != null) {
+    merged.maxPriceCents = Math.min(merged.maxPriceCents, rx.maxPriceCents);
   }
-  if (merged.minPriceMxnCents != null && rx.minPriceMxnCents != null) {
-    merged.minPriceMxnCents = Math.max(merged.minPriceMxnCents, rx.minPriceMxnCents);
+  if (merged.minPriceCents != null && rx.minPriceCents != null) {
+    merged.minPriceCents = Math.max(merged.minPriceCents, rx.minPriceCents);
   }
-  if (merged.maxPriceMxnCents == null) merged.maxPriceMxnCents = rx.maxPriceMxnCents;
-  if (merged.minPriceMxnCents == null) merged.minPriceMxnCents = rx.minPriceMxnCents;
+  if (merged.maxPriceCents == null) merged.maxPriceCents = rx.maxPriceCents;
+  if (merged.minPriceCents == null) merged.minPriceCents = rx.minPriceCents;
 
   return merged;
 }
 
 export function listingMatchesPriceFilters(
-  priceMxn: number | null | undefined,
-  f: Pick<ParsedQueryFilters, "maxPriceMxnCents" | "minPriceMxnCents">
+  priceCents: number | null | undefined,
+  f: Pick<ParsedQueryFilters, "maxPriceCents" | "minPriceCents">
 ): boolean {
-  if (priceMxn == null || !Number.isFinite(Number(priceMxn))) return true;
-  const p = Number(priceMxn);
-  if (f.maxPriceMxnCents != null && p > f.maxPriceMxnCents) return false;
-  if (f.minPriceMxnCents != null && p < f.minPriceMxnCents) return false;
+  if (priceCents == null || !Number.isFinite(Number(priceCents))) return true;
+  const p = Number(priceCents);
+  if (f.maxPriceCents != null && p > f.maxPriceCents) return false;
+  if (f.minPriceCents != null && p < f.minPriceCents) return false;
   return true;
 }

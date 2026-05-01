@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
+import { formatUsdCents } from "@/lib/money";
 
 type Booking = {
   id: string;
@@ -39,10 +40,6 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
   denied: { label: "Denegado", color: "text-red-700", bg: "bg-red-50" },
   refunded: { label: "Reembolsado", color: "text-emerald-700", bg: "bg-emerald-50" },
 };
-
-function formatMXN(cents: number) {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 export default function ClaimsPage() {
   const router = useRouter();
@@ -156,7 +153,7 @@ export default function ClaimsPage() {
               <option value="">Selecciona una reserva</option>
               {eligibleBookings.map(b => (
                 <option key={b.id} value={b.id}>
-                  {b.listing_title} — {b.seller_name} — {formatMXN(b.commission_amount_cents)}
+                  {b.listing_title} — {b.seller_name} — {formatUsdCents(b.commission_amount_cents, "es")}
                 </option>
               ))}
             </select>

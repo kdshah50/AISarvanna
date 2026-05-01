@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest } from "@/lib/auth-server";
-import { getStripe, computeCommissionCents, DEFAULT_COMMISSION_PCT, MIN_COMMISSION_CENTS_MXN } from "@/lib/stripe";
+import { getStripe, computeCommissionCents, DEFAULT_COMMISSION_PCT, MIN_COMMISSION_CENTS_USD } from "@/lib/stripe";
 import { getNextBookingDiscount, redeemDiscount } from "@/lib/loyalty";
 import { isServicesListing } from "@/lib/listing-category";
 import { effectiveListingPriceMxnCents, listingHasActivePackage } from "@/lib/package-pricing";
@@ -81,8 +81,8 @@ export async function POST(req: NextRequest) {
       listing as { price_mxn: number; package_session_count?: number | null; package_total_price_mxn?: number | null }
     );
     let commissionCents = computeCommissionCents(priceBase, commissionPct);
-    if (!Number.isFinite(commissionCents) || commissionCents < MIN_COMMISSION_CENTS_MXN) {
-      commissionCents = MIN_COMMISSION_CENTS_MXN;
+    if (!Number.isFinite(commissionCents) || commissionCents < MIN_COMMISSION_CENTS_USD) {
+      commissionCents = MIN_COMMISSION_CENTS_USD;
     }
 
     // Check for loyalty milestone discount
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       if (reward.discountPct > 0) {
         loyaltyDiscountPct = reward.discountPct;
         loyaltyDiscount = Math.round(commissionCents * loyaltyDiscountPct / 100);
-        commissionCents = Math.max(commissionCents - loyaltyDiscount, MIN_COMMISSION_CENTS_MXN);
+        commissionCents = Math.max(commissionCents - loyaltyDiscount, MIN_COMMISSION_CENTS_USD);
       }
     } catch (loyaltyErr) {
       console.error("[checkout] loyalty check failed (non-fatal)", loyaltyErr);
@@ -145,11 +145,11 @@ export async function POST(req: NextRequest) {
     try {
       session = await stripe.checkout.sessions.create({
       mode: "payment",
-      currency: "mxn",
+      currency: "usd",
       line_items: [
         {
           price_data: {
-            currency: "mxn",
+            currency: "usd",
             unit_amount: commissionCents,
             product_data: {
               name: isPkg
