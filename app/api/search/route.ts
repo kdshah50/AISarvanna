@@ -254,12 +254,18 @@ export async function GET(req: NextRequest) {
       _mode: dense > 0 && sparse > 0 ? "hybrid" : dense > 0 ? "dense" : "sparse",
     }));
 
+  let colonia_relaxed = false;
   if (coloniaRef) {
+    const before = fused;
     fused = fused.filter((l) => {
       const lt = l.location_lat; const ln = l.location_lng;
       if (!lt || !ln) return false;
       return haversineKm(coloniaRef.lat, coloniaRef.lng, lt, ln) <= COLONIA_RADIUS_KM;
     });
+    if (fused.length === 0 && before.length > 0) {
+      fused = before;
+      colonia_relaxed = true;
+    }
   }
 
   fused = fused.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
@@ -289,5 +295,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     results, mode, query, total: results.length, debug,
     colonia: coloniaRef ? { key: coloniaKey, label: coloniaRef.label } : null,
+    colonia_relaxed: colonia_relaxed || undefined,
   });
 }

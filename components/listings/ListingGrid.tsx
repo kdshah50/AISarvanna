@@ -29,6 +29,16 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
     const category = normalizeBrowseCategory(params.get("category"));
     const isServiceVertical = isServiceVerticalCategory(category);
 
+    const hasColonia = Boolean(params.get("colonia"));
+    const hasPrice = Boolean(params.get("pmin") || params.get("pmax"));
+
+    const clearLocationPriceHref = () => {
+      const p = new URLSearchParams(params.toString());
+      for (const k of ["colonia", "lat", "lng", "pmin", "pmax"]) p.delete(k);
+      const s = p.toString();
+      return s ? `/?${s}` : "/";
+    };
+
     let emptyMsg: string;
     let hint: string | null = null;
 
@@ -50,6 +60,14 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
       <div className="text-center py-16 max-w-lg mx-auto px-4">
         <div className="text-5xl mb-4">🔍</div>
         <p className="text-[#374151] text-lg font-medium">{emptyMsg}</p>
+        {(hasColonia || hasPrice) && (
+          <Link
+            href={clearLocationPriceHref()}
+            className="inline-block mt-4 text-sm font-semibold text-[#1B4332] underline"
+          >
+            {lang === "en" ? "Clear county & price filters" : "Quitar filtro de condado y precio"}
+          </Link>
+        )}
         {hint && (
           <p className="text-[#6B7280] text-sm mt-4 leading-relaxed text-left bg-[#F4F0EB] rounded-xl p-4 border border-[#E5E0D8]">
             {hint}
