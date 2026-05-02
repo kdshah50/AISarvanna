@@ -15,9 +15,18 @@ type Props = {
   listings: ListingCard[];
   /** Must match `?lang=` on first paint; then synced from the URL on the client. */
   initialLang?: Lang;
+  /** From server: `process.env.NODE_ENV === "development"`. */
+  isDev?: boolean;
+  /** From server: dev + `SHOW_PENDING_SERVICES=true` — browse already includes unverified services. */
+  devPendingServicesEnabled?: boolean;
 };
 
-export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Props) {
+export default function ListingGrid({
+  listings,
+  initialLang = DEFAULT_LANG,
+  isDev = false,
+  devPendingServicesEnabled = false,
+}: Props) {
   const params = useSearchParams();
   const [lang, setLang] = useState<Lang>(initialLang);
 
@@ -40,21 +49,27 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
     };
 
     let emptyMsg: string;
-    let hint: string | null = null;
-
     if (lang === "en") {
-      emptyMsg = isServiceVertical ? "No verified listings in this category yet." : "No matching listings.";
-      if (isServiceVertical) {
-        hint =
-          "AISaravanna only shows listings after admin approval (is_verified = true in Supabase, or via your /admin flow). For service categories, new sign-ups may start as pending. County filters require listings inside that area—try clearing ?colonia=. For local hybrid-search QA, add SHOW_PENDING_SERVICES=true to .env.local and restart npm run dev to surface pending rows in Beauty, Childcare, Tutoring, and other service categories.";
+      if (isServiceVertical && hasColonia) {
+        emptyMsg =
+          "No approved listings for this service category in your current county filter.";
+      } else {
+        emptyMsg = isServiceVertical
+          ? "No approved listings in this service category yet."
+          : "No matching listings.";
       }
     } else {
-      emptyMsg = isServiceVertical ? "Aún no hay anuncios verificados en esta categoría." : "No hay artículos que coincidan.";
-      if (isServiceVertical) {
-        hint =
-          "AISaravanna solo muestra anuncios aprobados (is_verified = true en Supabase, o desde /admin). Los servicios pueden quedar pendientes al principio. Si filtraste por condado, quita ?colonia= para probar. En local, SHOW_PENDING_SERVICES=true en .env.local y reinicia npm run dev para ver pendientes en Belleza, Tutorías, etc.";
+      if (isServiceVertical && hasColonia) {
+        emptyMsg =
+          "No hay anuncios aprobados en esta categoría con el filtro de condado actual.";
+      } else {
+        emptyMsg = isServiceVertical
+          ? "Aún no hay anuncios aprobados en esta categoría de servicios."
+          : "No hay artículos que coincidan.";
       }
     }
+
+    const showLocalPendingTip = isDev && isServiceVertical && !devPendingServicesEnabled;
 
     return (
       <div className="text-center py-16 max-w-lg mx-auto px-4">
@@ -68,10 +83,71 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
             {lang === "en" ? "Clear county & price filters" : "Quitar filtro de condado y precio"}
           </Link>
         )}
-        {hint && (
-          <p className="text-[#6B7280] text-sm mt-4 leading-relaxed text-left bg-[#F4F0EB] rounded-xl p-4 border border-[#E5E0D8]">
-            {hint}
-          </p>
+        {isServiceVertical && (
+          <div className="text-[#6B7280] text-sm mt-5 text-left bg-[#F4F0EB] rounded-xl p-4 border border-[#E5E0D8] space-y-2">
+            <p className="font-medium text-[#374151]">
+              {lang === "en" ? "Why is this empty?" : "¿Por qué está vacío?"}
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5 leading-relaxed">
+              <li>
+                {lang === "en" ? (
+                  <>
+                    The site only shows services that are <strong>approved</strong> (
+                    <code className="text-xs bg-white px-1 rounded">is_verified = true</code> in
+                    Supabase). Approve on{" "}
+                    <Link href="/admin" className="text-[#1B4332] font-semibold underline">
+                      /admin
+                    </Link>{" "}
+                    (needs <code className="text-xs bg-white px-1 rounded">ADMIN_PIN</code>).
+                  </>
+                ) : (
+                  <>
+                    Solo se muestran servicios <strong>aprobados</strong> (
+                    <code className="text-xs bg-white px-1 rounded">is_verified = true</code> en
+                    Supabase). Aprueba en{" "}
+                    <Link href="/admin" className="text-[#1B4332] font-semibold underline">
+                      /admin
+                    </Link>{" "}
+                    (requiere <code className="text-xs bg-white px-1 rounded">ADMIN_PIN</code>).
+                  </>
+                )}
+              </li>
+              <li>
+                {lang === "en" ? (
+                  <>
+                    For demo data, run <code className="text-xs bg-white px-1 rounded">supabase/seed-demo-service-listings.sql</code> in the SQL Editor (verified listings).
+                  </>
+                ) : (
+                  <>
+                    Para datos de prueba, ejecuta{" "}
+                    <code className="text-xs bg-white px-1 rounded">supabase/seed-demo-service-listings.sql</code> en el
+                    editor SQL (anuncios verificados).
+                  </>
+                )}
+              </li>
+              {showLocalPendingTip && (
+                <li>
+                  {lang === "en" ? (
+                    <>
+                      <strong>Local dev:</strong> add{" "}
+                      <code className="text-xs bg-white px-1 rounded">SHOW_PENDING_SERVICES=true</code> to{" "}
+                      <code className="text-xs bg-white px-1 rounded">.env.local</code> and restart{" "}
+                      <code className="text-xs bg-white px-1 rounded">npm run dev</code> to list{" "}
+                      <em>pending</em> service rows without approving.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Desarrollo local:</strong> añade{" "}
+                      <code className="text-xs bg-white px-1 rounded">SHOW_PENDING_SERVICES=true</code> en{" "}
+                      <code className="text-xs bg-white px-1 rounded">.env.local</code> y reinicia{" "}
+                      <code className="text-xs bg-white px-1 rounded">npm run dev</code> para ver anuncios{" "}
+                      <em>pendientes</em> sin aprobar.
+                    </>
+                  )}
+                </li>
+              )}
+            </ul>
+          </div>
         )}
       </div>
     );

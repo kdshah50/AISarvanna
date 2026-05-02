@@ -22,6 +22,8 @@ type Props = {
   initialLang: Lang;
   mapCenterLat: number;
   mapCenterLng: number;
+  isDev?: boolean;
+  devPendingServicesEnabled?: boolean;
 };
 
 export default function ListingBrowseSection({
@@ -29,6 +31,8 @@ export default function ListingBrowseSection({
   initialLang,
   mapCenterLat,
   mapCenterLng,
+  isDev,
+  devPendingServicesEnabled,
 }: Props) {
   const params = useSearchParams();
   const [mode, setMode] = useState<"list" | "map">("list");
@@ -83,7 +87,12 @@ export default function ListingBrowseSection({
       </div>
 
       {mode === "list" ? (
-        <ListingGrid listings={listings} initialLang={initialLang} />
+        <ListingGrid
+          listings={listings}
+          initialLang={initialLang}
+          isDev={isDev}
+          devPendingServicesEnabled={devPendingServicesEnabled}
+        />
       ) : (
         <>
           {withCoords.length === 0 ? (

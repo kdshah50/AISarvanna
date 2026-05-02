@@ -273,6 +273,8 @@ export default async function HomePage({ searchParams }: Props) {
           initialLang={initialLang}
           mapCenterLat={refLat}
           mapCenterLng={refLng}
+          isDev={process.env.NODE_ENV === "development"}
+          devPendingServicesEnabled={devPendingServices}
         />
       </section>
       <TrustBar />
