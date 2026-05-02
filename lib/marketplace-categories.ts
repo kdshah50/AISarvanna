@@ -37,6 +37,11 @@ const ENABLED_IDS = new Set(
   MARKETPLACE_CATEGORIES.filter((c) => c.browseEnabled).map((c) => c.id)
 );
 
+/** True when `id` is a valid top-level browse slug (lowercase `category_id`). */
+export function isBrowseEnabledCategoryId(id: string): boolean {
+  return ENABLED_IDS.has(id.trim().toLowerCase());
+}
+
 /** Safe slug for PostgREST `category_id=eq.<slug>`. */
 export function normalizeBrowseCategory(raw: string | undefined | null): string {
   const s = (raw ?? "services").trim().toLowerCase();

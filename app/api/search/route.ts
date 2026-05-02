@@ -11,7 +11,7 @@ import {
   type ParsedQueryFilters,
 } from "@/lib/search-query-parse";
 import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
-import { isServiceVerticalCategory } from "@/lib/marketplace-categories";
+import { isBrowseEnabledCategoryId } from "@/lib/marketplace-categories";
 import { cosineSimilarity, parseStoredEmbedding, similarityScore01 } from "@/lib/search-embedding";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
@@ -236,11 +236,12 @@ export async function GET(req: NextRequest) {
 
   const effective = mergeUiPriceUsdIntoParsed(parsed, pminUsd, pmaxUsd);
 
-  /** LLM routing: "services" tab + clear fitness/tutoring/… hint searches that vertical's listings. */
+  /** LLM routing from generic Services tab → any browse vertical (Beauty, Electronics, Fitness, …). */
   const searchCategory =
     browseCategory === "services" &&
     effective.searchCategoryHint &&
-    isServiceVerticalCategory(effective.searchCategoryHint)
+    isBrowseEnabledCategoryId(effective.searchCategoryHint) &&
+    effective.searchCategoryHint !== "services"
       ? effective.searchCategoryHint
       : browseCategory;
 
