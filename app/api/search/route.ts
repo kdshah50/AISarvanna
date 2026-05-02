@@ -6,6 +6,7 @@ import {
   listingMatchesPriceFilters,
   parseSearchQuery,
   postgrestSparseKeywordClause,
+  postgrestSparseKeywordClauseLoose,
   type ParsedQueryFilters,
 } from "@/lib/search-query-parse";
 import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
@@ -210,6 +211,8 @@ export async function GET(req: NextRequest) {
   let denseRpcReturned = 0;
   let denseCosineCandidates = 0;
   let denseRpcHttpOk = false;
+  let sparseHttpStatus: number | null = null;
+  let sparseKeywordStrategy: "strict" | "loose" | "browse" | "none" = "none";
 
   let parsed: ParsedQueryFilters = {
     keywordForSparse: query,
@@ -242,11 +245,16 @@ export async function GET(req: NextRequest) {
     return u;
   }
 
-  async function fetchWithFallback(url: string, selectFull: string, selectBase: string) {
-    let res = await fetch(url.replace(selectFull, selectFull), { headers, cache: "no-store" });
-    if (res.ok) return res.json();
-    res = await fetch(url.replace(selectFull, selectBase), { headers, cache: "no-store" });
-    return res.ok ? res.json() : [];
+  async function listingRowsFromUrl(baseCompleteUrl: string): Promise<{ rows: any[]; status: number }> {
+    let res = await fetch(baseCompleteUrl, { headers, cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      return { rows: Array.isArray(data) ? data : [], status: res.status };
+    }
+    const altUrl = baseCompleteUrl.replace(SELECT_COLS_FULL, SELECT_COLS_BASE);
+    res = await fetch(altUrl, { headers, cache: "no-store" });
+    const data = res.ok ? await res.json() : [];
+    return { rows: Array.isArray(data) ? data : [], status: res.status };
   }
 
   if (query) {
@@ -266,9 +274,30 @@ export async function GET(req: NextRequest) {
           : sparseParam
             ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&${sparseParam}select=${SELECT_COLS_FULL}&limit=48`
             : `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=20`;
-      const baseUrl = appendPriceToUrl(core);
-      sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
+      sparseKeywordStrategy =
+        sparseParam.length > 0 ? "strict" : "browse";
+      const strictUrl = appendPriceToUrl(core);
+      const fetched = await listingRowsFromUrl(strictUrl);
+      sparseRows = fetched.rows;
+      sparseHttpStatus = fetched.status;
       sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
+
+      const usedKeywordClause = sparseParam.length > 0;
+      const looseKw = postgrestSparseKeywordClauseLoose(sparsePhrase);
+      const clauseDiffers =
+        looseKw &&
+        sparseKw &&
+        (looseKw.dimension !== sparseKw.dimension || looseKw.clause !== sparseKw.clause);
+      if (usedKeywordClause && sparseRows.length === 0 && fetched.status < 400 && looseKw != null && clauseDiffers) {
+        const looseParam = `${looseKw.dimension}=${encodeURIComponent(looseKw.clause)}&`;
+        const coreLoose = `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&${looseParam}select=${SELECT_COLS_FULL}&limit=48`;
+        const looseFetched = await listingRowsFromUrl(appendPriceToUrl(coreLoose));
+        sparseKeywordStrategy = "loose";
+        sparseHttpStatus = looseFetched.status;
+        sparseRows = looseFetched.rows.filter((l) =>
+          listingMatchesPriceFilters(l.price_mxn, effective),
+        );
+      }
     } catch {}
 
     // ── Layer 2: Dense semantic — Supabase RPC (if present) + cosine on stored JSONB embeddings ──
@@ -307,7 +336,10 @@ export async function GET(req: NextRequest) {
       const verifyFrag = postgrestActiveListingVerificationFragment(category);
       let baseUrl = `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
       baseUrl = appendPriceToUrl(baseUrl);
-      sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
+      sparseKeywordStrategy = "browse";
+      const browsed = await listingRowsFromUrl(baseUrl);
+      sparseRows = browsed.rows;
+      sparseHttpStatus = browsed.status;
       sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
     } catch {}
   }
@@ -373,6 +405,8 @@ export async function GET(req: NextRequest) {
           : "empty";
   const debug = {
     hasOpenAIKey: !!OPENAI_KEY,
+    sparseHttpStatus,
+    sparseKeywordStrategy,
     sparseCount: sparseRows.length,
     denseCount: denseRows.length,
     denseRpcHttpOk,

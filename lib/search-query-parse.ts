@@ -223,6 +223,41 @@ export function postgrestSparseKeywordClause(sparsePhrase: string): {
   return { dimension: "and", clause: `(${parts.join(",")})` };
 }
 
+/**
+ * Loose recall: listing matches if **any** significant token hits any title/description column.
+ * Used when strict `postgrestSparseKeywordClause` returns no rows (AND-of-token groups is too tight).
+ */
+export function postgrestSparseKeywordClauseLoose(sparsePhrase: string): {
+  dimension: "or";
+  clause: string;
+} | null {
+  const trimmed = sparsePhrase.trim();
+  if (!trimmed || trimmed.length < 2) return null;
+
+  const tokens = trimmed
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.replace(/[^a-záéíóúüñ0-9-]/gi, ""))
+    .filter((t) => t.length >= 3 && !SPARSE_TOKEN_STOPWORDS.has(t));
+  const unique = [...new Set(tokens)].slice(0, 8);
+  const fields = ["title_es", "title_en", "description_es", "description_en"] as const;
+
+  const branches: string[] = [];
+  if (unique.length === 0) {
+    const safe = trimmed.replace(/[*%,()]/g, "").trim();
+    if (!safe) return null;
+    const pat = escIlike(safe);
+    for (const f of fields) branches.push(`${f}.ilike.${pat}`);
+  } else {
+    for (const tok of unique) {
+      const pat = escIlike(tok);
+      for (const f of fields) branches.push(`${f}.ilike.${pat}`);
+    }
+  }
+  if (branches.length === 0) return null;
+  return { dimension: "or", clause: `(${branches.join(",")})` };
+}
+
 /** Merge LLM + regex: regex can fill price if LLM omitted; prefer LLM keyword/semantic when present. */
 export async function parseSearchQuery(query: string, category: string): Promise<ParsedQueryFilters> {
   const trimmed = query.trim();
