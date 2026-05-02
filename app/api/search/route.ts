@@ -9,6 +9,7 @@ import {
   type ParsedQueryFilters,
 } from "@/lib/search-query-parse";
 import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
+import { cosineSimilarity, parseStoredEmbedding, similarityScore01 } from "@/lib/search-embedding";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 
@@ -69,6 +70,12 @@ function mergeUiPriceUsdIntoParsed(
 
 const SELECT_COLS_FULL = "id,title_es,title_en,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
 const SELECT_COLS_BASE = "id,title_es,title_en,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
+const LISTING_CORE_COLS_NO_USER =
+  "id,title_es,title_en,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,embedding";
+
+const SELECT_EMBED_FULL =
+  LISTING_CORE_COLS_NO_USER +
+  ",users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
 
 const USER_EMBED_SELECT =
   "id,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
@@ -105,6 +112,76 @@ async function enrichResultsWithSellerUsers(
   }
 }
 
+function numSim(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function denseThresholdSlice(rows: any[], effective: ParsedQueryFilters): any[] {
+  const priced = rows
+    .map((row) => {
+      const clone = { ...row };
+      delete clone.embedding;
+      return clone;
+    })
+    .filter((l: any) => listingMatchesPriceFilters(l.price_mxn, effective));
+  if (!priced.length) return [];
+  const best = Math.max(...priced.map((l: any) => numSim(l.similarity)));
+  const threshold = Math.max(ABS_THRESHOLD, best * REL_FACTOR);
+  return priced.filter((l: any) => numSim(l.similarity) >= threshold);
+}
+
+function mergeDensePreferHigherSimilarity(primary: any[], secondary: any[]): any[] {
+  const map = new Map<string, any>();
+  const consider = (row: any) => {
+    if (!row?.id) return;
+    const cur = map.get(row.id);
+    const s = numSim(row.similarity);
+    if (!cur || s >= numSim(cur.similarity)) {
+      const { embedding: _emb, ...rest } = row;
+      map.set(row.id, rest);
+    }
+  };
+  for (const row of primary) consider(row);
+  for (const row of secondary) consider(row);
+  return [...map.values()];
+}
+
+async function denseRowsFromStoredEmbeddingsCosine(
+  queryVec: number[],
+  verifyFrag: string,
+  category: string,
+  supaUrl: string,
+  hdrs: Record<string, string>,
+): Promise<any[]> {
+  const prefix =
+    `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${encodeURIComponent(category)}` +
+    "&embedding=not.is.null";
+  let res = await fetch(
+    `${prefix}&select=${encodeURIComponent(SELECT_EMBED_FULL)}&limit=240`,
+    { headers: hdrs, cache: "no-store" },
+  );
+  if (!res.ok) {
+    res = await fetch(
+      `${prefix}&select=${encodeURIComponent(LISTING_CORE_COLS_NO_USER)}&limit=240`,
+      { headers: hdrs, cache: "no-store" },
+    );
+  }
+  if (!res.ok) return [];
+  const raw = await res.json();
+  const rows: any[] = Array.isArray(raw) ? raw : [];
+  const out: any[] = [];
+  for (const row of rows) {
+    const embArr = parseStoredEmbedding(row.embedding);
+    if (!embArr || embArr.length !== queryVec.length) continue;
+    const cosine = cosineSimilarity(queryVec, embArr);
+    const sim01 = similarityScore01(cosine);
+    const { embedding: _e, ...rest } = row;
+    out.push({ ...rest, similarity: sim01 });
+  }
+  return out;
+}
+
 export async function GET(req: NextRequest) {
   const supaUrl = getSupabaseUrl();
   const headers = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
@@ -130,6 +207,9 @@ export async function GET(req: NextRequest) {
 
   let sparseRows: any[] = [];
   let denseRows:  any[] = [];
+  let denseRpcReturned = 0;
+  let denseCosineCandidates = 0;
+  let denseRpcHttpOk = false;
 
   let parsed: ParsedQueryFilters = {
     keywordForSparse: query,
@@ -191,23 +271,33 @@ export async function GET(req: NextRequest) {
       sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
     } catch {}
 
-    // ── Layer 2: Dense semantic search ──────────────────────────────────────
+    // ── Layer 2: Dense semantic — Supabase RPC (if present) + cosine on stored JSONB embeddings ──
     try {
       const vec = await embedQuery(embedPhrase);
       if (vec) {
+        const verifyFrag = postgrestActiveListingVerificationFragment(category);
+        let rpcRows: any[] = [];
         const dr = await fetch(`${supaUrl}/rest/v1/rpc/search_listings_dense`, {
-          method: "POST", headers,
-          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 40 }),
+          method: "POST",
+          headers,
+          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 80 }),
           cache: "no-store",
         });
+        denseRpcHttpOk = dr.ok;
         const data = dr.ok ? await dr.json() : [];
         if (Array.isArray(data) && data.length > 0) {
-          const bestScore = Math.max(...data.map((l: any) => l.similarity ?? 0));
-          const threshold = Math.max(ABS_THRESHOLD, bestScore * REL_FACTOR);
-          denseRows = data
-            .filter((l: any) => (l.similarity ?? 0) >= threshold)
-            .filter((l: any) => listingMatchesPriceFilters(l.price_mxn, effective));
+          denseRpcReturned = data.length;
+          rpcRows = data.map((row: any) => {
+            const { embedding: _e, ...rest } = row;
+            return rest;
+          });
         }
+
+        const cosineRows = await denseRowsFromStoredEmbeddingsCosine(vec, verifyFrag, category, supaUrl, headers);
+        denseCosineCandidates = cosineRows.length;
+
+        const merged = mergeDensePreferHigherSimilarity(rpcRows, cosineRows);
+        denseRows = denseThresholdSlice(merged, effective);
       }
     } catch {}
 
@@ -273,11 +363,21 @@ export async function GET(req: NextRequest) {
 
   await enrichResultsWithSellerUsers(results, supaUrl, headers);
 
-  const mode = denseRows.length > 0 ? "hybrid" : sparseRows.length > 0 ? "sparse" : "empty";
+  const mode =
+    denseRows.length > 0 && sparseRows.length > 0
+      ? "hybrid"
+      : denseRows.length > 0
+        ? "dense"
+        : sparseRows.length > 0
+          ? "sparse"
+          : "empty";
   const debug = {
     hasOpenAIKey: !!OPENAI_KEY,
     sparseCount: sparseRows.length,
     denseCount: denseRows.length,
+    denseRpcHttpOk,
+    denseRpcReturned,
+    denseCosineCandidates,
     parse: {
       source: parsed.source,
       keywordForSparse: sparsePhrase,

@@ -71,7 +71,7 @@ export function regexParseSearchQuery(input: string): ParsedQueryFilters {
   });
 
   const keywordForSparse = rest.replace(/\s+/g, " ").trim() || input.trim();
-  const textForEmbedding = input.trim();
+  const textForEmbedding = keywordForSparse.trim() ? keywordForSparse.trim() : input.trim();
 
   const out: ParsedQueryFilters = {
     keywordForSparse,
@@ -96,7 +96,7 @@ async function llmParseSearchQuery(query: string, category: string): Promise<Par
   const system = `You extract search filters for a US local marketplace (bilingual English/Spanish listings).
 Return ONLY valid JSON with keys:
 - keyword_phrase: short phrase for SQL ILIKE on listing title (English and/or Spanish; omit price words).
-- semantic_query: one natural sentence for vector search (English or Spanish, preserve intent).
+- semantic_query: one natural sentence for vector search ONLY about service/item/intent — **omit** price caps like "under $200" unless the numeric budget is central to semantics.
 - max_price_usd: maximum price in whole US dollars (integer), or null if not stated.
 - min_price_usd: minimum price in whole US dollars (integer), or null if not stated.
 
