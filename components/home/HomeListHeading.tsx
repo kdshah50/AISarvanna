@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ColoniaInfo } from "@/lib/colonias";
-import { categoryLabel, normalizeBrowseCategory } from "@/lib/marketplace-categories";
+import { categoryLabel, normalizeBrowseCategory, isServiceVerticalCategory } from "@/lib/marketplace-categories";
 import { langFromParam, type Lang } from "@/lib/i18n-lang";
 
 type Props = {
@@ -46,7 +46,7 @@ export function HomeListHeading({
   }, [params]);
 
   const catWord = categoryLabel(categorySlug, lang);
-  const isServices = categorySlug === "services";
+  const isServiceVertical = isServiceVerticalCategory(categorySlug);
   const placeLabel = coloniaData
     ? lang === "en"
       ? coloniaData.label_en
@@ -67,10 +67,10 @@ export function HomeListHeading({
             ? `${catWord} in ${placeLabel}`
             : `${catWord} en ${placeLabel}`
           : lang === "en"
-            ? isServices
+            ? isServiceVertical
               ? "Local Services — New Jersey"
               : `${catWord} — New Jersey`
-            : isServices
+            : isServiceVertical
               ? "Servicios locales — Nueva Jersey"
               : `${catWord} — Nueva Jersey`;
 
@@ -99,7 +99,7 @@ export function HomeListHeading({
           </span>
           <span className="text-xs px-3 py-1.5 rounded-full bg-[#F4F0EB] text-[#6B7280]">
             {cardCount}{" "}
-            {lang === "en" ? (isServices ? "services" : "listings") : isServices ? "servicios" : "anuncios"}
+            {lang === "en" ? (isServiceVertical ? "services" : "listings") : isServiceVertical ? "servicios" : "anuncios"}
           </span>
         </div>
       </div>

@@ -228,8 +228,9 @@ export default async function HomePage({ searchParams }: Props) {
       {devPendingServices && (
         <div className="max-w-5xl mx-auto px-4 pt-4">
           <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
-            <strong>Dev only:</strong> <code className="text-xs">SHOW_PENDING_SERVICES=true</code> — service listings
-            include <em>unverified</em> rows. Production still requires admin verification.
+            <strong>Dev only:</strong> <code className="text-xs">SHOW_PENDING_SERVICES=true</code> — listings in{" "}
+            <strong>service</strong> categories (Beauty, Childcare, Tutoring, etc.) may include <em>unverified</em> rows.
+            Production still requires admin verification.
           </div>
         </div>
       )}

@@ -3,20 +3,17 @@ import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { formatUsdWhole } from "@/lib/money";
+import { MARKETPLACE_CATEGORIES, isServiceVerticalCategory } from "@/lib/marketplace-categories";
 
 const MAX_PHOTOS = 10;
 
 type PhotoItem = { file: File; preview: string };
 
-const CATEGORIES = [
-  { id: "electronics", icon: "📱", label: "Electrónica" },
-  { id: "vehicles",    icon: "🚗", label: "Vehículos" },
-  { id: "fashion",     icon: "👗", label: "Moda" },
-  { id: "home",        icon: "🏠", label: "Hogar" },
-  { id: "services",    icon: "🔧", label: "Servicios" },
-  { id: "realestate",  icon: "🏡", label: "Bienes Raíces" },
-  { id: "sports",      icon: "⚽", label: "Deportes" },
-];
+const CATEGORIES = MARKETPLACE_CATEGORIES.filter((c) => c.browseEnabled).map((c) => ({
+  id: c.id,
+  icon: c.icon,
+  label: c.label.es,
+}));
 
 export default function SellModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -86,7 +83,7 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          category: category === "services" ? "services" : category,
+          category: isServiceVerticalCategory(category) ? "services" : category,
           condition: "good",
           title: title.trim() || "artículo",
           location_state: "CDMX",

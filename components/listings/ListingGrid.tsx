@@ -9,6 +9,7 @@ import { WhatsAppBadgeLocked } from "@/components/WhatsAppCTA";
 import { SellerVerificationBadges } from "@/components/SellerVerificationBadges";
 import { DEFAULT_LANG, langFromParam, type Lang } from "@/lib/i18n-lang";
 import { formatUsdCents } from "@/lib/money";
+import { isServiceVerticalCategory, normalizeBrowseCategory } from "@/lib/marketplace-categories";
 
 type Props = {
   listings: ListingCard[];
@@ -25,29 +26,23 @@ export default function ListingGrid({ listings, initialLang = DEFAULT_LANG }: Pr
   }, [params]);
 
   if (!listings.length) {
-    const category = (params.get("category") ?? "services").toLowerCase();
-    const colonia = params.get("colonia")?.trim() ?? "";
+    const category = normalizeBrowseCategory(params.get("category"));
+    const isServiceVertical = isServiceVerticalCategory(category);
 
     let emptyMsg: string;
     let hint: string | null = null;
 
     if (lang === "en") {
-      emptyMsg =
-        category === "services"
-          ? "No verified services to show yet."
-          : "No matching listings.";
-      if (category === "services") {
+      emptyMsg = isServiceVertical ? "No verified listings in this category yet." : "No matching listings.";
+      if (isServiceVertical) {
         hint =
-          "AISaravanna only shows service listings after admin approval (is_verified = true in Supabase, or via your /admin flow). New sign-ups from /unete start as pending. If you chose a county filter, listings must fall within that county’s area—try opening the homepage without a county chip or clear ?colonia= in the URL. For local development, add SHOW_PENDING_SERVICES=true to .env.local and restart npm run dev to also list pending services.";
+          "AISaravanna only shows listings after admin approval (is_verified = true in Supabase, or via your /admin flow). For service categories, new sign-ups may start as pending. County filters require listings inside that area—try clearing ?colonia=. For local hybrid-search QA, add SHOW_PENDING_SERVICES=true to .env.local and restart npm run dev to surface pending rows in Beauty, Childcare, Tutoring, and other service categories.";
       }
     } else {
-      emptyMsg =
-        category === "services"
-          ? "Aún no hay servicios verificados para mostrar."
-          : "No hay artículos que coincidan.";
-      if (category === "services") {
+      emptyMsg = isServiceVertical ? "Aún no hay anuncios verificados en esta categoría." : "No hay artículos que coincidan.";
+      if (isServiceVertical) {
         hint =
-          "AISaravanna solo muestra servicios aprobados (is_verified = true en Supabase, o desde /admin). Los registros en /unete quedan pendientes. Si filtraste por condado, los anuncios deben caer en esa zona—prueba sin condado o quita ?colonia= de la URL. En local, añade SHOW_PENDING_SERVICES=true a .env.local y reinicia npm run dev para ver también servicios pendientes.";
+          "AISaravanna solo muestra anuncios aprobados (is_verified = true en Supabase, o desde /admin). Los servicios pueden quedar pendientes al principio. Si filtraste por condado, quita ?colonia= para probar. En local, SHOW_PENDING_SERVICES=true en .env.local y reinicia npm run dev para ver pendientes en Belleza, Tutorías, etc.";
       }
     }
 

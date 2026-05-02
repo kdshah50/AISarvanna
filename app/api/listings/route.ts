@@ -11,6 +11,14 @@ const PRICE_FLOORS: Record<string, number> = {
   realestate: 1000000,
   sports:       10000,
   services:     10000,
+  /* Service verticals */
+  beauty:       10000,
+  childcare:    10000,
+  tutoring:     10000,
+  pet_care:     10000,
+  fitness:      10000,
+  handyman:     10000,
+  landscaping:  10000,
   default:       5000,
 };
 
