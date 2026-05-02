@@ -16,6 +16,8 @@ import {
   isSellerPhoneVerifiedForDisplay,
 } from "@/lib/seller-trust-display";
 import { normalizeBrowseCategory } from "@/lib/marketplace-categories";
+import { detectZipInQuery, normalizeUsZip5 } from "@/lib/us-zip";
+import { geocodeUsZip } from "@/lib/geocode-us-zip";
 import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
 import { langFromParam } from "@/lib/i18n-lang";
 import { listingTitle } from "@/lib/listing-language";
@@ -49,6 +51,7 @@ interface Props {
     colonia?: string;
     pmin?: string;
     pmax?: string;
+    zip?: string;
   };
 }
 
@@ -61,11 +64,31 @@ export default async function HomePage({ searchParams }: Props) {
   const pminUsd     = parseWholeUsd(searchParams?.pmin);
   const pmaxUsd     = parseWholeUsd(searchParams?.pmax);
   let coloniaData   = coloniaKey ? COLONIAS[coloniaKey] : null;
-  const userLat     = parseFloat(searchParams?.lat ?? "NaN");
-  const userLng     = parseFloat(searchParams?.lng ?? "NaN");
-  const hasGeo      = !isNaN(userLat) && !isNaN(userLng);
-  const refLat      = hasGeo ? userLat : NJ_LAT;
-  const refLng      = hasGeo ? userLng : NJ_LNG;
+  let userLat       = parseFloat(searchParams?.lat ?? "NaN");
+  let userLng       = parseFloat(searchParams?.lng ?? "NaN");
+  let hasGeo        = !isNaN(userLat) && !isNaN(userLng);
+  let fetchQuery    = query;
+
+  if (!hasGeo) {
+    const zipGuess = normalizeUsZip5(searchParams?.zip ?? "") ?? detectZipInQuery(fetchQuery)?.zip;
+    if (zipGuess) {
+      const hit = await geocodeUsZip(zipGuess);
+      if (hit) {
+        userLat = hit.lat;
+        userLng = hit.lng;
+        hasGeo = true;
+      }
+      if (!normalizeUsZip5(searchParams?.zip ?? "")) {
+        const fromText = detectZipInQuery(fetchQuery);
+        if (fromText?.zip === zipGuess) fetchQuery = fromText.cleanedQuery.trim();
+      }
+    }
+  }
+
+  const refLat = hasGeo ? userLat : NJ_LAT;
+  const refLng = hasGeo ? userLng : NJ_LNG;
+
+  const zipForSearchApi = normalizeUsZip5(searchParams?.zip ?? "") ?? detectZipInQuery(query)?.zip;
 
   let cards: any[] = [];
   let searchMode = "sparse";
@@ -92,9 +115,12 @@ export default async function HomePage({ searchParams }: Props) {
       }
     }
 
-    if (query) {
+    if (fetchQuery.trim() || query.trim()) {
       // ── Use hybrid search API when query present ──────────────────────────
-      const params = new URLSearchParams({ q: query, category: categorySlug });
+      const qEff = fetchQuery.trim() || query.trim();
+      const params = new URLSearchParams({ q: qEff, category: categorySlug });
+      if (zipForSearchApi) params.set("zip", zipForSearchApi);
+
       if (hasGeo) { params.set("lat", String(userLat)); params.set("lng", String(userLng)); }
       if (coloniaKey) { params.set("colonia", coloniaKey); }
       if (pminUsd != null && pminUsd > 0) params.set("pmin", String(pminUsd));

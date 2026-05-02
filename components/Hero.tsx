@@ -2,6 +2,7 @@
 import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { COLONIAS, COLONIA_KEYS, detectColoniaInQuery, coloniaLabel } from "@/lib/colonias";
+import { detectZipInQuery } from "@/lib/us-zip";
 import { langFromParam } from "@/lib/i18n-lang";
 import { formatUsdWhole } from "@/lib/money";
 
@@ -15,7 +16,7 @@ const T = {
     line1: "eCommerce",
     line2: "con Confianza",
     sub: "Servicios locales verificados en Estados Unidos.",
-    placeholder: "Ej. reparación de AC hoy, dentista cerca...",
+    placeholder: "Ej. limpieza sábado menos de USD 120, o plomeros cerca del CP 08854...",
     btn: "Buscar",
     near: "Cerca de mí",
     chipLabel: "Buscar por condado:",
@@ -29,7 +30,8 @@ const T = {
     line1: "eCommerce",
     line2: "with Confidence",
     sub: "Verified local services across the United States.",
-    placeholder: "E.g. AC repair today under $150, dentist near me...",
+    placeholder:
+      "E.g. house cleaning Saturday under $120, or plumbers near ZIP 08854...",
     btn: "Search",
     near: "Near me",
     chipLabel: "Search by county:",
@@ -72,12 +74,13 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
     else p.delete("pmax");
   };
 
-  const go = (q: string, extra: Record<string, string> = {}) => {
+  /** Search box + ZIP-in-text: resolves US ZIP → lat/lng (Geo → county chips clear `zip`). */
+  async function navigateSearch(qRaw: string, extra: Record<string, string> = {}) {
     const p = new URLSearchParams(params.toString());
-    const cat = params.get("category") || "services";
-    p.set("category", cat);
+    p.set("category", params.get("category") || "services");
 
-    let finalQ = q.trim();
+    let finalQ = qRaw.trim();
+
     if (finalQ && !extra.colonia) {
       const detected = detectColoniaInQuery(finalQ);
       if (detected) {
@@ -85,16 +88,42 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
         p.set("colonia", detected.coloniaKey);
         p.set("lat", String(c.lat));
         p.set("lng", String(c.lng));
+        p.delete("zip");
         finalQ = detected.cleanedQuery;
       }
     }
 
-    if (finalQ) p.set("q", finalQ); else p.delete("q");
-    Object.entries(extra).forEach(([k, v]) => v ? p.set(k, v) : p.delete(k));
+    Object.entries(extra).forEach(([k, v]) => (v ? p.set(k, v) : p.delete(k)));
+
+    const hasCoords = !!(p.get("lat") && p.get("lng"));
+    if (!hasCoords && finalQ) {
+      const zp = detectZipInQuery(finalQ);
+      if (zp?.zip) {
+        setGeoLoading(true);
+        try {
+          const r = await fetch(`/api/geo/zip?zip=${encodeURIComponent(zp.zip)}`);
+          if (r.ok) {
+            const j = (await r.json()) as { lat: number; lng: number };
+            p.set("zip", zp.zip);
+            p.set("lat", String(j.lat));
+            p.set("lng", String(j.lng));
+            finalQ = zp.cleanedQuery;
+          }
+        } finally {
+          setGeoLoading(false);
+        }
+      }
+    }
+
+    if (finalQ) p.set("q", finalQ);
+    else p.delete("q");
     applyPriceToParams(p);
     router.push(`/?${p.toString()}`);
-  };
+  }
 
+  function go(q: string, extra: Record<string, string> = {}) {
+    void navigateSearch(q, extra);
+  }
   const setMinSlider = (v: number) => {
     const next = Math.max(0, Math.min(v, PRICE_MAX_UI));
     setPriceMin(next);
@@ -113,7 +142,12 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setGeoLoading(false);
-        go(query, { lat: coords.latitude.toFixed(6), lng: coords.longitude.toFixed(6), colonia: "" });
+        go(query, {
+          lat: coords.latitude.toFixed(6),
+          lng: coords.longitude.toFixed(6),
+          colonia: "",
+          zip: "",
+        });
       },
       () => setGeoLoading(false),
       { timeout: 8000 }
@@ -126,7 +160,7 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
       go(query, { colonia: "" });
     } else {
       const c = COLONIAS[key];
-      go(query, { colonia: key, lat: String(c.lat), lng: String(c.lng) });
+      go(query, { colonia: key, lat: String(c.lat), lng: String(c.lng), zip: "" });
     }
   };
 

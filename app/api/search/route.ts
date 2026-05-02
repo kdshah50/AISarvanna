@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { embeddedSellerRow } from "@/lib/seller-trust-display";
 import { COLONIAS, detectColoniaInQuery, COLONIA_RADIUS_KM } from "@/lib/colonias";
+import { detectZipInQuery, normalizeUsZip5 } from "@/lib/us-zip";
+import { geocodeUsZip } from "@/lib/geocode-us-zip";
 import {
   listingMatchesPriceFilters,
   mergeLooseSparseInput,
@@ -192,9 +194,10 @@ export async function GET(req: NextRequest) {
   let query        = (searchParams.get("q") ?? "").trim();
   const browseCategory = searchParams.get("category") ?? "services";
   let coloniaKey   = searchParams.get("colonia") ?? "";
-  const lat        = parseFloat(searchParams.get("lat") ?? "NaN");
-  const lng        = parseFloat(searchParams.get("lng") ?? "NaN");
+  let lat        = parseFloat(searchParams.get("lat") ?? "NaN");
+  let lng        = parseFloat(searchParams.get("lng") ?? "NaN");
   let hasGeo       = !isNaN(lat) && !isNaN(lng);
+  let geoZipApplied: string | null = normalizeUsZip5(searchParams.get("zip"));
   const pminUsd  = parsePesosParam(searchParams.get("pmin"));
   const pmaxUsd  = parsePesosParam(searchParams.get("pmax"));
 
@@ -447,6 +450,7 @@ export async function GET(req: NextRequest) {
       concierge: conciergeEffective,
       pminUsd: pminUsd ?? null,
       pmaxUsd: pmaxUsd ?? null,
+      zipUsedForGeo: geoZipApplied ?? null,
     },
   };
 
