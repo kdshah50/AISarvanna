@@ -77,26 +77,66 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
     setAiScanning(true);
     setAiDone(false);
     setAiSuggestedPrice(null);
+    let appliedFromImage = false;
+    let categoryHint = category;
+
     try {
-      // Call via Next.js API proxy — no CORS issues
-      const res = await fetch("/api/ml/price-suggest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category: isServiceVerticalCategory(category) ? "services" : category,
-          condition: "good",
-          title: title.trim() || "artículo",
-          location_state: "CDMX",
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const cents = data?.suggested_price_mxn;
-        if (typeof cents === "number" && Number.isFinite(cents) && cents > 0) {
-          const suggested = Math.round(cents / 100);
-          setAiSuggestedPrice(suggested);
-          setAiComparables(data.comparables_count ?? 12);
-          setPrice(String(suggested));
+      const primary = photosRef.current[0]?.file;
+      if (primary) {
+        const fd = new FormData();
+        fd.append("file", primary);
+        const up = await fetch("/api/upload-listing-photo", {
+          method: "POST",
+          credentials: "same-origin",
+          body: fd,
+        });
+        const upPayload = await up.json().catch(() => ({}));
+        if (up.ok && typeof upPayload?.url === "string" && upPayload.url.length > 0) {
+          const res = await fetch("/api/ml/analyze-image", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ photo_url: upPayload.url }),
+          });
+          if (res.ok) {
+            const vision = await res.json();
+            const detected = typeof vision?.category === "string" ? vision.category : null;
+            if (detected && MARKETPLACE_CATEGORIES.some((c) => c.browseEnabled && c.id === detected)) {
+              setCategory(detected);
+              categoryHint = detected;
+            }
+            const cents = vision?.suggested_price_mxn;
+            if (typeof cents === "number" && Number.isFinite(cents) && cents > 0) {
+              const suggested = Math.round(cents / 100);
+              setAiSuggestedPrice(suggested);
+              setAiComparables(12);
+              setPrice(String(suggested));
+              appliedFromImage = true;
+            }
+          }
+        }
+      }
+
+      if (!appliedFromImage) {
+        const res = await fetch("/api/ml/price-suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category: isServiceVerticalCategory(categoryHint) ? "services" : categoryHint,
+            condition: "good",
+            title: title.trim() || "artículo",
+            location_state: "CDMX",
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const cents = data?.suggested_price_mxn;
+          if (typeof cents === "number" && Number.isFinite(cents) && cents > 0) {
+            const suggested = Math.round(cents / 100);
+            setAiSuggestedPrice(suggested);
+            setAiComparables(data.comparables_count ?? 12);
+            setPrice(String(suggested));
+          }
         }
       }
     } catch {

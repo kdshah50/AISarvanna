@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { getUserIdFromRequest } from "@/lib/auth-server";
 import { formatUsdCents } from "@/lib/money";
+import { isServiceVerticalCategory } from "@/lib/marketplace-categories";
 
 const PRICE_FLOORS: Record<string, number> = {
   electronics:  50000,
@@ -61,9 +62,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Precio inválido. Verifica el monto." }, { status: 400 });
     }
 
-    // Public browse/search only shows `is_verified=true`. Services stay pending until admin approves
-    // (see provider-signup + /admin). Other categories publish immediately.
-    const isVerified = category !== "services";
+    // Public browse only shows verified listings for service verticals (beauty, tutoring, generic services, …)
+    // until /admin approves. Goods-like categories publish as verified immediately.
+    const isVerified = !isServiceVerticalCategory(category);
 
     // Always bind listing to the signed-in user — never trust client seller_id (old clients sent a demo uuid).
     const listing = {

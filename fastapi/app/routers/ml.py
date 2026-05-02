@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict
 import os, httpx, json
 
 router = APIRouter(tags=["ML"])
@@ -9,13 +9,18 @@ GOOGLE_VISION_KEY = os.getenv("GOOGLE_VISION_API_KEY", "")
 SUPABASE_URL      = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
 SUPABASE_KEY      = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-CATEGORY_MAP = {
+CATEGORY_MAP: Dict[str, str] = {
     "Cell phone":    "electronics",
     "Smartphone":    "electronics",
     "Laptop":        "electronics",
     "Computer":      "electronics",
     "Car":           "vehicles",
     "Vehicle":       "vehicles",
+    "Automobile":    "vehicles",
+    "Automotive design": "vehicles",
+    "Motor vehicle": "vehicles",
+    "Sports car":    "vehicles",
+    "Automotive lighting": "vehicles",
     "Clothing":      "fashion",
     "Dress":         "fashion",
     "Shirt":         "fashion",
@@ -26,6 +31,9 @@ CATEGORY_MAP = {
     "Bicycle":       "sports",
     "Football":      "sports",
 }
+
+# Vision returns English labels with varying casing — match case-insensitively.
+_CATEGORY_MAP_LOWER = {(k.lower()): v for k, v in CATEGORY_MAP.items()}
 
 # ── Price suggestion ──────────────────────────────────────────────────────────
 class PriceSuggestRequest(BaseModel):
@@ -63,8 +71,9 @@ async def price_suggest(req: PriceSuggestRequest):
 
 # ── Photo analysis via Google Vision ─────────────────────────────────────────
 class AnalyzeRequest(BaseModel):
-    listing_id: str
+    """listing_id omitted during sell-flow preview (analyze before listing row exists)."""
     photo_url:  str
+    listing_id: Optional[str] = None
 
 @router.post("/analyze")
 async def analyze_photo(req: AnalyzeRequest):
@@ -79,17 +88,32 @@ async def analyze_photo(req: AnalyzeRequest):
                     f"https://vision.googleapis.com/v1/images:annotate?key={GOOGLE_VISION_KEY}",
                     json={"requests": [{
                         "image": {"source": {"imageUri": req.photo_url}},
-                        "features": [{"type": "LABEL_DETECTION", "maxResults": 10}]
+                        "features": [{"type": "LABEL_DETECTION", "maxResults": 25}]
                     }]}
                 )
-                labels = resp.json().get("responses", [{}])[0].get("labelAnnotations", [])
+                payload = resp.json()
+                errs = payload.get("responses", [{}])[0].get("error")
+                if errs:
+                    print(f"Vision API response error: {errs}")
+                labels = payload.get("responses", [{}])[0].get("labelAnnotations", [])
+                best_mapped = None
+                best_score = 0.0
                 for label in labels:
-                    desc  = label.get("description", "")
-                    score = label.get("score", 0)
-                    if desc in CATEGORY_MAP and score > 0.75:
-                        detected_category = CATEGORY_MAP[desc]
-                        confidence        = score
-                        break
+                    desc_raw = label.get("description", "")
+                    desc = (desc_raw or "").strip()
+                    if not desc:
+                        continue
+                    score = float(label.get("score", 0) or 0)
+                    mapped = CATEGORY_MAP.get(desc) or _CATEGORY_MAP_LOWER.get(desc.lower())
+                    if mapped is None:
+                        continue
+                    # Prefer Tire/Wheel etc. only if no stronger label beat them later (max score wins)
+                    if score > best_score:
+                        best_score = score
+                        best_mapped = mapped
+                if best_mapped is not None and best_score >= 0.52:
+                    detected_category = best_mapped
+                    confidence = best_score
         except Exception as e:
             print(f"Vision API error: {e}")
 
@@ -97,8 +121,8 @@ async def analyze_photo(req: AnalyzeRequest):
     median    = CATEGORY_MEDIANS_MXN.get(detected_category, 200000)
     suggested = int(median * 0.70)
 
-    # Update listing in Supabase
-    if SUPABASE_URL and SUPABASE_KEY:
+    # Update listing in Supabase (only when webhook already created a row)
+    if req.listing_id and SUPABASE_URL and SUPABASE_KEY:
         try:
             async with httpx.AsyncClient(timeout=5) as client:
                 await client.patch(

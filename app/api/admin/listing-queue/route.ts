@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/auth-server";
 import { getAdminPin, isAdminPinConfigured } from "@/lib/admin-pin";
 
+/** When scope is omitted, match any service-vertical category_id (same set as MARKETPLACE_CATEGORIES.serviceVertical). */
+const SERVICE_VERTICAL_IDS = [
+  "services",
+  "beauty",
+  "childcare",
+  "tutoring",
+  "pet_care",
+  "fitness",
+  "handyman",
+  "landscaping",
+] as const;
+
 /**
  * GET ?pin=&filter=pending|verified|all
  * Server-only listing queue for admin (replaces direct anon PostgREST after RLS).
@@ -32,7 +44,7 @@ export async function GET(req: NextRequest) {
     .limit(50);
 
   if (scope !== "all") {
-    q = q.eq("category_id", "services");
+    q = q.in("category_id", [...SERVICE_VERTICAL_IDS]);
   }
 
   if (filter === "pending") {
