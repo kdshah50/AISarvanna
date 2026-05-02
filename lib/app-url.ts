@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 const DEFAULT = "https://aisaravanna.com";
 
 /**
@@ -16,4 +18,36 @@ export function getPublicAppUrl(): string {
   } catch {
     return DEFAULT;
   }
+}
+
+/**
+ * Origin for server-side `fetch()` to routes on **this** deployment.
+ * Prefer the incoming Host (so `npm run dev` hits localhost:3006 even when NEXT_PUBLIC_APP_URL is production).
+ * Call only from a Server Component / Route Handler / Server Action within a request.
+ */
+export function getServerFetchOrigin(): string {
+  try {
+    const h = headers();
+    const rawHost = h.get("x-forwarded-host") ?? h.get("host");
+    const host = rawHost?.split(",")[0]?.trim();
+    if (host) {
+      const hostLower = host.toLowerCase();
+      const isLocal =
+        hostLower.startsWith("localhost") ||
+        hostLower.startsWith("127.0.0.1") ||
+        hostLower.startsWith("[::1]");
+      const proto =
+        h.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? (isLocal ? "http" : "https");
+      return `${proto}://${host}`;
+    }
+  } catch {
+    /* outside request scope */
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    const port = process.env.PORT ?? "3006";
+    return `http://127.0.0.1:${port}`;
+  }
+
+  return getPublicAppUrl();
 }

@@ -9,7 +9,7 @@ import {
   type CountyServiceCatalogRow,
 } from "@/components/home/CountyServiceCatalogSection";
 import { COLONIAS, COLONIA_RADIUS_KM, nearestColonia } from "@/lib/colonias";
-import { getPublicAppUrl } from "@/lib/app-url";
+import { getServerFetchOrigin } from "@/lib/app-url";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import {
   embeddedSellerRow,
@@ -26,8 +26,6 @@ export const dynamic = "force-dynamic";
 /** Default map / fallback coordinates: geographic center of New Jersey */
 const NJ_LAT = 40.0583;
 const NJ_LNG = -74.4057;
-const APP_URL = getPublicAppUrl();
-
 function distKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371, d2r = Math.PI / 180;
   const a = Math.sin(((lat2-lat1)*d2r)/2)**2 + Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(((lng2-lng1)*d2r)/2)**2;
@@ -101,7 +99,7 @@ export default async function HomePage({ searchParams }: Props) {
       if (coloniaKey) { params.set("colonia", coloniaKey); }
       if (pminUsd != null && pminUsd > 0) params.set("pmin", String(pminUsd));
       if (pmaxUsd != null && pmaxUsd > 0) params.set("pmax", String(pmaxUsd));
-      const res = await fetch(`${APP_URL}/api/search?${params}`, { cache: "no-store" });
+      const res = await fetch(`${getServerFetchOrigin()}/api/search?${params}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         searchMode = data.mode ?? "sparse";

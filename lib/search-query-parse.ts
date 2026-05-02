@@ -6,6 +6,12 @@
  */
 
 import { isBrowseEnabledCategoryId } from "@/lib/marketplace-categories";
+import type { ConciergeRequest, LlmConciergeFields } from "@/lib/concierge-intent";
+import {
+  conciergeFromLlmFields,
+  finalizeConciergeRequest,
+  regexExtractConciergeHints,
+} from "@/lib/concierge-intent";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const CHAT_MODEL = process.env.SEARCH_PARSE_MODEL ?? "gpt-4o-mini";
@@ -25,6 +31,8 @@ export type ParsedQueryFilters = {
   searchCategoryHint?: string;
   /** Optional synonym snippets sellers use; broadens loose ILIKE recall. */
   extraSparseTerms?: string[];
+  /** Structured concierge slot for future booking pipeline; search ignores except debug / separate routes. */
+  concierge?: ConciergeRequest;
 };
 
 function wholeUsdToCents(wholeUsd: number): number {
@@ -35,6 +43,41 @@ function wholeUsdToCents(wholeUsd: number): number {
 function parseNumber(raw: string): number {
   const n = parseFloat(raw.replace(/,/g, ""));
   return Number.isFinite(n) ? n : NaN;
+}
+
+/**
+ * Drops chatty wrappers so sparse search aligns with listing-style titles (“Deep clean Edison” vs “I'm looking for…”).
+ */
+function stripConversationalFiller(s: string): string {
+  let t = s.trim().replace(/\s+/g, " ");
+  const leadPatterns: RegExp[] = [
+    /^(i['']?m|i am)\s+(looking|searching|trying)\s+(for|to find)\s+/i,
+    /^(i\s+)?need\s+(someone\s+to\s+|help\s+|a\s+|an\s+)?/i,
+    /^(i\s+)?want\s+(to\s+(hire|get|buy)\s+|someone\s+to\s+)?/i,
+    /^looking\s+(for|to)\s+/i,
+    /^trying\s+to\s+find\s+/i,
+    /^(please|pls)\s*(,)?\s*(help\s+(me\s+)?)?(find|with)\s+/i,
+    /^show\s+me\s+/i,
+    /^find\s+me\s+/i,
+    /^(can|could|would)\s+(you\s+|some(one|body)|any(one|body))\s+(please\s+)?/i,
+    /^does\s+any(one|body)\s+know\s+/i,
+    /^hoping\s+(to\s+find|someone)\s+/i,
+    /^busco\s+/i,
+    /^necesito\s+(algo\s+|alguien\s+)?/i,
+    /^quiero\s+(contratar|encontrar|alguien|una|un)\s+/i,
+    /^por\s+favor\s+/i,
+  ];
+  let guard = 0;
+  while (guard++ < 12) {
+    const before = t;
+    for (const re of leadPatterns) {
+      const next = t.replace(re, "").trim().replace(/\s+/g, " ");
+      if (next !== t) t = next;
+    }
+    if (t === before) break;
+  }
+  t = t.replace(/\s+(thanks|thank\s+you|thx)\.?$/i, "").trim();
+  return t.replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -79,7 +122,12 @@ export function regexParseSearchQuery(input: string): ParsedQueryFilters {
     return " ";
   });
 
-  const keywordForSparse = rest.replace(/\s+/g, " ").trim() || input.trim();
+  rest = stripConversationalFiller(rest.replace(/\s+/g, " ").trim());
+
+  const keywordForSparse =
+    rest.replace(/\s+/g, " ").trim() ||
+    stripConversationalFiller(input.trim()) ||
+    input.trim();
   const textForEmbedding = keywordForSparse.trim() ? keywordForSparse.trim() : input.trim();
 
   const out: ParsedQueryFilters = {
@@ -92,7 +140,7 @@ export function regexParseSearchQuery(input: string): ParsedQueryFilters {
   return out;
 }
 
-type LlmExtract = {
+type LlmExtract = LlmConciergeFields & {
   keyword_phrase?: string | null;
   semantic_query?: string | null;
   max_price_usd?: number | null;
@@ -132,22 +180,29 @@ function normalizeListingCategoryHint(raw: unknown): string | undefined {
   return s;
 }
 
-async function llmParseSearchQuery(query: string, category: string): Promise<ParsedQueryFilters | null> {
+async function llmParseSearchQuery(
+  query: string,
+  category: string,
+): Promise<{ filters: ParsedQueryFilters; concierge?: LlmConciergeFields } | null> {
   if (!OPENAI_KEY || !query.trim()) return null;
 
   const system = `You extract search filters for a US local marketplace (bilingual English/Spanish listings).
 Return ONLY valid JSON with keys:
-- keyword_phrase: short phrase for SQL ILIKE on listing title (English and/or Spanish; omit price words).
+- keyword_phrase: **compact** nouns/products/services sellers would put in titles (max ~10 words). Users write long sentences—infer the core listing topic. Strip chit-chat: "I'm looking for", "I need", "can anyone", "please help me find". Example: "Can someone deep clean my apartment Saturday in Edison under ninety bucks?" → "deep cleaning apartment Edison".
 - semantic_query: one natural sentence for vector search ONLY about service/item/intent — **omit** price caps like "under $200" unless the numeric budget is central to semantics.
 - max_price_usd: maximum price in whole US dollars (integer), or null if not stated.
 - min_price_usd: minimum price in whole US dollars (integer), or null if not stated.
 - extra_sparse_terms: optional array (max 6) of short EN/ES phrases sellers often use in titles instead of the user's exact words (e.g. "personal yoga trainer" → ["yoga instructor","personal training","clases yoga","entrenador personal"]). Empty array or omit if unnecessary.
 - listing_category_hint: optional single browse category id when intent matches ONE vertical. **Services:** fitness (yoga, trainer, pilates), tutoring, beauty, childcare, pet_care, handyman, landscaping. **Goods:** electronics (phones, laptops), vehicles, fashion, home (furniture), sports, realestate. Use null when unclear or mixed intent; use "services" only for generic local help with no clearer vertical.
+- concierge_service_hint: optional staffing-style label ("house cleaning", …), or null — same intent as keyword but for booking.
+- concierge_time_hint: optional short phrase as user said for timing ("this Saturday", "Saturday morning"), or null.
+- preferred_weekday: lowercase monday|tuesday|…|sunday only if a single weekday is clear (e.g. "this Saturday" → saturday), else null.
 
 Rules:
 - All prices are US dollars. "Under $50" or "under 50 dollars" → max_price_usd = 50.
 - "Under 500 pesos" in a US context still treat as dollars if no conversion is explicit (use 500).
 - Ignore availability words like "today", "now", "urgent" for price (leave price null unless a number is given).
+- Prose-heavy questions ("who does…?", "what's…?") — still distill keyword_phrase to searchable item plus place if stated.
 - Browse tab hint (what the user picked in the UI; do not contradict obvious product intent): ${category}`;
 
   try {
@@ -211,7 +266,18 @@ Rules:
     const catHint = normalizeListingCategoryHint(parsed.listing_category_hint);
     if (catHint) out.searchCategoryHint = catHint;
 
-    return out;
+    const concierge: LlmConciergeFields | undefined =
+      parsed.concierge_service_hint != null ||
+      parsed.concierge_time_hint != null ||
+      parsed.preferred_weekday != null
+        ? {
+            concierge_service_hint: parsed.concierge_service_hint,
+            concierge_time_hint: parsed.concierge_time_hint,
+            preferred_weekday: parsed.preferred_weekday,
+          }
+        : undefined;
+
+    return { filters: out, concierge };
   } catch {
     return null;
   }
@@ -221,6 +287,7 @@ Rules:
 const SPARSE_TOKEN_STOPWORDS = new Set([
   "the", "and", "with", "for", "from", "that", "this", "are", "your", "you", "not", "per", "any",
   "need", "want", "looking",
+  "someone", "anyone", "anybody", "help", "kindly", "please",
   "los", "las", "unos", "unas", "por", "con", "que", "una", "del", "al", "como",
 ]);
 
@@ -323,14 +390,39 @@ export async function parseSearchQuery(query: string, category: string): Promise
   }
 
   const rx = regexParseSearchQuery(trimmed);
-  const llm = await llmParseSearchQuery(trimmed, category);
+  const regexConciergeHints = regexExtractConciergeHints(trimmed);
+  const llmResult = await llmParseSearchQuery(trimmed, category);
 
-  if (!llm) {
-    return rx.source === "none" ? { ...rx, keywordForSparse: trimmed, textForEmbedding: trimmed } : rx;
+  if (!llmResult) {
+    const concierge = finalizeConciergeRequest(
+      undefined,
+      regexConciergeHints,
+      rx.maxPriceCents,
+      rx.minPriceCents,
+    );
+    if (rx.source === "none") {
+      const lite = stripConversationalFiller(trimmed);
+      return {
+        ...rx,
+        keywordForSparse: lite || trimmed,
+        textForEmbedding: lite || trimmed,
+        ...(concierge ? { concierge } : {}),
+      };
+    }
+    return { ...rx, ...(concierge ? { concierge } : {}) };
   }
 
+  const { filters: llm, concierge: llmConciergeFields } = llmResult;
+
+  // If model echoed a long conversational line, tighten with the same heuristic as regex-only users.
+  const llmKw = llm.keywordForSparse?.trim();
+  const cleanedFallback =
+    llmKw && (llmKw.length > trimmed.length * 0.85 || llmKw.split(/\s+/).length > 12)
+      ? stripConversationalFiller(llmKw)
+      : null;
+
   const merged: ParsedQueryFilters = {
-    keywordForSparse: llm.keywordForSparse || trimmed,
+    keywordForSparse: ((cleanedFallback ?? llm.keywordForSparse) || "").trim() || trimmed,
     textForEmbedding: llm.textForEmbedding || trimmed,
     source: "llm",
     maxPriceCents: llm.maxPriceCents ?? rx.maxPriceCents,
@@ -347,6 +439,16 @@ export async function parseSearchQuery(query: string, category: string): Promise
   }
   if (merged.maxPriceCents == null) merged.maxPriceCents = rx.maxPriceCents;
   if (merged.minPriceCents == null) merged.minPriceCents = rx.minPriceCents;
+
+  const fromLlm =
+    llmConciergeFields != null ? conciergeFromLlmFields(llmConciergeFields) : undefined;
+  const concierge = finalizeConciergeRequest(
+    fromLlm,
+    regexConciergeHints,
+    merged.maxPriceCents,
+    merged.minPriceCents,
+  );
+  if (concierge) merged.concierge = concierge;
 
   return merged;
 }

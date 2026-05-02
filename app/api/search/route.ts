@@ -236,6 +236,15 @@ export async function GET(req: NextRequest) {
 
   const effective = mergeUiPriceUsdIntoParsed(parsed, pminUsd, pmaxUsd);
 
+  const conciergeEffective =
+    effective.concierge != null
+      ? {
+          ...effective.concierge,
+          budgetMaxCents: effective.maxPriceCents ?? effective.concierge.budgetMaxCents,
+          budgetMinCents: effective.minPriceCents ?? effective.concierge.budgetMinCents,
+        }
+      : null;
+
   /** LLM routing from generic Services tab → any browse vertical (Beauty, Electronics, Fitness, …). */
   const searchCategory =
     browseCategory === "services" &&
@@ -435,6 +444,7 @@ export async function GET(req: NextRequest) {
       textForEmbedding: embedPhrase,
       maxPriceCents: effective.maxPriceCents ?? null,
       minPriceCents: effective.minPriceCents ?? null,
+      concierge: conciergeEffective,
       pminUsd: pminUsd ?? null,
       pmaxUsd: pmaxUsd ?? null,
     },
