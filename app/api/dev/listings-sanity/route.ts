@@ -3,7 +3,7 @@ import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 
 /**
  * DEV ONLY — POST /REST listing counts via Supabase (same env as app).
- * Open: http://localhost:3000/api/dev/listings-sanity
+ * Open: http://localhost:3006/api/dev/listings-sanity
  */
 export async function GET() {
   if (process.env.NODE_ENV === "production") {

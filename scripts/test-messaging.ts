@@ -1,7 +1,7 @@
 /**
  * Integration checks for in-app messaging APIs.
  * Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET (same as Next),
- * and a running app (default http://127.0.0.1:3000).
+ * and a running app (default http://127.0.0.1:3006).
  *
  * Run: npm run test:messaging
  * Or: MESSAGING_TEST_BASE_URL=https://... npm run test:messaging
@@ -70,10 +70,10 @@ async function fetchJson(
   }
 }
 
-/** When PORT is not 3000, Next picks a free port — probe until Tianguis inbox 401 matches. */
+/** Probe dev ports (npm run dev uses 3006 by default). */
 async function discoverDevBase(explicit: string | undefined): Promise<string> {
   if (explicit) return explicit.replace(/\/$/, "");
-  const ports = [3000, 3001, 3002, 3003, 3004, 3005];
+  const ports = [3006, 3000, 3001, 3002, 3003, 3004, 3005];
   for (const port of ports) {
     const base = `http://127.0.0.1:${port}`;
     try {
@@ -91,7 +91,7 @@ async function discoverDevBase(explicit: string | undefined): Promise<string> {
       /* try next port */
     }
   }
-  return "http://127.0.0.1:3000";
+  return "http://127.0.0.1:3006";
 }
 
 function fail(msg: string): never {

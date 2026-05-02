@@ -36,9 +36,9 @@ Run the app on your machine first; deploy to Vercel (or another host) when you a
 1. **Node.js 20+** recommended (matches typical Next.js 14 setups).
 2. `cp .env.example .env.local` and fill at least **`NEXT_PUBLIC_SUPABASE_URL`**, **`NEXT_PUBLIC_SUPABASE_ANON_KEY`**, **`SUPABASE_SERVICE_ROLE_KEY`**, and **`JWT_SECRET`** (any long random string locally) so auth and API routes can talk to Supabase.
 3. `npm install`
-4. `npm run dev` → open **http://localhost:3000**
+4. `npm run dev` → open **http://localhost:3006** (port fixed in `package.json`)
 
-Without Twilio, OTP may still be **logged in the terminal** in dev so you can verify flows. Optional: set `NEXT_PUBLIC_APP_URL=http://localhost:3000` in `.env.local` for URLs that depend on the site origin.
+Without Twilio, OTP may still be **logged in the terminal** in dev so you can verify flows. Optional: set `NEXT_PUBLIC_APP_URL=http://localhost:3006` in `.env.local` so server-side fetches (e.g. search on the home page) hit your local origin instead of the production apex.
 
 ## Phone number format (app contract)
 

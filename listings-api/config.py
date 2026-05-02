@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # postgresql+psycopg2://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres
     DATABASE_URL: str = "sqlite:///./listings.db"
 
-    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3006,http://127.0.0.1:3006,http://localhost:3000,http://127.0.0.1:3000"
 
 
 @lru_cache
