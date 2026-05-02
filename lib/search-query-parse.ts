@@ -5,6 +5,8 @@
  * Prices are **USD**: whole dollars in NLP output, stored/filtered as **USD cents** (same as `listings.price_mxn`).
  */
 
+import { isServiceVerticalCategory } from "@/lib/marketplace-categories";
+
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
 const CHAT_MODEL = process.env.SEARCH_PARSE_MODEL ?? "gpt-4o-mini";
 
@@ -16,6 +18,13 @@ export type ParsedQueryFilters = {
   /** Fuller line for embedding similarity. */
   textForEmbedding: string;
   source: "llm" | "regex" | "none";
+  /**
+   * When the shopper is on generic "services", narrow to a service-vertical `category_id`
+   * (e.g. fitness for yoga / personal training) so listings in that vertical are not filtered out.
+   */
+  searchCategoryHint?: string;
+  /** Optional synonym snippets sellers use; broadens loose ILIKE recall. */
+  extraSparseTerms?: string[];
 };
 
 function wholeUsdToCents(wholeUsd: number): number {
@@ -88,7 +97,40 @@ type LlmExtract = {
   semantic_query?: string | null;
   max_price_usd?: number | null;
   min_price_usd?: number | null;
+  /** Alternate words/phrases likely in titles (trainer→instructor, clases yoga, …). Max ~6 short strings. */
+  extra_sparse_terms?: string[] | null;
+  /**
+   * ONE marketplace category id when intent is clearly a single service vertical: fitness, beauty, tutoring, childcare,
+   * pet_care, handyman, landscaping — or services. Use fitness for yoga/personal trainer/pilates. Null when unclear.
+   */
+  listing_category_hint?: string | null;
 };
+
+function normalizeExtraSparseTerms(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const x of raw) {
+    if (typeof x !== "string") continue;
+    const t = x.trim().replace(/\s+/g, " ");
+    if (t.length < 2 || t.length > 48) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+/** Service-vertical slug only; omits generic "services" and non-vertical goods tabs. */
+function normalizeListingCategoryHint(raw: unknown): string | undefined {
+  if (raw == null || typeof raw !== "string") return undefined;
+  const s = raw.trim().toLowerCase();
+  if (!s || s === "services") return undefined;
+  if (!isServiceVerticalCategory(s)) return undefined;
+  return s;
+}
 
 async function llmParseSearchQuery(query: string, category: string): Promise<ParsedQueryFilters | null> {
   if (!OPENAI_KEY || !query.trim()) return null;
@@ -99,12 +141,14 @@ Return ONLY valid JSON with keys:
 - semantic_query: one natural sentence for vector search ONLY about service/item/intent — **omit** price caps like "under $200" unless the numeric budget is central to semantics.
 - max_price_usd: maximum price in whole US dollars (integer), or null if not stated.
 - min_price_usd: minimum price in whole US dollars (integer), or null if not stated.
+- extra_sparse_terms: optional array (max 6) of short EN/ES phrases sellers often use in titles instead of the user's exact words (e.g. "personal yoga trainer" → ["yoga instructor","personal training","clases yoga","entrenador personal"]). Empty array or omit if unnecessary.
+- listing_category_hint: optional single category id when intent clearly matches ONE service tab: "fitness", "beauty", "childcare", "tutoring", "pet_care", "handyman", "landscaping", or "services". Use "fitness" for yoga, pilates, personal trainer, gym coaching. Use null when unclear or for product shopping (phones, cars, etc.).
 
 Rules:
 - All prices are US dollars. "Under $50" or "under 50 dollars" → max_price_usd = 50.
 - "Under 500 pesos" in a US context still treat as dollars if no conversion is explicit (use 500).
 - Ignore availability words like "today", "now", "urgent" for price (leave price null unless a number is given).
-- category hint (for context only): ${category}`;
+- Browse tab hint (what the user picked in the UI; do not contradict obvious product intent): ${category}`;
 
   try {
     const ctrl = new AbortController();
@@ -161,6 +205,11 @@ Rules:
     if (parsed.min_price_usd != null && Number.isFinite(Number(parsed.min_price_usd))) {
       out.minPriceCents = wholeUsdToCents(Math.ceil(Number(parsed.min_price_usd)));
     }
+
+    const extras = normalizeExtraSparseTerms(parsed.extra_sparse_terms);
+    if (extras.length) out.extraSparseTerms = extras;
+    const catHint = normalizeListingCategoryHint(parsed.listing_category_hint);
+    if (catHint) out.searchCategoryHint = catHint;
 
     return out;
   } catch {
@@ -258,6 +307,14 @@ export function postgrestSparseKeywordClauseLoose(sparsePhrase: string): {
   return { dimension: "or", clause: `(${branches.join(",")})` };
 }
 
+/** Concatenate sparse keyword phrase with LLM synonym snippets for broader loose ILIKE. */
+export function mergeLooseSparseInput(keywordForSparse: string, extras?: string[]): string {
+  const base = keywordForSparse.trim();
+  if (!extras?.length) return base;
+  const tail = extras.map((x) => String(x).trim()).filter(Boolean);
+  return [base, ...tail].join(" ").replace(/\s+/g, " ").trim();
+}
+
 /** Merge LLM + regex: regex can fill price if LLM omitted; prefer LLM keyword/semantic when present. */
 export async function parseSearchQuery(query: string, category: string): Promise<ParsedQueryFilters> {
   const trimmed = query.trim();
@@ -278,6 +335,8 @@ export async function parseSearchQuery(query: string, category: string): Promise
     source: "llm",
     maxPriceCents: llm.maxPriceCents ?? rx.maxPriceCents,
     minPriceCents: llm.minPriceCents ?? rx.minPriceCents,
+    searchCategoryHint: llm.searchCategoryHint,
+    extraSparseTerms: llm.extraSparseTerms,
   };
 
   if (merged.maxPriceCents != null && rx.maxPriceCents != null) {

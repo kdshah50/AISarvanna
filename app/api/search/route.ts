@@ -4,12 +4,14 @@ import { embeddedSellerRow } from "@/lib/seller-trust-display";
 import { COLONIAS, detectColoniaInQuery, COLONIA_RADIUS_KM } from "@/lib/colonias";
 import {
   listingMatchesPriceFilters,
+  mergeLooseSparseInput,
   parseSearchQuery,
   postgrestSparseKeywordClause,
   postgrestSparseKeywordClauseLoose,
   type ParsedQueryFilters,
 } from "@/lib/search-query-parse";
 import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
+import { isServiceVerticalCategory } from "@/lib/marketplace-categories";
 import { cosineSimilarity, parseStoredEmbedding, similarityScore01 } from "@/lib/search-embedding";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY ?? "";
@@ -188,7 +190,7 @@ export async function GET(req: NextRequest) {
   const headers = { ...getServiceRoleRestHeaders(), "Content-Type": "application/json" };
   const { searchParams } = new URL(req.url);
   let query        = (searchParams.get("q") ?? "").trim();
-  const category   = searchParams.get("category") ?? "services";
+  const browseCategory = searchParams.get("category") ?? "services";
   let coloniaKey   = searchParams.get("colonia") ?? "";
   const lat        = parseFloat(searchParams.get("lat") ?? "NaN");
   const lng        = parseFloat(searchParams.get("lng") ?? "NaN");
@@ -220,7 +222,7 @@ export async function GET(req: NextRequest) {
     source: "none",
   };
   if (query) {
-    parsed = await parseSearchQuery(query, category);
+    parsed = await parseSearchQuery(query, browseCategory);
     if (!parsed.keywordForSparse.trim()) {
       parsed = { ...parsed, keywordForSparse: query };
     }
@@ -233,6 +235,16 @@ export async function GET(req: NextRequest) {
   const embedPhrase = parsed.textForEmbedding.trim() || query;
 
   const effective = mergeUiPriceUsdIntoParsed(parsed, pminUsd, pmaxUsd);
+
+  /** LLM routing: "services" tab + clear fitness/tutoring/… hint searches that vertical's listings. */
+  const searchCategory =
+    browseCategory === "services" &&
+    effective.searchCategoryHint &&
+    isServiceVerticalCategory(effective.searchCategoryHint)
+      ? effective.searchCategoryHint
+      : browseCategory;
+
+  const sparseForLoose = mergeLooseSparseInput(sparsePhrase, effective.extraSparseTerms);
 
   function appendPriceToUrl(base: string): string {
     let u = base;
@@ -262,7 +274,7 @@ export async function GET(req: NextRequest) {
     try {
       const hasPrice = effective.maxPriceCents != null || effective.minPriceCents != null;
       const keywordTooShort = !sparsePhrase || sparsePhrase.trim().length < 2;
-      const verifyFrag = postgrestActiveListingVerificationFragment(category);
+      const verifyFrag = postgrestActiveListingVerificationFragment(searchCategory);
       const sparseKw = postgrestSparseKeywordClause(sparsePhrase);
       const sparseParam =
         sparseKw == null
@@ -270,10 +282,10 @@ export async function GET(req: NextRequest) {
           : `${sparseKw.dimension}=${encodeURIComponent(sparseKw.clause)}&`;
       const core =
         hasPrice && keywordTooShort
-          ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`
+          ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${searchCategory}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`
           : sparseParam
-            ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&${sparseParam}select=${SELECT_COLS_FULL}&limit=48`
-            : `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=20`;
+            ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${searchCategory}&${sparseParam}select=${SELECT_COLS_FULL}&limit=48`
+            : `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${searchCategory}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=20`;
       sparseKeywordStrategy =
         sparseParam.length > 0 ? "strict" : "browse";
       const strictUrl = appendPriceToUrl(core);
@@ -283,14 +295,14 @@ export async function GET(req: NextRequest) {
       sparseRows = sparseRows.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
 
       const usedKeywordClause = sparseParam.length > 0;
-      const looseKw = postgrestSparseKeywordClauseLoose(sparsePhrase);
+      const looseKw = postgrestSparseKeywordClauseLoose(sparseForLoose);
       const clauseDiffers =
         looseKw &&
         sparseKw &&
         (looseKw.dimension !== sparseKw.dimension || looseKw.clause !== sparseKw.clause);
       if (usedKeywordClause && sparseRows.length === 0 && fetched.status < 400 && looseKw != null && clauseDiffers) {
         const looseParam = `${looseKw.dimension}=${encodeURIComponent(looseKw.clause)}&`;
-        const coreLoose = `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&${looseParam}select=${SELECT_COLS_FULL}&limit=48`;
+        const coreLoose = `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${searchCategory}&${looseParam}select=${SELECT_COLS_FULL}&limit=48`;
         const looseFetched = await listingRowsFromUrl(appendPriceToUrl(coreLoose));
         sparseKeywordStrategy = "loose";
         sparseHttpStatus = looseFetched.status;
@@ -304,12 +316,12 @@ export async function GET(req: NextRequest) {
     try {
       const vec = await embedQuery(embedPhrase);
       if (vec) {
-        const verifyFrag = postgrestActiveListingVerificationFragment(category);
+        const verifyFrag = postgrestActiveListingVerificationFragment(searchCategory);
         let rpcRows: any[] = [];
         const dr = await fetch(`${supaUrl}/rest/v1/rpc/search_listings_dense`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ query_embedding: vec, category_filter: category, match_count: 80 }),
+          body: JSON.stringify({ query_embedding: vec, category_filter: searchCategory, match_count: 80 }),
           cache: "no-store",
         });
         denseRpcHttpOk = dr.ok;
@@ -322,7 +334,7 @@ export async function GET(req: NextRequest) {
           });
         }
 
-        const cosineRows = await denseRowsFromStoredEmbeddingsCosine(vec, verifyFrag, category, supaUrl, headers);
+        const cosineRows = await denseRowsFromStoredEmbeddingsCosine(vec, verifyFrag, searchCategory, supaUrl, headers);
         denseCosineCandidates = cosineRows.length;
 
         const merged = mergeDensePreferHigherSimilarity(rpcRows, cosineRows);
@@ -333,8 +345,8 @@ export async function GET(req: NextRequest) {
   } else {
     // No query — return all active services
     try {
-      const verifyFrag = postgrestActiveListingVerificationFragment(category);
-      let baseUrl = `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
+      const verifyFrag = postgrestActiveListingVerificationFragment(browseCategory);
+      let baseUrl = `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${browseCategory}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`;
       baseUrl = appendPriceToUrl(baseUrl);
       sparseKeywordStrategy = "browse";
       const browsed = await listingRowsFromUrl(baseUrl);
@@ -414,6 +426,10 @@ export async function GET(req: NextRequest) {
     denseCosineCandidates,
     parse: {
       source: parsed.source,
+      browseCategory,
+      searchCategoryUsed: searchCategory,
+      searchCategoryHint: effective.searchCategoryHint ?? null,
+      extraSparseTerms: effective.extraSparseTerms ?? null,
       keywordForSparse: sparsePhrase,
       textForEmbedding: embedPhrase,
       maxPriceCents: effective.maxPriceCents ?? null,
