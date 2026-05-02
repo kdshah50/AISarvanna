@@ -55,6 +55,7 @@ export default function AdminPage() {
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
+  const [listingQueueError, setListingQueueError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"pending" | "verified" | "all">("pending");
   const [saving, setSaving] = useState<string | null>(null);
   const [commissions, setCommissions] = useState<Record<string, string>>({});
@@ -112,13 +113,20 @@ export default function AdminPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setListingQueueError(null);
     const f = filter === "pending" ? "pending" : filter === "verified" ? "verified" : "all";
     const res = await fetch(
       `/api/admin/listing-queue?pin=${encodeURIComponent(pin.trim())}&filter=${f}&scope=all`,
       { credentials: "same-origin" }
     );
-    const json = res.ok ? await res.json() : { listings: [] };
-    const data = (json as { listings?: unknown }).listings;
+    const json = (await res.json().catch(() => ({}))) as { listings?: unknown; error?: string };
+    if (!res.ok) {
+      setListings([]);
+      setListingQueueError(json.error ?? `No se pudieron cargar anuncios (HTTP ${res.status}). Revisa la consola del servidor y Supabase.`);
+      setLoading(false);
+      return;
+    }
+    const data = json.listings;
     setListings(Array.isArray(data) ? data : []);
     // Init commission + optional package
     const c: Record<string, string> = {};
@@ -868,6 +876,11 @@ export default function AdminPage() {
 
         {/* ── LISTINGS TAB ────────────────────────────────────────── */}
         {tab === "listings" && <>
+        {listingQueueError && (
+          <div className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+            <strong>API queue:</strong> {listingQueueError}
+          </div>
+        )}
         {/* Filter tabs */}
         <div className="flex gap-2 mb-6">
           {(["pending", "verified", "all"] as const).map(f => (
@@ -887,9 +900,13 @@ export default function AdminPage() {
           <div className="text-center py-20 text-[#6B7280]">Loading...</div>
         ) : listings.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-[#E5E0D8]">
-            <div className="text-4xl mb-3">🎉</div>
-            <p className="text-[#6B7280] text-sm">
-              {filter === "pending" ? "No pending providers — all caught up!" : "No listings found"}
+            <div className="text-4xl mb-3">📭</div>
+            <p className="text-[#6B7280] text-sm mb-4 max-w-md mx-auto">
+              {listingQueueError
+                ? "Corrige el error de arriba (PIN, ADMIN_PIN, Supabase)."
+                : filter === "pending"
+                  ? 'Si acabas de poblar datos de prueba con is_verified=true, la cola pendiente será 0 — es esperado. Prueba pestaña «All» / «Verified». Para filas pendientes, publica desde la app sin aprobar.'
+                  : "Ejecuta supabase/seed-demo-service-listings.sql en tu proyecto si aún no tienes datos."}
             </p>
           </div>
         ) : (

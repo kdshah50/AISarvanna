@@ -149,16 +149,35 @@ export default async function HomePage({ searchParams }: Props) {
         console.error("[home] /api/search", res.status, msg.slice(0, 500));
       }
     } else {
-      // ── No query: show active listings for selected category (verified-only, or + pending services in dev) ───────
-      let browsePath =
-        `/rest/v1/listings?${postgrestActiveListingVerificationFragment(categorySlug)}&category_id=eq.${categorySlug}`
-        + `&select=id,title_es,title_en,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)`
-        + `&order=created_at.desc&limit=24`;
-      if (pminUsd != null && pminUsd > 0) browsePath += `&price_mxn=gte.${pminUsd * 100}`;
-      if (pmaxUsd != null && pmaxUsd > 0) browsePath += `&price_mxn=lte.${pmaxUsd * 100}`;
-      const res = await fetch(`${supaUrl}${browsePath}`, { headers: supaHeaders, cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
+      // ── No query: show active listings for selected category ───────────────────────────────────
+      const verifyFrag = postgrestActiveListingVerificationFragment(categorySlug);
+      let priceQs = "";
+      if (pminUsd != null && pminUsd > 0) priceQs += `&price_mxn=gte.${pminUsd * 100}`;
+      if (pmaxUsd != null && pmaxUsd > 0) priceQs += `&price_mxn=lte.${pmaxUsd * 100}`;
+      const basePath =
+        `/rest/v1/listings?${verifyFrag}&category_id=eq.${categorySlug}` +
+        `&order=created_at.desc&limit=48` +
+        priceQs;
+      const colsBase =
+        "id,title_es,title_en,price_mxn,category_id,condition,is_verified,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods";
+      const colsEmbed =
+        colsBase +
+        ",users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
+
+      let browseRes = await fetch(
+        `${supaUrl}${basePath}&select=${encodeURIComponent(colsEmbed)}`,
+        { headers: supaHeaders, cache: "no-store" }
+      );
+      if (!browseRes.ok) {
+        const embErr = await browseRes.text().catch(() => "");
+        console.warn("[home] browse with seller embed failed", browseRes.status, embErr.slice(0, 500));
+        browseRes = await fetch(`${supaUrl}${basePath}&select=${encodeURIComponent(colsBase)}`, {
+          headers: supaHeaders,
+          cache: "no-store",
+        });
+      }
+      if (browseRes.ok) {
+        const data = await browseRes.json();
         let rows = Array.isArray(data) ? data : [];
 
         if (coloniaData) {
@@ -209,8 +228,8 @@ export default async function HomePage({ searchParams }: Props) {
           };
         }).sort((a: any, b: any) => a._dist_km - b._dist_km);
       } else {
-        const msg = await res.text().catch(() => "");
-        console.error("[home] listings REST", res.status, msg.slice(0, 800));
+        const msg = await browseRes.text().catch(() => "");
+        console.error("[home] listings REST (embed + fallback)", browseRes.status, msg.slice(0, 800));
       }
     }
   } catch (e) { console.error("Search error:", e); }

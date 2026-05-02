@@ -146,6 +146,17 @@ export default function ListingGrid({
                   )}
                 </li>
               )}
+              {isDev && (
+                <li>
+                  <Link href="/api/dev/listings-sanity" className="text-[#1B4332] font-semibold underline">
+                    /api/dev/listings-sanity
+                  </Link>
+                  {" — "}
+                  {lang === "en"
+                    ? "JSON counts from your Supabase (active verified vs pending, sample Beauty/Middlesex check)."
+                    : "Conteos desde tu Supabase (activos verificados vs pendientes, muestra Belleza/Middlesex)."}
+                </li>
+              )}
             </ul>
           </div>
         )}
