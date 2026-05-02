@@ -168,6 +168,61 @@ Rules:
   }
 }
 
+/** Stopwords stripped from sparse search tokens (Spanish + English). */
+const SPARSE_TOKEN_STOPWORDS = new Set([
+  "the", "and", "with", "for", "from", "that", "this", "are", "your", "you", "not", "per", "any",
+  "need", "want", "looking",
+  "los", "las", "unos", "unas", "por", "con", "que", "una", "del", "al", "como",
+]);
+
+function escIlike(fragment: string): string {
+  return `*${fragment.replace(/\\/g, "").replace(/\*/g, "").trim()}*`;
+}
+
+/**
+ * PostgREST `or`/`and` clause for multilingual sparse search: multi-token queries require
+ * every significant token to hit somewhere on title/description (not one contiguous substring).
+ *
+ * Matches "personal trainer" against title_en "Personal trainer …" + Spanish "... personal ...".
+ */
+export function postgrestSparseKeywordClause(sparsePhrase: string): {
+  dimension: "or" | "and";
+  clause: string;
+} | null {
+  const trimmed = sparsePhrase.trim();
+  if (!trimmed || trimmed.length < 2) return null;
+
+  const tokens = trimmed
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.replace(/[^a-záéíóúüñ0-9-]/gi, ""))
+    .filter((t) => t.length >= 3 && !SPARSE_TOKEN_STOPWORDS.has(t));
+  const unique = [...new Set(tokens)].slice(0, 8);
+
+  const fields = ["title_es", "title_en", "description_es", "description_en"] as const;
+
+  if (unique.length === 0) {
+    const safe = trimmed.replace(/[*%,()]/g, "").trim();
+    if (!safe) return null;
+    const pat = escIlike(safe);
+    const tuple = fields.map((f) => `${f}.ilike.${pat}`).join(",");
+    return { dimension: "or", clause: `(${tuple})` };
+  }
+
+  if (unique.length === 1) {
+    const pat = escIlike(unique[0]);
+    const tuple = fields.map((f) => `${f}.ilike.${pat}`).join(",");
+    return { dimension: "or", clause: `(${tuple})` };
+  }
+
+  const parts = unique.map((tok) => {
+    const pat = escIlike(tok);
+    const tuple = fields.map((f) => `${f}.ilike.${pat}`).join(",");
+    return `or(${tuple})`;
+  });
+  return { dimension: "and", clause: `(${parts.join(",")})` };
+}
+
 /** Merge LLM + regex: regex can fill price if LLM omitted; prefer LLM keyword/semantic when present. */
 export async function parseSearchQuery(query: string, category: string): Promise<ParsedQueryFilters> {
   const trimmed = query.trim();

@@ -127,9 +127,9 @@ BEGIN
   -- ── Fitness ──────────────────────────────────────────────────────────
   (sid, 'Entrenamiento personal fuerza Newark (demo svc QA)',
    'Personal trainer strength — Newark demo (QA)',
-   'Sesiones gimnasio pesas mobility coaching fitness centro Newark Rutgers area.',
-   'Personal training Newark QA.',
-   65000, 'fitness', 'good', 'active', TRUE,
+   'Demo personal trainer: sesiones gimnasio pesas mobility coaching fitness centro Newark Rutgers area.',
+   'Demo personal trainer — strength training Newark QA.',
+   14800, 'fitness', 'good', 'active', TRUE,
    'Newark', 'New Jersey', '07107', 40.765, -74.178, FALSE, TRUE,
    '[]'::jsonb, ARRAY['stripe']::text[], now() + interval '120 days'),
 
@@ -177,3 +177,12 @@ BEGIN
 
   RAISE NOTICE 'Inserted 16 verified demo service listings linked to seller %', sid;
 END $$;
+
+/*
+  Already seeded? Bump fitness demo row to match NL search "personal trainer under $200":
+*/
+-- UPDATE public.listings
+-- SET price_mxn = 14800,
+--     description_es = 'Demo personal trainer: sesiones gimnasio pesas mobility coaching fitness centro Newark Rutgers area.',
+--     description_en = 'Demo personal trainer — strength training Newark QA.'
+-- WHERE title_es LIKE '%Entrenamiento personal fuerza Newark (demo svc QA)%';

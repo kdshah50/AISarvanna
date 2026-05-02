@@ -5,6 +5,7 @@ import { COLONIAS, detectColoniaInQuery, COLONIA_RADIUS_KM } from "@/lib/colonia
 import {
   listingMatchesPriceFilters,
   parseSearchQuery,
+  postgrestSparseKeywordClause,
   type ParsedQueryFilters,
 } from "@/lib/search-query-parse";
 import { postgrestActiveListingVerificationFragment } from "@/lib/browse-listings-filters";
@@ -64,14 +65,6 @@ function mergeUiPriceUsdIntoParsed(
     out.maxPriceCents = out.maxPriceCents != null ? Math.min(out.maxPriceCents, c) : c;
   }
   return out;
-}
-
-/** PostgREST `or` filter value: match title in Spanish OR English. */
-function titleIlikeOrValue(sparsePhrase: string): string {
-  const safe = sparsePhrase.replace(/[*%,()]/g, "").trim();
-  if (!safe) return "";
-  const pat = `*${safe}*`;
-  return `(title_es.ilike.${pat},title_en.ilike.${pat})`;
 }
 
 const SELECT_COLS_FULL = "id,title_es,title_en,price_mxn,category_id,condition,location_city,location_lat,location_lng,shipping_available,negotiable,photo_urls,payment_methods,users!fk_listings_seller(display_name,trust_badge,ine_verified,rfc_verified,phone_verified)";
@@ -182,12 +175,16 @@ export async function GET(req: NextRequest) {
       const hasPrice = effective.maxPriceCents != null || effective.minPriceCents != null;
       const keywordTooShort = !sparsePhrase || sparsePhrase.trim().length < 2;
       const verifyFrag = postgrestActiveListingVerificationFragment(category);
-      const orVal = titleIlikeOrValue(sparsePhrase);
+      const sparseKw = postgrestSparseKeywordClause(sparsePhrase);
+      const sparseParam =
+        sparseKw == null
+          ? ""
+          : `${sparseKw.dimension}=${encodeURIComponent(sparseKw.clause)}&`;
       const core =
         hasPrice && keywordTooShort
           ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=24`
-          : orVal
-            ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&or=${encodeURIComponent(orVal)}&select=${SELECT_COLS_FULL}&limit=20`
+          : sparseParam
+            ? `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&${sparseParam}select=${SELECT_COLS_FULL}&limit=48`
             : `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${category}&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=20`;
       const baseUrl = appendPriceToUrl(core);
       sparseRows = await fetchWithFallback(baseUrl, SELECT_COLS_FULL, SELECT_COLS_BASE);
