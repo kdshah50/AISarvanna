@@ -285,9 +285,19 @@ export default function AdminPage() {
       } else {
         setPinErrorDetail(data.error ?? `Error ${res.status}. Revisa logs en Vercel.`);
       }
-    } catch {
+    } catch (e: unknown) {
       setPinError(true);
-      setPinErrorDetail("Sin conexión o error de red.");
+      const msg = e instanceof Error ? e.message : "";
+      const looksNet =
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("Load failed") ||
+        msg.includes("network");
+      setPinErrorDetail(
+        looksNet || !msg
+          ? "No hubo respuesta del servidor. ¿Sigue corriendo `npm run dev`? La app local usa el puerto 3006 (http://localhost:3006/admin). Si Next se apaga solo tras un minuto sin pestañas, pon DEV_DISABLE_BROWSER_AUTOKILL=1 en .env.local."
+          : `Error de red: ${msg}`
+      );
     } finally {
       setPinLoading(false);
     }
