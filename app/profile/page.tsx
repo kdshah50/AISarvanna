@@ -30,6 +30,7 @@ type User = {
   ine_photo_url: string | null;
   stripe_connect_account_id?: string | null;
   created_at: string | null;
+  community_lane?: string | null;
 };
 
 type Listing = {
@@ -114,6 +115,8 @@ export default function ProfilePage() {
       verifyBadge:    "Insignia de confianza",
       contactSupport: "¿Preguntas? Escríbenos",
       phase3:         "Historial de reservas, reseñas, puntos e invitaciones: todo en un solo lugar.",
+      communityBanner: "Personaliza las categorías de inicio según tu comunidad.",
+      communityCta:   "Elegir comunidad",
     },
     en: {
       myProfile:      "My profile",
@@ -134,6 +137,8 @@ export default function ProfilePage() {
       verifyBadge:    "Trust badge",
       contactSupport: "Questions? Contact us",
       phase3:         "Bookings, reviews, points, and referrals—everything in one place.",
+      communityBanner: "Pick a community lane to tailor the home page categories.",
+      communityCta:   "Choose community lane",
     },
   }[lang];
 
@@ -240,6 +245,18 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
+
+        {user.community_lane !== "latino" && user.community_lane !== "south_asian" ? (
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span>{t.communityBanner}</span>
+            <Link
+              href={`/onboarding/community?returnTo=${encodeURIComponent("/profile")}${lang !== "en" ? `&lang=${lang}` : ""}`}
+              className="shrink-0 inline-flex justify-center rounded-lg bg-[#1B4332] px-4 py-2 text-xs font-bold text-white"
+            >
+              {t.communityCta}
+            </Link>
+          </div>
+        ) : null}
 
         {/* Profile card */}
         <div className="bg-white rounded-3xl border border-[#E5E0D8] p-8 mb-5 shadow-sm">

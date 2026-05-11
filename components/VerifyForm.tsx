@@ -47,7 +47,7 @@ export default function VerifyForm() {
         if (!(data as { user?: unknown } | null)?.user) throw new Error("Invalid server response");
         // Session cookie is HttpOnly; set by /api/auth/verify-otp
         const dest = returnTo && returnTo.startsWith("/") ? returnTo : "/profile";
-        window.location.href = dest;
+        window.location.href = `/onboarding/community?returnTo=${encodeURIComponent(dest)}`;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error("[verify] error", msg);

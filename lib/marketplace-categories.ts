@@ -1,17 +1,24 @@
+import type { CommunityLane } from "@/lib/community-lane";
+import type { Lang } from "@/lib/i18n-lang";
+
 /**
  * Categories shown in the top bar. Only `browseEnabled: true` are clickable.
  *
  * `serviceVertical: true` — same booking/contact semantics as core “services” where relevant, and in **development**
  * with `SHOW_PENDING_SERVICES=true`, unverified rows surface for hybrid-search testing (see `browse-listings-filters`).
  * Keep `PRICE_FLOORS` in `app/api/listings/route.ts` in sync with every enabled `id`.
+ *
+ * `communityLanes` — when set, the chip is shown mainly for that lane (unset = all lanes).
  */
 export type MarketplaceCategory = {
   id: string;
   icon: string;
-  label: { es: string; en: string };
+  label: { es: string; en: string; hi?: string };
   browseEnabled: boolean;
   /** Service-like browse vertical (dev pending listings + future booking flows). */
   serviceVertical?: boolean;
+  /** If set, surfaced in the category bar when the user’s `community_lane` matches. */
+  communityLanes?: CommunityLane[];
 };
 
 export const MARKETPLACE_CATEGORIES: MarketplaceCategory[] = [
@@ -24,6 +31,38 @@ export const MARKETPLACE_CATEGORIES: MarketplaceCategory[] = [
   { id: "fitness", icon: "🏋️", label: { es: "Fitness", en: "Fitness" }, browseEnabled: true, serviceVertical: true },
   { id: "handyman", icon: "🛠️", label: { es: "Reparaciones", en: "Handyman" }, browseEnabled: true, serviceVertical: true },
   { id: "landscaping", icon: "🌿", label: { es: "Jardinería", en: "Landscaping" }, browseEnabled: true, serviceVertical: true },
+
+  {
+    id: "mehndi",
+    icon: "💅",
+    label: { es: "Mehndi / henna", en: "Mehndi / henna", hi: "मेहंदी" },
+    browseEnabled: true,
+    serviceVertical: true,
+    communityLanes: ["south_asian"],
+  },
+  {
+    id: "tiffin",
+    icon: "🍱",
+    label: { es: "Tiffins / comida casera", en: "Tiffin / home meals", hi: "टिफिन" },
+    browseEnabled: true,
+    serviceVertical: true,
+    communityLanes: ["south_asian"],
+  },
+  {
+    id: "wedding_services",
+    icon: "💒",
+    label: { es: "Bodas y eventos", en: "Wedding & events", hi: "शादी और इवेंट" },
+    browseEnabled: true,
+    serviceVertical: true,
+    communityLanes: ["south_asian"],
+  },
+  {
+    id: "ethnic_wear",
+    icon: "👘",
+    label: { es: "Moda étnica", en: "Ethnic wear", hi: "पारंपरिक पहनावा" },
+    browseEnabled: true,
+    communityLanes: ["south_asian"],
+  },
 
   { id: "electronics", icon: "📱", label: { es: "Electrónica", en: "Electronics" }, browseEnabled: true },
   { id: "vehicles", icon: "🚗", label: { es: "Vehículos", en: "Vehicles" }, browseEnabled: true },
@@ -49,9 +88,11 @@ export function normalizeBrowseCategory(raw: string | undefined | null): string 
   return "services";
 }
 
-export function categoryLabel(categoryId: string, lang: "es" | "en"): string {
+export function categoryLabel(categoryId: string, lang: Lang | "hi"): string {
   const c = MARKETPLACE_CATEGORIES.find((x) => x.id === categoryId);
-  return c?.label[lang] ?? (lang === "en" ? "Listings" : "Anuncios");
+  if (!c) return lang === "es" ? "Anuncios" : "Listings";
+  if (lang === "hi") return c.label.hi ?? c.label.en;
+  return c.label[lang];
 }
 
 /** Whether `SHOW_PENDING_SERVICES` in dev applies to this `category_id`. */

@@ -155,6 +155,7 @@ export async function POST(req: NextRequest) {
       description_es:     description_es,
       price_mxn:          price_mxn > 0 ? price_mxn : 15000,
       category_id:        "services",
+      listing_type:       "service",
       condition:          "new",
       status:             "active",
       is_verified:        false,          // hidden until admin approves

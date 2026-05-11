@@ -1,22 +1,27 @@
 "use client";
 import Image from "next/image";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { formatUsdWhole } from "@/lib/money";
 import { MARKETPLACE_CATEGORIES, isServiceVerticalCategory } from "@/lib/marketplace-categories";
+import { categoryVisibleForLane } from "@/lib/community-lane";
+import { useCommunityLane } from "@/components/CommunityLaneContext";
 
 const MAX_PHOTOS = 10;
 
 type PhotoItem = { file: File; preview: string };
 
-const CATEGORIES = MARKETPLACE_CATEGORIES.filter((c) => c.browseEnabled).map((c) => ({
-  id: c.id,
-  icon: c.icon,
-  label: c.label.es,
-}));
-
 export default function SellModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
+  const { lane } = useCommunityLane();
+  const categoryOptions = useMemo(
+    () =>
+      MARKETPLACE_CATEGORIES.filter((c) => c.browseEnabled && categoryVisibleForLane(lane, c.communityLanes)).map(
+        (c) => ({ id: c.id, icon: c.icon, label: c.label.es }),
+      ),
+    [lane],
+  );
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState(1);
@@ -35,6 +40,13 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const photosRef = useRef(photos);
   photosRef.current = photos;
+
+  useEffect(() => {
+    if (!categoryOptions.length) return;
+    if (!categoryOptions.some((c) => c.id === category)) {
+      setCategory(categoryOptions[0]!.id);
+    }
+  }, [categoryOptions, category]);
 
   useEffect(() => {
     return () => {
@@ -101,7 +113,12 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
           if (res.ok) {
             const vision = await res.json();
             const detected = typeof vision?.category === "string" ? vision.category : null;
-            if (detected && MARKETPLACE_CATEGORIES.some((c) => c.browseEnabled && c.id === detected)) {
+            if (
+              detected &&
+              MARKETPLACE_CATEGORIES.some(
+                (c) => c.browseEnabled && c.id === detected && categoryVisibleForLane(lane, c.communityLanes),
+              )
+            ) {
               setCategory(detected);
               categoryHint = detected;
             }
@@ -429,7 +446,7 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
               <div>
                 <label className="text-xs font-semibold text-[#6B7280] block mb-2">CATEGORÍA</label>
                 <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map(c => (
+                  {categoryOptions.map(c => (
                     <button
                       key={c.id}
                       onClick={() => setCategory(c.id)}

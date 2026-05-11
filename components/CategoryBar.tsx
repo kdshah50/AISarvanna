@@ -1,14 +1,34 @@
 "use client";
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MARKETPLACE_CATEGORIES, normalizeBrowseCategory } from "@/lib/marketplace-categories";
-import { langFromParam } from "@/lib/i18n-lang";
+import { MARKETPLACE_CATEGORIES, normalizeBrowseCategory, categoryLabel } from "@/lib/marketplace-categories";
+import { categoryVisibleForLane } from "@/lib/community-lane";
+import { useCommunityLane } from "@/components/CommunityLaneContext";
+import { langFromParam, type Lang } from "@/lib/i18n-lang";
 
 function CategoryBarInner() {
   const router = useRouter();
   const params = useSearchParams();
+  const { lane } = useCommunityLane();
   const lang = langFromParam(params.get("lang"));
+  const rawLang = params.get("lang")?.trim();
+  const categoryLang: Lang | "hi" = rawLang === "hi" ? "hi" : lang;
   const activeId = normalizeBrowseCategory(params.get("category"));
+
+  const visibleCategories = useMemo(
+    () => MARKETPLACE_CATEGORIES.filter((c) => categoryVisibleForLane(lane, c.communityLanes)),
+    [lane]
+  );
+
+  useEffect(() => {
+    const cat = MARKETPLACE_CATEGORIES.find((c) => c.id === activeId);
+    if (!cat) return;
+    if (!categoryVisibleForLane(lane, cat.communityLanes)) {
+      const p = new URLSearchParams(params.toString());
+      p.set("category", "services");
+      router.replace(`/?${p.toString()}`);
+    }
+  }, [lane, activeId, params, router]);
 
   const selectCategory = (id: string) => {
     const cat = MARKETPLACE_CATEGORIES.find((c) => c.id === id);
@@ -28,7 +48,7 @@ function CategoryBarInner() {
           >
             {lang === "en" ? "Categories" : "Categorías"}
           </span>
-          {MARKETPLACE_CATEGORIES.map((cat) => {
+          {visibleCategories.map((cat) => {
             const enabled = cat.browseEnabled;
             const isActive = activeId === cat.id;
             return (
@@ -51,7 +71,7 @@ function CategoryBarInner() {
                   >
                     {cat.icon}
                   </span>
-                  {cat.label[lang]}
+                  {categoryLabel(cat.id, categoryLang)}
                   {!enabled && (
                     <span className="text-[9px] font-bold ml-1 px-1 py-0.5 rounded bg-[#E5E0D8] text-[#A8A095]">
                       {lang === "es" ? "Próximo" : "Soon"}

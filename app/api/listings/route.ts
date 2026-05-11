@@ -20,6 +20,10 @@ const PRICE_FLOORS: Record<string, number> = {
   fitness:      10000,
   handyman:     10000,
   landscaping:  10000,
+  mehndi:       10000,
+  tiffin:       10000,
+  wedding_services: 25000,
+  ethnic_wear:  10000,
   default:       5000,
 };
 
@@ -62,9 +66,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Precio inválido. Verifica el monto." }, { status: 400 });
     }
 
+    const categoryNormalized = String(category).trim().toLowerCase();
+    const isService = isServiceVerticalCategory(categoryNormalized);
+
     // Public browse only shows verified listings for service verticals (beauty, tutoring, generic services, …)
     // until /admin approves. Goods-like categories publish as verified immediately.
-    const isVerified = !isServiceVerticalCategory(category);
+    const isVerified = !isService;
 
     // Always bind listing to the signed-in user — never trust client seller_id (old clients sent a demo uuid).
     const listing = {
@@ -74,6 +81,7 @@ export async function POST(req: NextRequest) {
       description_es:     body.description_es ?? body.description ?? "",
       price_mxn,
       category_id:        category,
+      listing_type:       isService ? "service" : "goods",
       condition:          body.condition ?? "good",
       status:             "active",
       is_verified:        isVerified,

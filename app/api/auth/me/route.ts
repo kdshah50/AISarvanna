@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     let userError: any = null;
 
     const selectFullNj =
-      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at,provider_entity_type,drivers_license_number,dl_photo_url,dl_verified,ein,ein_verified";
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at,provider_entity_type,drivers_license_number,dl_photo_url,dl_verified,ein,ein_verified,community_lane";
     const fullSelect =
       "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at";
     const fullNoRfcVerifiedSelect =
@@ -117,9 +117,17 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const displayName = String(body?.display_name ?? "").trim();
-    if (!displayName) {
-      return NextResponse.json({ error: "Nombre inválido" }, { status: 400 });
+    const displayName = body?.display_name != null ? String(body.display_name).trim() : "";
+    const laneRaw = body?.community_lane;
+    const communityLane =
+      laneRaw === "latino" || laneRaw === "south_asian" ? (laneRaw as "latino" | "south_asian") : null;
+
+    const update: Record<string, unknown> = {};
+    if (displayName) update.display_name = displayName;
+    if (communityLane) update.community_lane = communityLane;
+
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
     }
 
     const supabase = createAdminSupabase();
@@ -128,15 +136,10 @@ export async function PATCH(req: NextRequest) {
     const idVars = idMatchVariantsForIn(userId);
 
     const patchTry = (cols: string) =>
-      supabase
-        .from("users")
-        .update({ display_name: displayName })
-        .in("id", idVars)
-        .select(cols)
-        .maybeSingle();
+      supabase.from("users").update(update).in("id", idVars).select(cols).maybeSingle();
 
     ({ data, error } = await patchTry(
-      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at,provider_entity_type,drivers_license_number,dl_photo_url,dl_verified,ein,ein_verified",
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at,provider_entity_type,drivers_license_number,dl_photo_url,dl_verified,ein,ein_verified,community_lane",
     ));
     if (error?.message?.includes("does not exist")) {
       ({ data, error } = await patchTry(
