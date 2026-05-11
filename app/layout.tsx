@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 // Inter loaded via CSS
 import "./globals.css";
 import Header from "@/components/Header";
 import SiteFooter from "@/components/SiteFooter";
+import CommunityLaneFirstVisitModal from "@/components/CommunityLaneFirstVisitModal";
 import { CartProvider } from "@/components/cart/CartContext";
 import { CommunityLaneProvider } from "@/components/CommunityLaneContext";
 import DevBrowserHeartbeat from "@/components/dev/DevBrowserHeartbeat";
@@ -35,6 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Header />
             <div className="flex-1 min-h-0 flex flex-col">{children}</div>
             <SiteFooter />
+            <Suspense fallback={null}>
+              <CommunityLaneFirstVisitModal />
+            </Suspense>
           </CommunityLaneProvider>
         </CartProvider>
       </body>

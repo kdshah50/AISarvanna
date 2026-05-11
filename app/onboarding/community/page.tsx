@@ -13,7 +13,7 @@ function CommunityOnboardingInner() {
   const lang = langFromParam(params.get("lang"));
   const rawReturn = params.get("returnTo") ?? "";
   const returnTo = rawReturn.startsWith("/") ? rawReturn : "/profile";
-  const { refresh } = useCommunityLane();
+  const { saveCommunityLane, refresh } = useCommunityLane();
 
   const [checking, setChecking] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
@@ -50,16 +50,7 @@ function CommunityOnboardingInner() {
     setError("");
     setSaving(true);
     try {
-      const res = await fetch("/api/auth/me", {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ community_lane: lane }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error((j as { error?: string }).error ?? "save failed");
-      }
+      await saveCommunityLane(lane);
       refresh();
       router.replace(returnTo);
     } catch (e: unknown) {
