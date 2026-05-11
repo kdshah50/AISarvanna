@@ -117,6 +117,8 @@ export default function ProfilePage() {
       phase3:         "Historial de reservas, reseñas, puntos e invitaciones: todo en un solo lugar.",
       communityBanner: "Personaliza las categorías de inicio según tu comunidad.",
       communityCta:   "Elegir comunidad",
+      communityMarket: "Comunidad del mercado",
+      communityChange: "Cambiar comunidad",
     },
     en: {
       myProfile:      "My profile",
@@ -139,6 +141,8 @@ export default function ProfilePage() {
       phase3:         "Bookings, reviews, points, and referrals—everything in one place.",
       communityBanner: "Pick a community lane to tailor the home page categories.",
       communityCta:   "Choose community lane",
+      communityMarket: "Market community",
+      communityChange: "Change community",
     },
   }[lang];
 
@@ -256,7 +260,28 @@ export default function ProfilePage() {
               {t.communityCta}
             </Link>
           </div>
-        ) : null}
+        ) : (
+          <div className="mb-5 rounded-2xl border border-[#E5E0D8] bg-white px-4 py-3 text-sm text-[#374151] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
+            <span>
+              {t.communityMarket}:{" "}
+              <strong className="text-[#1C1917]">
+                {user.community_lane === "south_asian"
+                  ? "South Asian"
+                  : user.community_lane === "latino"
+                    ? lang === "es"
+                      ? "Latino / hispana"
+                      : "Latino / Hispanic"
+                    : "—"}
+              </strong>
+            </span>
+            <Link
+              href={`/onboarding/community?change=1&returnTo=${encodeURIComponent("/profile")}${lang !== "en" ? `&lang=${lang}` : ""}`}
+              className="shrink-0 inline-flex justify-center rounded-lg border border-[#1B4332] bg-white px-4 py-2 text-xs font-bold text-[#1B4332] hover:bg-[#F4F0EB]"
+            >
+              {t.communityChange}
+            </Link>
+          </div>
+        )}
 
         {/* Profile card */}
         <div className="bg-white rounded-3xl border border-[#E5E0D8] p-8 mb-5 shadow-sm">

@@ -13,6 +13,8 @@ function CommunityOnboardingInner() {
   const lang = langFromParam(params.get("lang"));
   const rawReturn = params.get("returnTo") ?? "";
   const returnTo = rawReturn.startsWith("/") ? rawReturn : "/profile";
+  /** When set, show picker even if profile already has a lane (switch lanes). */
+  const allowChange = params.get("change") === "1";
   const { saveCommunityLane, refresh } = useCommunityLane();
 
   const [checking, setChecking] = useState(true);
@@ -25,6 +27,10 @@ function CommunityOnboardingInner() {
     void fetch("/api/auth/me", { credentials: "same-origin" }).then(async (r) => {
       if (cancelled) return;
       if (r.status === 401) {
+        if (allowChange) {
+          setChecking(false);
+          return;
+        }
         setUnauthorized(true);
         setChecking(false);
         return;
@@ -35,7 +41,10 @@ function CommunityOnboardingInner() {
         return;
       }
       const d = (await r.json()) as { user?: { community_lane?: string | null } };
-      if (d.user?.community_lane === "latino" || d.user?.community_lane === "south_asian") {
+      if (
+        !allowChange &&
+        (d.user?.community_lane === "latino" || d.user?.community_lane === "south_asian")
+      ) {
         router.replace(returnTo);
         return;
       }
@@ -44,7 +53,7 @@ function CommunityOnboardingInner() {
     return () => {
       cancelled = true;
     };
-  }, [router, returnTo, lang]);
+  }, [router, returnTo, lang, allowChange]);
 
   const pick = async (lane: CommunityLane) => {
     setError("");

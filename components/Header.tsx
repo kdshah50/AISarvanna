@@ -4,9 +4,68 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { langFromParam } from "@/lib/i18n-lang";
+import { useCommunityLane } from "@/components/CommunityLaneContext";
+import type { CommunityLane } from "@/lib/community-lane";
 
 const SellModal = dynamic(() => import("./SellModal"), { ssr: false });
 const CartHeaderLink = dynamic(() => import("@/components/cart/CartHeaderLink"), { ssr: false });
+
+/** Dual marketplace lane — always visible; updates localStorage + profile when logged in. */
+function CommunityLaneToggle({ lang }: { lang: ReturnType<typeof langFromParam> }) {
+  const router = useRouter();
+  const { lane, savingChoice, saveCommunityLane } = useCommunityLane();
+
+  const title =
+    lang === "es"
+      ? "Comunidad (categorías del inicio): Latino o South Asian"
+      : "Market community (home categories): Latino or South Asian";
+
+  const pick = async (choice: CommunityLane) => {
+    try {
+      await saveCommunityLane(choice);
+    } catch {
+      /* optimistic local save still applied in provider */
+    }
+    router.refresh();
+  };
+
+  const latinoLbl = lang === "es" ? "Latino" : "Latino";
+  const saLbl = lang === "es" ? "S. Asiática" : "S. Asian";
+
+  return (
+    <div
+      className="flex shrink-0 items-center rounded-lg border border-[#E5E0D8] bg-[#FDF8F1] p-0.5 gap-0.5"
+      title={title}
+      role="group"
+      aria-label={title}
+    >
+      <button
+        type="button"
+        disabled={savingChoice}
+        onClick={() => void pick("latino")}
+        className={`rounded-md px-2 py-1.5 text-[10px] font-bold transition-all sm:px-2.5 sm:text-xs ${
+          lane === "latino"
+            ? "bg-[#1B4332] text-white shadow-sm"
+            : "text-[#6B7280] hover:bg-white/80 hover:text-[#1B4332]"
+        }`}
+      >
+        {latinoLbl}
+      </button>
+      <button
+        type="button"
+        disabled={savingChoice}
+        onClick={() => void pick("south_asian")}
+        className={`rounded-md px-2 py-1.5 text-[10px] font-bold transition-all sm:px-2.5 sm:text-xs ${
+          lane === "south_asian"
+            ? "bg-[#1B4332] text-white shadow-sm"
+            : "text-[#6B7280] hover:bg-white/80 hover:text-[#1B4332]"
+        }`}
+      >
+        {saLbl}
+      </button>
+    </div>
+  );
+}
 
 function LangToggle() {
   const router = useRouter();
@@ -73,8 +132,9 @@ function HeaderInner() {
             <span className="text-[#D4A017] text-xs font-bold ml-0.5">✦</span>
           </Link>
 
-          <div className="flex items-center gap-3 ml-auto">
-            <Suspense fallback={<div className="w-16 h-7 bg-[#F4F0EB] rounded-lg" />}>
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto min-w-0">
+            <CommunityLaneToggle lang={lang} />
+            <Suspense fallback={<div className="w-16 h-7 bg-[#F4F0EB] rounded-lg shrink-0" />}>
               <LangToggle />
             </Suspense>
 
