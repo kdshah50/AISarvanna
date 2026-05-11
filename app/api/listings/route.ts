@@ -20,10 +20,14 @@ const PRICE_FLOORS: Record<string, number> = {
   fitness:      10000,
   handyman:     10000,
   landscaping:  10000,
-  mehndi:       10000,
-  tiffin:       10000,
-  wedding_services: 25000,
-  ethnic_wear:  10000,
+  mehndi:            10000,
+  tiffin:            10000,
+  wedding_photo:     25000,
+  dj_music:          15000,
+  saree_lehenga:     10000,
+  puja_items:        5000,
+  catering:          25000,
+  home_improvement:  15000,
   default:       5000,
 };
 

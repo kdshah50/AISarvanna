@@ -10,14 +10,34 @@ from typing import Optional
 # ── Enums matching arch doc listings schema ───────────────────────────────────
 
 class TianguisCategory(str, Enum):
-    ELECTRONICS  = "electronics"
-    VEHICLES     = "vehicles"
-    FASHION      = "fashion"
-    HOME         = "home"
-    SERVICES     = "services"
-    REAL_ESTATE  = "realestate"
-    SPORTS       = "sports"
-    OTHER        = "other"
+    """
+    Marketplace category slugs — aligned with Next.js `lib/marketplace-categories.ts` `id` values.
+    Used by Vision mapping, price fallback, and fraud floors.
+    """
+
+    BEAUTY = "beauty"
+    CATERING = "catering"
+    CHILDCARE = "childcare"
+    DJ_MUSIC = "dj_music"
+    ELECTRONICS = "electronics"
+    FASHION = "fashion"
+    FITNESS = "fitness"
+    HANDYMAN = "handyman"
+    HOME = "home"
+    HOME_IMPROVEMENT = "home_improvement"
+    LANDSCAPING = "landscaping"
+    MEHNDI = "mehndi"
+    OTHER = "other"
+    PET_CARE = "pet_care"
+    PUJA_ITEMS = "puja_items"
+    REAL_ESTATE = "realestate"
+    SAREE_LEHENGA = "saree_lehenga"
+    SERVICES = "services"
+    SPORTS = "sports"
+    TIFFIN = "tiffin"
+    TUTORING = "tutoring"
+    VEHICLES = "vehicles"
+    WEDDING_PHOTO = "wedding_photo"
 
 
 class ItemCondition(str, Enum):

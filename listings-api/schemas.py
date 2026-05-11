@@ -7,14 +7,31 @@ from pydantic import BaseModel, Field
 
 
 class TianguisCategory(str, Enum):
+    """Aligned with Next.js `lib/marketplace-categories.ts` browse slugs."""
+
+    BEAUTY = "beauty"
+    CATERING = "catering"
+    CHILDCARE = "childcare"
+    DJ_MUSIC = "dj_music"
     ELECTRONICS = "electronics"
-    VEHICLES = "vehicles"
     FASHION = "fashion"
+    FITNESS = "fitness"
+    HANDYMAN = "handyman"
     HOME = "home"
-    SERVICES = "services"
-    REAL_ESTATE = "realestate"
-    SPORTS = "sports"
+    HOME_IMPROVEMENT = "home_improvement"
+    LANDSCAPING = "landscaping"
+    MEHNDI = "mehndi"
     OTHER = "other"
+    PET_CARE = "pet_care"
+    PUJA_ITEMS = "puja_items"
+    REAL_ESTATE = "realestate"
+    SAREE_LEHENGA = "saree_lehenga"
+    SERVICES = "services"
+    SPORTS = "sports"
+    TIFFIN = "tiffin"
+    TUTORING = "tutoring"
+    VEHICLES = "vehicles"
+    WEDDING_PHOTO = "wedding_photo"
 
 
 class ItemCondition(str, Enum):

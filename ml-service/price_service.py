@@ -37,14 +37,29 @@ from schemas import (
 # ── Category median prices (MXN) — fallback when model is absent or
 #    comparables_count < MIN_COMPARABLES (arch doc §5.2)
 CATEGORY_MEDIANS_MXN: dict[TianguisCategory, int] = {
-    TianguisCategory.ELECTRONICS:  8_500,
-    TianguisCategory.VEHICLES:    180_000,
-    TianguisCategory.FASHION:      2_800,
-    TianguisCategory.HOME:         4_200,
-    TianguisCategory.SERVICES:     1_500,
+    TianguisCategory.BEAUTY: 10_000,
+    TianguisCategory.CATERING: 25_000,
+    TianguisCategory.CHILDCARE: 12_000,
+    TianguisCategory.DJ_MUSIC: 15_000,
+    TianguisCategory.ELECTRONICS: 8_500,
+    TianguisCategory.FASHION: 2_800,
+    TianguisCategory.FITNESS: 10_000,
+    TianguisCategory.HANDYMAN: 15_000,
+    TianguisCategory.HOME: 4_200,
+    TianguisCategory.HOME_IMPROVEMENT: 15_000,
+    TianguisCategory.LANDSCAPING: 12_000,
+    TianguisCategory.MEHNDI: 12_000,
+    TianguisCategory.OTHER: 2_000,
+    TianguisCategory.PET_CARE: 12_000,
+    TianguisCategory.PUJA_ITEMS: 5_000,
     TianguisCategory.REAL_ESTATE: 950_000,
-    TianguisCategory.SPORTS:       3_100,
-    TianguisCategory.OTHER:        2_000,
+    TianguisCategory.SAREE_LEHENGA: 10_000,
+    TianguisCategory.SERVICES: 1_500,
+    TianguisCategory.SPORTS: 3_100,
+    TianguisCategory.TIFFIN: 10_000,
+    TianguisCategory.TUTORING: 12_000,
+    TianguisCategory.VEHICLES: 180_000,
+    TianguisCategory.WEDDING_PHOTO: 28_000,
 }
 
 # ── Brand recognition patterns for NER feature (arch doc §5.2: "brand embedding")
