@@ -414,14 +414,72 @@ export async function GET(req: NextRequest) {
 
   fused = fused.filter((l) => listingMatchesPriceFilters(l.price_mxn, effective));
 
-  const results = fused
+  let results = fused
     .sort((a, b) => b._score - a._score)
     .slice(0, 24);
 
+  let browseFallbackUsed = false;
+  /** Last resort when keyword + semantic still find nothing verified in category (bad recall or missing embeddings). */
+  if (!results.length && query.trim()) {
+    try {
+      const verifyFrag = postgrestActiveListingVerificationFragment(searchCategory);
+      let fbUrl =
+        `${supaUrl}/rest/v1/listings?${verifyFrag}&category_id=eq.${encodeURIComponent(searchCategory)}` +
+        `&select=${SELECT_COLS_FULL}&order=created_at.desc&limit=48`;
+      fbUrl = appendPriceToUrl(fbUrl);
+      const fetched = await listingRowsFromUrl(fbUrl);
+      let fbRows = fetched.rows.filter((l) =>
+        listingMatchesPriceFilters(l.price_mxn, effective),
+      );
+
+      let fbRelaxedCounty = false;
+      if (coloniaRef) {
+        const before = fbRows;
+        fbRows = fbRows.filter((l: any) => {
+          const lt = l.location_lat;
+          const ln = l.location_lng;
+          if (!lt || !ln) return false;
+          return haversineKm(coloniaRef.lat, coloniaRef.lng, lt, ln) <= COLONIA_RADIUS_KM;
+        });
+        if (!fbRows.length && before.length) {
+          fbRows = before;
+          fbRelaxedCounty = true;
+        }
+      }
+
+      if (fbRows.length) {
+        browseFallbackUsed = true;
+        if (fbRelaxedCounty) colonia_relaxed = true;
+        if (hasGeo) {
+          fbRows = fbRows
+            .map((l: any) => {
+              const lt = l.location_lat;
+              const ln = l.location_lng;
+              if (!lt || !ln) return l;
+              const km = haversineKm(lat, lng, lt, ln);
+              return { ...l, _dist_km: Math.round(km * 10) / 10 };
+            })
+            .sort(
+              (a: any, b: any) =>
+                (Number(a._dist_km) || 9999) - (Number(b._dist_km) || 9999),
+            );
+        }
+        results = fbRows.slice(0, 24).map((listing: any) => ({
+          ...listing,
+          _score: 0,
+          _mode: "browse_fallback",
+        }));
+      }
+    } catch {
+      /* keep empty */
+    }
+  }
+
   await enrichResultsWithSellerUsers(results, supaUrl, headers);
 
-  const mode =
-    denseRows.length > 0 && sparseRows.length > 0
+  const mode = browseFallbackUsed
+    ? "browse_fallback"
+    : denseRows.length > 0 && sparseRows.length > 0
       ? "hybrid"
       : denseRows.length > 0
         ? "dense"
@@ -430,6 +488,7 @@ export async function GET(req: NextRequest) {
           : "empty";
   const debug = {
     hasOpenAIKey: !!OPENAI_KEY,
+    browseFallbackUsed,
     sparseHttpStatus,
     sparseKeywordStrategy,
     sparseCount: sparseRows.length,

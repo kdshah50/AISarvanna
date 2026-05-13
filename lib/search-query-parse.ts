@@ -295,11 +295,34 @@ function escIlike(fragment: string): string {
   return `*${fragment.replace(/\\/g, "").replace(/\*/g, "").trim()}*`;
 }
 
+const SPARSE_TEXT_FIELDS = [
+  "title_es",
+  "title_en",
+  "title_hi",
+  "title_gu",
+  "description_es",
+  "description_en",
+  "description_hi",
+  "description_gu",
+] as const;
+
+/** One OR branch per (token × field) for PostgREST `or=(...)` — any token match counts. */
+function sparseOrBranchesForTokens(unique: string[]): string[] {
+  const branches: string[] = [];
+  for (const tok of unique) {
+    const pat = escIlike(tok);
+    for (const f of SPARSE_TEXT_FIELDS) {
+      branches.push(`${f}.ilike.${pat}`);
+    }
+  }
+  return branches;
+}
+
 /**
- * PostgREST `or`/`and` clause for multilingual sparse search: multi-token queries require
- * every significant token to hit somewhere on title/description (not one contiguous substring).
- *
- * Matches "personal trainer" against title_en "Personal trainer …" + Spanish "... personal ...".
+ * PostgREST clause for multilingual sparse search.
+ * Multi-token phrases use **OR across tokens** (any significant word can match), so natural
+ * language like “flickering lights” still finds “electrician … lighting” without needing
+ * every token in one row. Dense/hybrid embeddings still refine ranking when available.
  */
 export function postgrestSparseKeywordClause(sparsePhrase: string): {
   dimension: "or" | "and";
@@ -315,33 +338,27 @@ export function postgrestSparseKeywordClause(sparsePhrase: string): {
     .filter((t) => t.length >= 3 && !SPARSE_TOKEN_STOPWORDS.has(t));
   const unique = [...new Set(tokens)].slice(0, 8);
 
-  const fields = ["title_es", "title_en", "title_hi", "title_gu", "description_es", "description_en", "description_hi", "description_gu"] as const;
-
   if (unique.length === 0) {
     const safe = trimmed.replace(/[*%,()]/g, "").trim();
     if (!safe) return null;
     const pat = escIlike(safe);
-    const tuple = fields.map((f) => `${f}.ilike.${pat}`).join(",");
+    const tuple = SPARSE_TEXT_FIELDS.map((f) => `${f}.ilike.${pat}`).join(",");
     return { dimension: "or", clause: `(${tuple})` };
   }
 
   if (unique.length === 1) {
     const pat = escIlike(unique[0]);
-    const tuple = fields.map((f) => `${f}.ilike.${pat}`).join(",");
+    const tuple = SPARSE_TEXT_FIELDS.map((f) => `${f}.ilike.${pat}`).join(",");
     return { dimension: "or", clause: `(${tuple})` };
   }
 
-  const parts = unique.map((tok) => {
-    const pat = escIlike(tok);
-    const tuple = fields.map((f) => `${f}.ilike.${pat}`).join(",");
-    return `or(${tuple})`;
-  });
-  return { dimension: "and", clause: `(${parts.join(",")})` };
+  const branches = sparseOrBranchesForTokens(unique);
+  return { dimension: "or", clause: `(${branches.join(",")})` };
 }
 
 /**
- * Loose recall: listing matches if **any** significant token hits any title/description column.
- * Used when strict `postgrestSparseKeywordClause` returns no rows (AND-of-token groups is too tight).
+ * Loose recall: same OR-across-tokens shape as strict when tokens exist; kept for callers that
+ * retry with extra synonym terms merged into the phrase.
  */
 export function postgrestSparseKeywordClauseLoose(sparsePhrase: string): {
   dimension: "or";
@@ -356,19 +373,15 @@ export function postgrestSparseKeywordClauseLoose(sparsePhrase: string): {
     .map((t) => t.replace(/[^a-záéíóúüñ0-9-]/gi, ""))
     .filter((t) => t.length >= 3 && !SPARSE_TOKEN_STOPWORDS.has(t));
   const unique = [...new Set(tokens)].slice(0, 8);
-  const fields = ["title_es", "title_en", "title_hi", "title_gu", "description_es", "description_en", "description_hi", "description_gu"] as const;
 
   const branches: string[] = [];
   if (unique.length === 0) {
     const safe = trimmed.replace(/[*%,()]/g, "").trim();
     if (!safe) return null;
     const pat = escIlike(safe);
-    for (const f of fields) branches.push(`${f}.ilike.${pat}`);
+    for (const f of SPARSE_TEXT_FIELDS) branches.push(`${f}.ilike.${pat}`);
   } else {
-    for (const tok of unique) {
-      const pat = escIlike(tok);
-      for (const f of fields) branches.push(`${f}.ilike.${pat}`);
-    }
+    branches.push(...sparseOrBranchesForTokens(unique));
   }
   if (branches.length === 0) return null;
   return { dimension: "or", clause: `(${branches.join(",")})` };
