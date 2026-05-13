@@ -50,6 +50,16 @@ export function listingHref(listingId: string, lang: Lang = DEFAULT_LANG): strin
   return `/listing/${listingId}?lang=${encodeURIComponent(lang)}`;
 }
 
+/** Same path + query with `lang` set or removed (English = omit). Preserves other query keys when `preserveSearch` is passed. */
+export function hrefWithLang(pathname: string, lang: Lang, preserveSearch?: URLSearchParams): string {
+  const p = preserveSearch ? new URLSearchParams(preserveSearch.toString()) : new URLSearchParams();
+  if (lang === DEFAULT_LANG) p.delete("lang");
+  else p.set("lang", lang);
+  const q = p.toString();
+  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return q ? `${path}?${q}` : path;
+}
+
 /** @deprecated use readStoredLang() — kept for imports that only need the key name */
 export const LEGACY_LANG_STORAGE_KEY_AISARVANA = "aisarvana_lang";
 

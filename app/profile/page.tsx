@@ -1,14 +1,19 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import LoyaltyCard from "@/components/LoyaltyCard";
 import ReferralCard from "@/components/ReferralCard";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
 import SellerStripePayoutCard from "@/components/SellerStripePayoutCard";
-import { listingHref, readStoredLang, writeStoredLang, type Lang } from "@/lib/i18n-lang";
+import AppLangSelect from "@/components/AppLangSelect";
+import { useCommunityLane } from "@/components/CommunityLaneContext";
+import { parseCommunityLane } from "@/lib/community-lane";
+import { clampLangForLane } from "@/lib/lang-for-lane";
+import type { Lang } from "@/lib/i18n-lang";
+import { UsdCents } from "@/components/UsdAmount";
+import { listingHref, langFromParam, hrefWithLang } from "@/lib/i18n-lang";
 import { listingTitle } from "@/lib/listing-language";
-import { formatUsdCents } from "@/lib/money";
 import { formatEinDisplay } from "@/lib/nj-provider-ids";
 
 type User = {
@@ -31,6 +36,7 @@ type User = {
   stripe_connect_account_id?: string | null;
   created_at: string | null;
   community_lane?: string | null;
+  ui_lang?: string | null;
 };
 
 type Listing = {
@@ -47,10 +53,6 @@ type Listing = {
   created_at: string;
 };
 
-function fmtPrice(c: number, lang: Lang) {
-  return formatUsdCents(c, lang);
-}
-
 function badgeInfo(badge: string) {
   const map: Record<string, { icon: string; label: string; color: string; bg: string }> = {
     diamond: { icon: "💎", label: "Diamond", color: "#1D4ED8", bg: "#EFF6FF" },
@@ -62,14 +64,27 @@ function badgeInfo(badge: string) {
 }
 
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-[#FDF8F1] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#1B4332] border-t-transparent rounded-full animate-spin" />
+      </main>
+    }>
+      <ProfilePageInner />
+    </Suspense>
+  );
+}
+
+function ProfilePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { lane: ctxLane } = useCommunityLane();
   const [user, setUser] = useState<User | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [lang, setLang] = useState<Lang>("en");
   const [dlUploading, setDlUploading] = useState(false);
   const [dlMsg, setDlMsg] = useState("");
   const [favorites, setFavorites] = useState<
@@ -84,11 +99,8 @@ export default function ProfilePage() {
     }[]
   >([]);
 
-  useEffect(() => {
-    const s = readStoredLang();
-    if (s) setLang(s);
-  }, []);
-
+  const lane = user ? parseCommunityLane(user.community_lane) ?? ctxLane : ctxLane;
+  const lang = clampLangForLane(langFromParam(searchParams.get("lang")), lane);
   useEffect(() => {
     if (!user) return;
     fetch("/api/favorites?enrich=1", { credentials: "same-origin" })
@@ -239,25 +251,17 @@ export default function ProfilePage() {
 
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <Link href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">← {lang === "es" ? "Inicio" : "Home"}</Link>
-          <div className="flex bg-[#F4F0EB] rounded-lg p-1 gap-0.5 flex-wrap justify-end">
-            {(["en", "es", "hi", "gu"] as const).map((l) => (
-              <button key={l} onClick={() => {
-                setLang(l);
-                writeStoredLang(l);
-              }}
-                className={`px-2 py-1 rounded-md text-[10px] sm:text-xs font-bold transition-all ${lang === l ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280]"}`}>
-                {l === "hi" ? "हि" : l === "gu" ? "ગુ" : l.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          <Link href={hrefWithLang("/", lang)} className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">
+            ← {lang === "es" ? "Inicio" : "Home"}
+          </Link>
+          <AppLangSelect laneOverride={parseCommunityLane(user.community_lane)} labelLang={lang} />
         </div>
 
         {user.community_lane !== "latino" && user.community_lane !== "south_asian" ? (
           <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <span>{t.communityBanner}</span>
             <Link
-              href={`/onboarding/community?returnTo=${encodeURIComponent("/profile")}${lang !== "en" ? `&lang=${lang}` : ""}`}
+              href={hrefWithLang("/onboarding/community", lang, new URLSearchParams({ returnTo: "/profile" }))}
               className="shrink-0 inline-flex justify-center rounded-lg bg-[#1B4332] px-4 py-2 text-xs font-bold text-white"
             >
               {t.communityCta}
@@ -278,7 +282,11 @@ export default function ProfilePage() {
               </strong>
             </span>
             <Link
-              href={`/onboarding/community?change=1&returnTo=${encodeURIComponent("/profile")}${lang !== "en" ? `&lang=${lang}` : ""}`}
+              href={hrefWithLang(
+                "/onboarding/community",
+                lang,
+                new URLSearchParams({ returnTo: "/profile", change: "1" }),
+              )}
               className="shrink-0 inline-flex justify-center rounded-lg border border-[#1B4332] bg-white px-4 py-2 text-xs font-bold text-[#1B4332] hover:bg-[#F4F0EB]"
             >
               {t.communityChange}
@@ -451,7 +459,7 @@ export default function ProfilePage() {
         <div className="bg-white rounded-3xl border border-[#E5E0D8] p-6 mb-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-serif text-lg font-bold text-[#1C1917]">{t.myServices}</h2>
-            <Link href="/unete"
+            <Link href={hrefWithLang("/unete", lang)}
               className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-[#1B4332] text-white hover:bg-[#2D6A4F] transition-colors">
               + {t.addService}
             </Link>
@@ -461,7 +469,7 @@ export default function ProfilePage() {
             <div className="text-center py-10">
               <div className="text-4xl mb-3">📋</div>
               <p className="text-sm text-[#6B7280] mb-4">{t.noServices}</p>
-              <Link href="/unete"
+              <Link href={hrefWithLang("/unete", lang)}
                 className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl bg-[#D4A017] text-white hover:bg-[#C4900D] transition-colors">
                 {t.addService} →
               </Link>
@@ -472,7 +480,7 @@ export default function ProfilePage() {
                 <div key={l.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#F4F0EB]">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[#1C1917] truncate">{listingTitle(l, lang)}</p>
-                    <p className="text-xs text-[#6B7280] mt-0.5">{fmtPrice(l.price_mxn, lang)} · {l.location_city}</p>
+                    <p className="text-xs text-[#6B7280] mt-0.5"><UsdCents cents={l.price_mxn} lang={lang} /> · {l.location_city}</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${
                     l.is_verified && l.status === "active"
@@ -517,7 +525,7 @@ export default function ProfilePage() {
                   >
                     <p className="text-sm font-semibold text-[#1C1917] truncate">{listingTitle(f, lang)}</p>
                     <p className="text-xs text-[#6B7280]">
-                      {fmtPrice(f.price_mxn, lang)}
+                      <UsdCents cents={f.price_mxn} lang={lang} />
                       {f.location_city ? ` · ${f.location_city}` : ""}
                     </p>
                   </Link>
@@ -528,7 +536,7 @@ export default function ProfilePage() {
         </div>
 
         {/* My Bookings link */}
-        <Link href="/my-bookings" className="block mb-3">
+        <Link href={hrefWithLang("/my-bookings", lang)} className="block mb-3">
           <div className="bg-white rounded-2xl border border-[#E5E0D8] p-4 hover:border-[#1B4332] transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -566,7 +574,7 @@ export default function ProfilePage() {
                 </p>
               </div>
             </div>
-            <Link href="/claims" className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+            <Link href={hrefWithLang("/claims", lang)} className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
               {lang === "es" ? "Ver" : "View"} →
             </Link>
           </div>

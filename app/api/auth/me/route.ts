@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase, getUserIdFromRequest, idMatchVariantsForIn } from "@/lib/auth-server";
 import { signedInePhotoUrl } from "@/lib/ine-storage";
+import { parseUiLang } from "@/lib/lang-for-lane";
 
 /** Session + profile payload for /profile (bypasses RLS that blocks anon reads on users/listings). */
 export async function GET(req: NextRequest) {
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     let userError: any = null;
 
     const selectFullNj =
-      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at,provider_entity_type,drivers_license_number,dl_photo_url,dl_verified,ein,ein_verified,community_lane";
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at,provider_entity_type,drivers_license_number,dl_photo_url,dl_verified,ein,ein_verified,community_lane,ui_lang";
     const fullSelect =
       "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at";
     const fullNoRfcVerifiedSelect =
@@ -121,10 +122,12 @@ export async function PATCH(req: NextRequest) {
     const laneRaw = body?.community_lane;
     const communityLane =
       laneRaw === "latino" || laneRaw === "south_asian" ? (laneRaw as "latino" | "south_asian") : null;
+    const uiLangPatch = parseUiLang(body?.ui_lang);
 
     const update: Record<string, unknown> = {};
     if (displayName) update.display_name = displayName;
     if (communityLane) update.community_lane = communityLane;
+    if (uiLangPatch !== null) update.ui_lang = uiLangPatch;
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
@@ -139,7 +142,7 @@ export async function PATCH(req: NextRequest) {
       supabase.from("users").update(update).in("id", idVars).select(cols).maybeSingle();
 
     ({ data, error } = await patchTry(
-      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at,provider_entity_type,drivers_license_number,dl_photo_url,dl_verified,ein,ein_verified,community_lane",
+      "id,phone,display_name,trust_badge,phone_verified,ine_verified,rfc_verified,curp,rfc,ine_photo_url,stripe_connect_account_id,created_at,provider_entity_type,drivers_license_number,dl_photo_url,dl_verified,ein,ein_verified,community_lane,ui_lang",
     ));
     if (error?.message?.includes("does not exist")) {
       ({ data, error } = await patchTry(

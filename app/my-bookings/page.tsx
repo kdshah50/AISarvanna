@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
 import RoutineHabitsCard from "@/components/RoutineHabitsCard";
-import { readStoredLang, writeStoredLang, type Lang } from "@/lib/i18n-lang";
-import { formatUsdCents } from "@/lib/money";
+import AppLangSelect from "@/components/AppLangSelect";
+import { useCommunityLane } from "@/components/CommunityLaneContext";
+import { clampLangForLane } from "@/lib/lang-for-lane";
+import { hrefWithLang, langFromParam, type Lang, listingHref } from "@/lib/i18n-lang";
+import { UsdCents } from "@/components/UsdAmount";
 
 type Booking = {
   id: string;
@@ -157,7 +160,23 @@ const REBOOK_OPTIONS = [7, 14, 30, 90, 180] as const;
 const BEFORE_OPTIONS = [1, 6, 24, 48, 72] as const;
 
 export default function MyBookingsPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-[#FDF8F1] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#1B4332] border-t-transparent rounded-full animate-spin" />
+      </main>
+    }>
+      <MyBookingsPageInner />
+    </Suspense>
+  );
+}
+
+function MyBookingsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { lane } = useCommunityLane();
+  const lang = clampLangForLane(langFromParam(searchParams.get("lang")), lane);
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [reminders, setReminders] = useState<ReminderRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,12 +187,6 @@ export default function MyBookingsPage() {
   const [emailVal, setEmailVal] = useState<Record<string, string>>({});
   const [apptLocal, setApptLocal] = useState<Record<string, string>>({});
   const [apptBeforeH, setApptBeforeH] = useState<Record<string, number>>({});
-  const [lang, setLang] = useState<Lang>("en");
-
-  useEffect(() => {
-    const stored = readStoredLang();
-    if (stored) setLang(stored);
-  }, []);
 
   const loadData = useCallback(() => {
     Promise.all([
@@ -384,26 +397,10 @@ export default function MyBookingsPage() {
     <main className="min-h-screen bg-[#FDF8F1] px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-4">
-          <Link href="/profile" className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">
+          <Link href={hrefWithLang("/profile", lang)} className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">
             {t.back}
           </Link>
-          <div className="flex bg-[#F4F0EB] rounded-lg p-1 gap-0.5 flex-wrap justify-end">
-            {(["en", "es", "hi", "gu"] as const).map((l) => (
-              <button
-                key={l}
-                type="button"
-                onClick={() => {
-                  setLang(l);
-                  writeStoredLang(l);
-                }}
-                className={`px-2 py-1 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
-                  lang === l ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280]"
-                }`}
-              >
-                {l === "hi" ? "हि" : l === "gu" ? "ગુ" : l.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          <AppLangSelect labelLang={lang} />
         </div>
 
         <h1 className="font-serif text-2xl font-bold text-[#1B4332] mt-0 mb-2">{t.title}</h1>
@@ -418,7 +415,7 @@ export default function MyBookingsPage() {
             <p className="text-4xl mb-3">📋</p>
             <p className="text-sm text-[#6B7280] mb-4">{t.emptyTitle}</p>
             <Link
-              href="/"
+              href={hrefWithLang("/", lang)}
               className="inline-block text-sm font-semibold px-5 py-2.5 rounded-xl bg-[#1B4332] text-white hover:bg-[#2D6A4F] transition-colors"
             >
               {t.explore}
@@ -444,14 +441,16 @@ export default function MyBookingsPage() {
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-[#1B4332]">{formatUsdCents(b.commission_amount_cents, lang)}</p>
+                      <p className="text-sm font-bold text-[#1B4332]">
+                        <UsdCents cents={b.commission_amount_cents} lang={lang} />
+                      </p>
                       <p className="text-[10px] text-[#9CA3AF]">{ago}</p>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      href={`/listing/${b.listing_id}`}
+                      href={listingHref(b.listing_id, lang)}
                       className="flex-1 min-w-[120px] py-2.5 rounded-xl bg-[#1B4332] text-white text-xs font-semibold text-center hover:bg-[#2D6A4F] transition-colors"
                     >
                       {t.rebook}

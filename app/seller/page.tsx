@@ -5,7 +5,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { langFromParam, listingHref } from "@/lib/i18n-lang";
 import { listingTitle } from "@/lib/listing-language";
-import { formatUsdCents } from "@/lib/money";
+import { UsdCents } from "@/components/UsdAmount";
 
 
 function TrustBadge({ badge }: { badge: string }) {
@@ -189,7 +189,7 @@ export default async function SellerPage({
                     {/* Info */}
                     <div className="p-3">
                       <p className="text-base font-bold text-[#1C1917] mb-0.5">
-                        {formatUsdCents(listing.price_mxn, lang)}
+                        <UsdCents cents={listing.price_mxn} lang={lang} />
                         {listing.negotiable && (
                           <span className="text-xs font-normal text-[#6B7280] ml-1">
                             · {lang === "en" ? "neg." : "neg."}

@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { COLONIAS, COLONIA_KEYS, detectColoniaInQuery, coloniaLabel } from "@/lib/colonias";
 import { detectZipInQuery } from "@/lib/us-zip";
 import { langFromParam } from "@/lib/i18n-lang";
-import { formatUsdWhole } from "@/lib/money";
+import { UsdWhole } from "@/components/UsdAmount";
 
 /** Slider top = “no upper cap” in the URL (pmax omitted). Whole US dollars. */
 const PRICE_MAX_UI = 50_000;
@@ -237,7 +237,9 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
             <div>
               <div className="flex justify-between text-[11px] text-white/80 mb-1">
                 <span>{t.priceMin}</span>
-                <span className="font-semibold text-white">{formatUsdWhole(priceMin, lang)}</span>
+                <span className="font-semibold text-white">
+                  <UsdWhole dollars={priceMin} lang={lang} />
+                </span>
               </div>
               <input
                 type="range"
@@ -253,7 +255,7 @@ function HeroInner({ initialQuery }: { initialQuery: string }) {
               <div className="flex justify-between text-[11px] text-white/80 mb-1">
                 <span>{t.priceMax}</span>
                 <span className="font-semibold text-white">
-                  {priceMax >= PRICE_MAX_UI ? t.noMax : formatUsdWhole(priceMax, lang)}
+                  {priceMax >= PRICE_MAX_UI ? t.noMax : <UsdWhole dollars={priceMax} lang={lang} />}
                 </span>
               </div>
               <input

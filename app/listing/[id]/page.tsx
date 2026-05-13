@@ -17,6 +17,7 @@ import { langFromParam } from "@/lib/i18n-lang";
 import ListingPhotoGallery from "@/components/ListingPhotoGallery";
 import { listingTitle, listingDescription } from "@/lib/listing-language";
 import { formatUsdCents } from "@/lib/money";
+import { UsdCents } from "@/components/UsdAmount";
 import { fetchListingForDetailPage, fetchListingMetaRow } from "@/lib/listing-detail-fetch";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
@@ -91,7 +92,6 @@ export default async function ListingPage({
   const listingLang = langFromParam(searchParams?.lang);
   const displayTitle = listingTitle(listing, listingLang);
   const displayDescription = listingDescription(listing, listingLang);
-  const price = formatUsdCents(listing.price_mxn, listingLang);
   const isServiceListing = isServicesListing(listing);
   const sellerTrust = verificationPropsFromSellerRow(
     listing.users as Parameters<typeof verificationPropsFromSellerRow>[0]
@@ -112,7 +112,9 @@ export default async function ListingPage({
         )}
         <ListingPhotoGallery photos={Array.isArray(listing.photo_urls) ? listing.photo_urls : []} title={displayTitle} />
         <div className="flex items-start justify-between mb-3">
-          <span className="text-3xl font-bold text-[#1B4332]">{price}</span>
+          <span className="text-3xl font-bold text-[#1B4332]">
+            <UsdCents cents={listing.price_mxn} lang={listingLang} />
+          </span>
           {listing.negotiable && (
             <span className="text-sm text-[#6B7280] italic">
               {listingLang === "en" ? "Negotiable" : "Negociable"}
@@ -128,7 +130,7 @@ export default async function ListingPage({
             <strong>{listingLang === "en" ? "Approved package:" : "Paquete aprobado:"}</strong>{" "}
             {listing.package_session_count}{" "}
             {listingLang === "en" ? "sessions for" : "sesiones por"}{" "}
-            {formatUsdCents(listing.package_total_price_mxn, listingLang)}{" "}
+            <UsdCents cents={listing.package_total_price_mxn} lang={listingLang} />{" "}
             {listingLang === "en"
               ? "total (platform fee is calculated on this amount when you book)."
               : "en total (la tarifa de plataforma se calcula sobre este monto al reservar)."}

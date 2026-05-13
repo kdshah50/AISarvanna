@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/components/cart/CartContext";
 import { langFromParam } from "@/lib/i18n-lang";
-import { formatUsdCents } from "@/lib/money";
+import { UsdCents } from "@/components/UsdAmount";
 
 type Preview = {
   connectRequired?: boolean;
@@ -135,7 +135,9 @@ function CartPageInner() {
                   {l.titleEs || l.listingId.slice(0, 8)}
                 </p>
                 {l.priceMxnCents != null && (
-                  <p className="text-xs text-[#6B7280]">{formatUsdCents(l.priceMxnCents, lang)} c/u</p>
+                  <p className="text-xs text-[#6B7280]">
+                    <UsdCents cents={l.priceMxnCents} lang={lang} /> c/u
+                  </p>
                 )}
               </div>
               <input
@@ -171,19 +173,19 @@ function CartPageInner() {
         <div className="rounded-xl border border-[#E5E0D8] bg-[#FDF8F1] p-4 space-y-2 text-sm mb-6">
           <div className="flex justify-between">
             <span className="text-[#6B7280]">Subtotal</span>
-            <span className="font-medium">{formatUsdCents(preview.subtotalCents, lang)}</span>
+            <span className="font-medium"><UsdCents cents={preview.subtotalCents} lang={lang} /></span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#6B7280]">AISaravanna fee</span>
-            <span className="font-medium">{formatUsdCents(preview.commissionCents, lang)}</span>
+            <span className="font-medium"><UsdCents cents={preview.commissionCents} lang={lang} /></span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#6B7280]">IVA ({preview.vatPercent}%)</span>
-            <span className="font-medium">{formatUsdCents(preview.vatCents, lang)}</span>
+            <span className="font-medium"><UsdCents cents={preview.vatCents} lang={lang} /></span>
           </div>
           <div className="flex justify-between pt-2 border-t border-[#E5E0D8] text-base font-bold text-[#1B4332]">
             <span>Total</span>
-            <span>{formatUsdCents(preview.totalCents, lang)}</span>
+            <span><UsdCents cents={preview.totalCents} lang={lang} /></span>
           </div>
           <p className="text-xs text-[#6B7280] pt-2">
             The seller receives the subtotal via Stripe Connect; AISaravanna retains the fee + VAT shown. Adjust{" "}

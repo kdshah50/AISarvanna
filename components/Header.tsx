@@ -3,9 +3,11 @@ import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { langFromParam, type Lang, writeStoredLang } from "@/lib/i18n-lang";
+import { langFromParam, writeStoredLang, hrefWithLang, DEFAULT_LANG } from "@/lib/i18n-lang";
+import { clearGoogtransCookies } from "@/lib/google-translate-cookie";
 import { useCommunityLane } from "@/components/CommunityLaneContext";
 import type { CommunityLane } from "@/lib/community-lane";
+import AppLangSelect from "@/components/AppLangSelect";
 
 const SellModal = dynamic(() => import("./SellModal"), { ssr: false });
 const CartHeaderLink = dynamic(() => import("@/components/cart/CartHeaderLink"), { ssr: false });
@@ -67,40 +69,35 @@ function CommunityLaneToggle({ lang }: { lang: ReturnType<typeof langFromParam> 
   );
 }
 
-function LangToggle() {
-  const router = useRouter();
+function HeaderLangBlock() {
   const pathname = usePathname();
   const params = useSearchParams();
-  const lang = langFromParam(params.get("lang"));
-  const toggle = (l: Lang) => {
-    const p = new URLSearchParams(params.toString());
-    p.set("lang", l);
-    router.push(`${pathname}?${p.toString()}`);
-  };
-  const opts: { code: Lang; show: string }[] = [
-    { code: "en", show: "EN" },
-    { code: "es", show: "ES" },
-    { code: "hi", show: "हि" },
-    { code: "gu", show: "ગુ" },
-  ];
+  const { lane } = useCommunityLane();
+  const labelLang = langFromParam(params.get("lang"));
+
+  useEffect(() => {
+    if (lane !== "latino") return;
+    if (labelLang !== "hi" && labelLang !== "gu") return;
+    clearGoogtransCookies();
+    writeStoredLang(DEFAULT_LANG);
+    const dest = hrefWithLang(pathname, DEFAULT_LANG, params);
+    void fetch("/api/auth/me", {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ui_lang: DEFAULT_LANG }),
+    }).catch(() => {});
+    window.location.assign(`${typeof window !== "undefined" ? window.location.origin : ""}${dest}`);
+  }, [lane, labelLang, pathname, params]);
+
+  return <AppLangSelect labelLang={labelLang} />;
+}
+
+function HeaderLangSelect() {
   return (
-    <div className="flex bg-[#F4F0EB] rounded-lg p-0.5 gap-0.5" title="Language / भाषा / ભાષા">
-      {opts.map(({ code, show }) => (
-        <button
-          key={code}
-          type="button"
-          onClick={() => {
-            toggle(code);
-            writeStoredLang(code);
-          }}
-          className={`px-2 sm:px-2.5 py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
-            lang === code ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280] hover:text-[#1B4332]"
-          }`}
-        >
-          {show}
-        </button>
-      ))}
-    </div>
+    <Suspense fallback={<div className="w-36 h-7 bg-[#F4F0EB] rounded-lg shrink-0" />}>
+      <HeaderLangBlock />
+    </Suspense>
   );
 }
 
@@ -140,7 +137,7 @@ function HeaderInner() {
     <>
       <header className="bg-white border-b border-[#E5E0D8] sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <Link href="/" className="flex-shrink-0 font-serif text-lg font-bold tracking-tight">
+          <Link href={hrefWithLang("/", lang, params)} className="flex-shrink-0 font-serif text-lg font-bold tracking-tight">
             <span className="text-[#1B4332]">AI</span>
             <span className="text-[#1C1917]">Saravanna</span>
             <span className="text-[#D4A017] text-xs font-bold ml-0.5">✦</span>
@@ -148,9 +145,7 @@ function HeaderInner() {
 
           <div className="flex items-center gap-2 sm:gap-3 ml-auto min-w-0">
             <CommunityLaneToggle lang={lang} />
-            <Suspense fallback={<div className="w-16 h-7 bg-[#F4F0EB] rounded-lg shrink-0" />}>
-              <LangToggle />
-            </Suspense>
+            <HeaderLangSelect />
 
             {user ? (
               /* Logged-in user avatar + menu */
@@ -169,13 +164,13 @@ function HeaderInner() {
                 {showMenu && (
                   <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-[#E5E0D8] rounded-xl shadow-lg overflow-hidden z-50">
                     <Link
-                      href="/messages"
+                      href={hrefWithLang("/messages", lang)}
                       className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-[#F4F0EB] transition-colors"
                       onClick={() => setShowMenu(false)}
                     >
                       {lang === "en" ? "Messages" : "Mensajes"}
                     </Link>
-                    <Link href="/profile"
+                    <Link href={hrefWithLang("/profile", lang)}
                       className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-[#F4F0EB] transition-colors"
                       onClick={() => setShowMenu(false)}>
                       👤 {lang === "en" ? "My profile" : "Mi perfil"}
@@ -189,12 +184,12 @@ function HeaderInner() {
               </div>
             ) : (
               /* Not logged in — show Login link */
-              <Link href="/auth/login"
+              <Link href={hrefWithLang("/auth/login", lang)}
                 className="text-sm font-semibold text-[#1B4332] hover:underline px-2">
                 {lang === "en" ? "Log in" : "Entrar"}
               </Link>
             )}
-            <Link href="/unete"
+            <Link href={hrefWithLang("/unete", lang)}
               className="text-sm font-semibold px-4 py-2 rounded-xl border border-[#1B4332] text-[#1B4332] hover:bg-[#1B4332] hover:text-white transition-colors hidden sm:inline-flex">
               {lang === "en" ? "List your service" : "Únete"}
             </Link>

@@ -8,7 +8,7 @@ import { ListingCard } from "@/lib/types";
 import { WhatsAppBadgeLocked } from "@/components/WhatsAppCTA";
 import { SellerVerificationBadges } from "@/components/SellerVerificationBadges";
 import { DEFAULT_LANG, langFromParam, listingHref, type Lang } from "@/lib/i18n-lang";
-import { formatUsdCents } from "@/lib/money";
+import { UsdCents } from "@/components/UsdAmount";
 import { isServiceVerticalCategory, normalizeBrowseCategory } from "@/lib/marketplace-categories";
 
 type Props = {
@@ -206,7 +206,7 @@ export default function ListingGrid({
 
             <div className="p-4">
               <p className="text-lg font-bold text-[#1B4332] mb-1">
-                {listing.price_display ?? formatUsdCents(listing.price_mxn, lang)}
+                <UsdCents cents={listing.price_mxn} lang={lang} />
                 {listing.negotiable && (
                   <span className="text-xs font-normal text-[#6B7280] ml-1">{negotiableHint}</span>
                 )}

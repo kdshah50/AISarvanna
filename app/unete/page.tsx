@@ -1,8 +1,12 @@
 "use client";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { COLONIA_KEYS, COLONIAS as COLONIAS_MAP, coloniaLabel } from "@/lib/colonias";
-import { langFromParam, writeStoredLang, type Lang } from "@/lib/i18n-lang";
+import { useCommunityLane } from "@/components/CommunityLaneContext";
+import AppLangSelect from "@/components/AppLangSelect";
+import { UsdCents } from "@/components/UsdAmount";
+import { clampLangForLane } from "@/lib/lang-for-lane";
+import { langFromParam, hrefWithLang, type Lang } from "@/lib/i18n-lang";
 
 const COLONIAS_LIST = COLONIA_KEYS.map(key => ({
   value: key,
@@ -152,11 +156,8 @@ const T = {
 
 function UnetePageInner() {
   const searchParams = useSearchParams();
-  const [lang, setLang] = useState<Lang>("en");
-
-  useEffect(() => {
-    setLang(langFromParam(searchParams.get("lang")));
-  }, [searchParams]);
+  const { lane } = useCommunityLane();
+  const lang = clampLangForLane(langFromParam(searchParams.get("lang")), lane);
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -221,7 +222,7 @@ function UnetePageInner() {
         <p className="text-sm text-[#6B7280] leading-relaxed mb-3">{t.doneSub}</p>
         <p className="text-xs text-[#059669] font-medium leading-relaxed">{t.doneNote}</p>
         <div className="mt-6">
-          <a href="/" className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl bg-[#1B4332] text-white hover:bg-[#2D6A4F] transition-colors">
+          <a href={hrefWithLang("/", lang)} className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl bg-[#1B4332] text-white hover:bg-[#2D6A4F] transition-colors">
             ← {lang === "es" ? "Volver al inicio" : "Back to home"}
           </a>
         </div>
@@ -235,18 +236,8 @@ function UnetePageInner() {
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <a href="/" className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">← AISaravanna</a>
-          <div className="flex bg-[#F4F0EB] rounded-lg p-1 gap-0.5 flex-wrap justify-end max-w-[11rem] sm:max-w-none">
-            {(["en", "es", "hi", "gu"] as const).map((l) => (
-              <button key={l} onClick={() => {
-                setLang(l);
-                writeStoredLang(l);
-              }}
-                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${lang===l ? "bg-white text-[#1B4332] shadow-sm" : "text-[#6B7280]"}`}>
-                {l === "hi" ? "हि" : l === "gu" ? "ગુ" : l.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          <a href={hrefWithLang("/", lang)} className="text-sm text-[#6B7280] hover:text-[#1B4332] transition-colors">← AISaravanna</a>
+          <AppLangSelect labelLang={lang} />
         </div>
 
         {/* Hero */}
@@ -503,7 +494,16 @@ function UnetePageInner() {
                     const s = SERVICES.find(x => x.value === form.service);
                     return s ? (lang === "es" ? s.es : s.en) : form.service;
                   })()],
-                  [t.price,    `$${form.price} USD`],
+                  [t.price, (() => {
+                    const raw = String(form.price).trim().replace(/,/g, "");
+                    const n = parseFloat(raw);
+                    const cents = Number.isFinite(n) ? Math.round(n * 100) : null;
+                    return cents != null ? (
+                      <UsdCents cents={cents} lang={lang} />
+                    ) : (
+                      <span translate="no" className="notranslate">{form.price || "—"} USD</span>
+                    );
+                  })()],
                   [t.colonia,  form.colonia ? coloniaLabel(form.colonia, lang) : form.colonia],
                   [t.providerType, form.provider_entity_type === "individual" ? t.individual : t.business],
                   ...(form.provider_entity_type === "individual" && form.drivers_license_number
@@ -516,8 +516,8 @@ function UnetePageInner() {
                     const labels: Record<string, string> = { efectivo: "💵 Efectivo", spei: "🏦 SPEI", oxxo: "🏪 OXXO", mercadopago: "💳 M.Pago", whatsapp: "💬 WhatsApp" };
                     return labels[m] ?? m;
                   }).join(", ")],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between text-sm">
+                ].map(([label, value], rowIdx) => (
+                  <div key={typeof label === "string" ? `${rowIdx}-${label}` : rowIdx} className="flex justify-between text-sm">
                     <span className="text-[#6B7280] font-medium">{label}</span>
                     <span className="text-[#1C1917] font-semibold text-right max-w-[60%]">{value}</span>
                   </div>

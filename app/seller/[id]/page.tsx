@@ -6,7 +6,7 @@ import SellerReviews, { RatingSummary } from "@/components/SellerReviews";
 import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { langFromParam, listingHref } from "@/lib/i18n-lang";
 import { listingTitle } from "@/lib/listing-language";
-import { formatUsdCents } from "@/lib/money";
+import { UsdCents } from "@/components/UsdAmount";
 
 function TrustBadge({ badge }: { badge: string }) {
   const styles: Record<string, { label: string; color: string; bg: string; desc: string }> = {
@@ -193,7 +193,9 @@ export default async function SellerPage({
                       )}
                     </div>
                     <div className="p-3">
-                      <p className="text-base font-bold text-[#1C1917] mb-0.5">{formatUsdCents(listing.price_mxn, lang)}</p>
+                      <p className="text-base font-bold text-[#1C1917] mb-0.5">
+                        <UsdCents cents={listing.price_mxn} lang={lang} />
+                      </p>
                       <p className="text-xs text-[#374151] line-clamp-2 leading-snug">{listingTitle(listing, lang)}</p>
                       {listing.location_city && <p className="text-[10px] text-[#9CA3AF] mt-1">{listing.location_city}</p>}
                     </div>

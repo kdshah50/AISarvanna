@@ -1,8 +1,9 @@
 "use client";
 import Image from "next/image";
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { formatUsdWhole } from "@/lib/money";
+import { useRouter, useSearchParams } from "next/navigation";
+import { langFromParam } from "@/lib/i18n-lang";
+import { UsdWhole } from "@/components/UsdAmount";
 import { MARKETPLACE_CATEGORIES, isServiceVerticalCategory } from "@/lib/marketplace-categories";
 import { categoryVisibleForLane } from "@/lib/community-lane";
 import { useCommunityLane } from "@/components/CommunityLaneContext";
@@ -13,6 +14,8 @@ type PhotoItem = { file: File; preview: string };
 
 export default function SellModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
+  const params = useSearchParams();
+  const sellLang = langFromParam(params.get("lang"));
   const { lane } = useCommunityLane();
   const categoryOptions = useMemo(
     () =>
@@ -394,7 +397,8 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
                   <span className="text-xs text-[#047857]">{aiComparables} artículos similares</span>
                 </div>
                 <p className="text-lg font-bold text-[#065F46]">
-                  Precio sugerido (USD): {aiSuggestedPrice != null ? formatUsdWhole(aiSuggestedPrice, "en") : "—"}
+                  Precio sugerido (USD):{" "}
+                  {aiSuggestedPrice != null ? <UsdWhole dollars={aiSuggestedPrice} lang={sellLang} /> : "—"}
                 </p>
                 <p className="text-xs text-[#047857] mt-0.5">
                   Pre-llenado abajo — ajusta si lo deseas
@@ -428,7 +432,8 @@ export default function SellModal({ onClose }: { onClose: () => void }) {
                   PRECIO — USD ($)
                   {aiSuggestedPrice && (
                     <span className="ml-2 text-[#059669] font-normal">
-                      · sugerido: {aiSuggestedPrice != null ? formatUsdWhole(aiSuggestedPrice, "en") : "—"}
+                      · sugerido:{" "}
+                      {aiSuggestedPrice != null ? <UsdWhole dollars={aiSuggestedPrice} lang={sellLang} /> : "—"}
                     </span>
                   )}
                 </label>

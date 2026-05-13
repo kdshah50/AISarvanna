@@ -15,6 +15,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Google Translate may inject a top banner iframe; hiding avoids a blank strip (toolbar still in ⋮ menu). */
+body > .skiptranslate ~ iframe.goog-te-banner-frame,
+.goog-te-banner-frame {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+}
+
 /* Native inputs/textarea default to white bg; ensure typed text is always dark. */
 input:not([type]),
 input[type="text"],

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { langFromParam } from "@/lib/i18n-lang";
-import { formatUsdCents } from "@/lib/money";
+import { UsdCents } from "@/components/UsdAmount";
 
 type BookingState = {
   isService: boolean;
@@ -251,7 +251,7 @@ export default function ServiceBookingBlock({
         {booking.hasPackage && booking.packageSessionCount && booking.packageTotalMxnCents != null && (
           <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-950">
             <strong>Plan aprobado (AISaravanna):</strong> {booking.packageSessionCount} sesiones por{" "}
-            {formatUsdCents(booking.packageTotalMxnCents!, lang)} en total. La tarifa de plataforma abajo se calcula sobre este
+            <UsdCents cents={booking.packageTotalMxnCents!} lang={lang} /> en total. La tarifa de plataforma abajo se calcula sobre este
             monto acordado con el proveedor.
           </div>
         )}
@@ -300,7 +300,8 @@ export default function ServiceBookingBlock({
             {hasPaid ? "✓" : "2"}
           </span>
           <span>
-            Paga la tarifa {isService ? "de servicio" : "de conexión"} ({formatUsdCents(booking.commissionAmountCents, lang)})
+            Paga la tarifa {isService ? "de servicio" : "de conexión"} (
+            <UsdCents cents={booking.commissionAmountCents} lang={lang} />)
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -360,7 +361,9 @@ export default function ServiceBookingBlock({
               <p className="text-xs text-[#6B7280]">
                 Tarifa {isService ? "de servicio" : "de conexión"} ({booking.commissionPct}%)
               </p>
-              <p className="text-lg font-bold text-[#1C1917]">{formatUsdCents(booking.commissionAmountCents, lang)}</p>
+              <p className="text-lg font-bold text-[#1C1917]">
+                <UsdCents cents={booking.commissionAmountCents} lang={lang} />
+              </p>
             </div>
           </div>
 
@@ -370,7 +373,11 @@ export default function ServiceBookingBlock({
             onClick={() => void startCheckout()}
             className="w-full py-3 rounded-xl bg-[#1B4332] text-white text-sm font-semibold disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            {busy ? "Procesando…" : `Pagar ${formatUsdCents(booking.commissionAmountCents, lang)} y obtener contacto`}
+            {busy ? "Procesando…" : (
+              <>
+                Pagar <UsdCents cents={booking.commissionAmountCents} lang={lang} /> y obtener contacto
+              </>
+            )}
           </button>
 
           <p className="text-center text-xs text-[#6B7280]">

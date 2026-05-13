@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { ReviewForm } from "@/components/SellerReviews";
 import GuaranteeBadge from "@/components/GuaranteeBadge";
 import { langFromParam } from "@/lib/i18n-lang";
-import { formatUsdCents } from "@/lib/money";
+import { UsdCents } from "@/components/UsdAmount";
 
 type BookingData = {
   id: string;
@@ -197,7 +197,7 @@ function BookingSuccessContent() {
                     <p className="text-xs text-[#6B7280]">Proveedor: {data.seller.displayName}</p>
                   )}
                   <p className="text-xs text-[#6B7280] mt-0.5">
-                    Tarifa pagada: {formatUsdCents(data.commissionAmountCents, lang)}
+                    Tarifa pagada: <UsdCents cents={data.commissionAmountCents} lang={lang} />
                   </p>
                 </div>
               </div>
