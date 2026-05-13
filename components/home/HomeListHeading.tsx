@@ -16,8 +16,6 @@ type Props = {
   hasGeo: boolean;
   isHybrid: boolean;
   cardCount: number;
-  /** True when county filter would hide all rows but we widened to category-wide results. */
-  coloniaFilterRelaxed?: boolean;
 };
 
 /**
@@ -34,7 +32,6 @@ export function HomeListHeading({
   hasGeo,
   isHybrid,
   cardCount,
-  coloniaFilterRelaxed = false,
 }: Props) {
   const params = useSearchParams();
   const [lang, setLang] = useState<Lang>(initialLang);
@@ -114,13 +111,6 @@ export function HomeListHeading({
           </span>
         )}
       </p>
-      {coloniaFilterRelaxed && cardCount > 0 && (
-        <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-          {lang === "en"
-            ? "No listings sat within the county radius from the map center — showing all matches in this category across New Jersey instead."
-            : "Ningún anuncio quedó dentro del radio del condado — mostramos todos los de esta categoría en Nueva Jersey."}
-        </p>
-      )}
     </div>
   );
 }

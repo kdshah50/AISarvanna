@@ -96,8 +96,6 @@ export default async function HomePage({ searchParams }: Props) {
   let cards: any[] = [];
   let searchMode = "sparse";
   let countyCatalog: CountyServiceCatalogRow[] = [];
-  /** County radius hid all rows but category had matches — we widened to full category results. */
-  let coloniaFilterRelaxed = false;
 
   try {
     const supaHeaders = getServiceRoleRestHeaders();
@@ -132,7 +130,6 @@ export default async function HomePage({ searchParams }: Props) {
       if (res.ok) {
         const data = await res.json();
         searchMode = data.mode ?? "sparse";
-        if (data.colonia_relaxed === true) coloniaFilterRelaxed = true;
         const detectedColonia = data.colonia ?? null;
         cards = (data.results ?? []).map((row: any) => {
           const rLat = row.location_lat ?? NJ_LAT;
@@ -211,15 +208,10 @@ export default async function HomePage({ searchParams }: Props) {
 
         if (coloniaData) {
           const cd = coloniaData;
-          const filtered = rows.filter((row: any) => {
+          rows = rows.filter((row: any) => {
             const km = distKm(cd.lat, cd.lng, row.location_lat ?? NJ_LAT, row.location_lng ?? NJ_LNG);
             return km <= COLONIA_RADIUS_KM;
           });
-          if (filtered.length > 0) {
-            rows = filtered;
-          } else if (rows.length > 0) {
-            coloniaFilterRelaxed = true;
-          }
         }
 
         cards = rows.map((row: any) => {
@@ -297,7 +289,6 @@ export default async function HomePage({ searchParams }: Props) {
             hasGeo={hasGeo}
             isHybrid={isHybrid}
             cardCount={cards.length}
-            coloniaFilterRelaxed={coloniaFilterRelaxed}
           />
         </Suspense>
         <Suspense

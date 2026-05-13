@@ -221,8 +221,8 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 /**
  * Rough disk filter around each county centroid when the shopper picks a NJ county chip.
  * Too large overlaps the next county (e.g. Middlesex demos ~43km from Monmouth centroid could
- * satisfy a 72km disk). ~38km keeps most of one NJ county near its centroid without swallowing the
- * whole adjacent county; `colonia_relaxed` may still widen if nothing matches locally.
+ * satisfy a wide disk). ~38km keeps most of one NJ county near its centroid without swallowing the
+ * whole adjacent county. County chips are enforced strictly — no automatic statewide widen.
  */
 export const COLONIA_RADIUS_KM = 38;
 
