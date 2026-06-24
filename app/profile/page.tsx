@@ -650,6 +650,27 @@ function ProfilePageInner() {
           </div>
         </Link>
 
+        <Link href={hrefWithLang("/seller-bookings", lang)} className="block mb-3">
+          <div className="bg-white rounded-2xl border border-[#E5E0D8] p-4 hover:border-[#1B4332] transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🛠️</span>
+                <div>
+                  <p className="text-sm font-bold text-[#1C1917]">
+                    {lang === "es" ? "Gestionar reservas" : "Manage bookings"}
+                  </p>
+                  <p className="text-xs text-[#6B7280]">
+                    {lang === "es"
+                      ? "Agendar, en curso y completar servicios pagados"
+                      : "Schedule, in progress, and complete paid jobs"}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[#6B7280] text-sm">→</span>
+            </div>
+          </div>
+        </Link>
+
         {/* Guarantee link */}
         <div className="bg-gradient-to-r from-emerald-50 to-[#ECFDF5] rounded-2xl border border-emerald-200 p-4 mb-5">
           <div className="flex items-center justify-between">

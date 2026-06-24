@@ -12,6 +12,18 @@ import {
 import ServiceQuoteBuyerPanel from "@/components/ServiceQuoteBuyerPanel";
 import { serviceBookingCopy } from "@/lib/service-booking-copy";
 import HousekeepingBookingPayments from "@/components/HousekeepingBookingPayments";
+import { providerServiceSupportsSupplementPayments } from "@/lib/provider-services";
+
+type PaidDetail = {
+  pricingBaseMxnCents?: number | null;
+  balanceDueMxnCents?: number | null;
+  balancePaymentStatus?: string | null;
+  balancePaidAt?: string | null;
+  tipMxnCents?: number | null;
+  tipPaymentStatus?: string | null;
+  appointmentAt?: string | null;
+  sellerConnectReady?: boolean;
+};
 
 type BookingState = {
   isService: boolean;
@@ -137,6 +149,7 @@ export default function ServiceBookingBlock({
   const [walletBalanceCents, setWalletBalanceCents] = useState<number | null>(null);
   const [walletEnabled, setWalletEnabled] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [paidDetail, setPaidDetail] = useState<PaidDetail | null>(null);
 
   const load = useCallback(async () => {
     setMsg("");
@@ -155,16 +168,37 @@ export default function ServiceBookingBlock({
     let data = res.ok ? ((await res.json()) as BookingState) : null;
     const paidId = data?.paidBookingId;
     const paidSt = String(data?.paidBookingStatus ?? "").toLowerCase();
-    if (paidId && paidSt !== "completed" && paidSt !== "cancelled") {
+    setPaidDetail(null);
+    if (paidId) {
       try {
         const detail = await fetch(`/api/bookings/${encodeURIComponent(paidId)}`, {
           credentials: "same-origin",
           cache: "no-store",
         });
         if (detail.ok) {
-          const row = (await detail.json()) as { status?: string };
+          const row = (await detail.json()) as {
+            status?: string;
+            pricingBaseMxnCents?: number | null;
+            balanceDueMxnCents?: number | null;
+            balancePaymentStatus?: string | null;
+            balancePaidAt?: string | null;
+            tipMxnCents?: number | null;
+            tipPaymentStatus?: string | null;
+            appointmentAt?: string | null;
+            sellerConnectReady?: boolean;
+          };
           const st = String(row.status ?? "").trim();
           if (st && data) data = { ...data, paidBookingStatus: st };
+          setPaidDetail({
+            pricingBaseMxnCents: row.pricingBaseMxnCents,
+            balanceDueMxnCents: row.balanceDueMxnCents,
+            balancePaymentStatus: row.balancePaymentStatus,
+            balancePaidAt: row.balancePaidAt,
+            tipMxnCents: row.tipMxnCents,
+            tipPaymentStatus: row.tipPaymentStatus,
+            appointmentAt: row.appointmentAt,
+            sellerConnectReady: row.sellerConnectReady,
+          });
         }
       } catch {
         /* non-fatal */
@@ -553,6 +587,33 @@ export default function ServiceBookingBlock({
           >
             {inAppCta}
           </button>
+          {booking.paidBookingId &&
+            (providerServiceSupportsSupplementPayments(providerSlug) ||
+              paidDetail?.appointmentAt ||
+              (paidDetail?.balanceDueMxnCents ?? 0) >= 100) && (
+              <HousekeepingBookingPayments
+                bookingId={booking.paidBookingId}
+                lang={listingLang === "es" ? "es" : "en"}
+                providerSlug={providerSlug}
+                pricingBaseMxnCents={
+                  paidDetail?.pricingBaseMxnCents ??
+                  booking.pricingBaseMxnCents ??
+                  booking.agreedSubtotalMxnCents ??
+                  booking.listingPricingBaseMxnCents
+                }
+                commissionAmountCents={booking.commissionAmountCents}
+                balanceDueMxnCents={paidDetail?.balanceDueMxnCents}
+                balancePaymentStatus={paidDetail?.balancePaymentStatus}
+                balancePaidAt={paidDetail?.balancePaidAt}
+                tipMxnCents={paidDetail?.tipMxnCents}
+                tipPaymentStatus={paidDetail?.tipPaymentStatus}
+                appointmentAt={paidDetail?.appointmentAt}
+                status={String(booking.paidBookingStatus ?? "confirmed")}
+                paymentStatus="paid"
+                sellerConnectReady={paidDetail?.sellerConnectReady ?? booking.sellerConnectReady ?? false}
+                onPaid={() => void load()}
+              />
+            )}
         </div>
       </div>
     );
