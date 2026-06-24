@@ -7,6 +7,8 @@ import { getServiceRoleRestHeaders, getSupabaseUrl } from "@/lib/service-rest";
 import { langFromParam, listingHref } from "@/lib/i18n-lang";
 import { listingTitle } from "@/lib/listing-language";
 import { UsdCents } from "@/components/UsdAmount";
+import { SellerSocialLinks } from "@/components/SellerSocialLinks";
+import { providerSocialFromRow } from "@/lib/social-links";
 
 function TrustBadge({ badge }: { badge: string }) {
   const styles: Record<string, { label: string; color: string; bg: string; desc: string }> = {
@@ -61,7 +63,7 @@ export default async function SellerPage({
   const lang = langFromParam(searchParams?.lang);
 
   const sellerRes = await fetch(
-    `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,dl_verified,ein_verified,ine_verified,rfc_verified,phone_verified,created_at`,
+    `${supaUrl}/rest/v1/users?id=eq.${params.id}&select=id,display_name,avatar_url,trust_badge,dl_verified,ein_verified,ine_verified,rfc_verified,phone_verified,created_at,facebook_url,instagram_handle`,
     { headers: h, cache: "no-store" }
   );
   const sellerRows = sellerRes.ok ? await sellerRes.json() : [];
@@ -95,6 +97,7 @@ export default async function SellerPage({
   const bizOk = Boolean(seller.ein_verified || seller.rfc_verified);
   const memberSince = new Date(seller.created_at).getFullYear();
   const initials = (seller.display_name ?? "V").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+  const sellerSocial = providerSocialFromRow(seller);
 
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
@@ -124,6 +127,9 @@ export default async function SellerPage({
               <StatCard value={listings.length} label="Activos" />
               <StatCard value={sold.length} label="Vendidos" />
               <StatCard value={reviewCount} label="Reseñas" />
+            </div>
+            <div className="w-full mt-2">
+              <SellerSocialLinks lang={lang} links={sellerSocial} />
             </div>
           </div>
         </div>

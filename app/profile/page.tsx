@@ -37,6 +37,8 @@ type User = {
   created_at: string | null;
   community_lane?: string | null;
   ui_lang?: string | null;
+  facebook_url?: string | null;
+  instagram_handle?: string | null;
 };
 
 type Listing = {
@@ -85,6 +87,10 @@ function ProfilePageInner() {
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
+  const [savingSocial, setSavingSocial] = useState(false);
+  const [socialMsg, setSocialMsg] = useState("");
   const [dlUploading, setDlUploading] = useState(false);
   const [dlMsg, setDlMsg] = useState("");
   const [favorites, setFavorites] = useState<
@@ -134,6 +140,11 @@ function ProfilePageInner() {
       communityCta:   "Elegir comunidad",
       communityMarket: "Comunidad del mercado",
       communityChange: "Cambiar comunidad",
+      socialHeading:  "Facebook e Instagram (opcional)",
+      socialHint:     "Para que clientes que te encontraron en redes confirmen que eres tú. Reserva y pago siguen en AISaravanna.",
+      facebookLabel:  "URL de Facebook",
+      instagramLabel: "Usuario de Instagram",
+      saveSocial:     "Guardar redes",
     };
   const tEn = {
       myProfile:      "My profile",
@@ -158,6 +169,11 @@ function ProfilePageInner() {
       communityCta:   "Choose community lane",
       communityMarket: "Market community",
       communityChange: "Change community",
+      socialHeading:  "Facebook & Instagram (optional)",
+      socialHint:     "Help clients who found you on social confirm it’s you. Booking and payment stay on AISaravanna.",
+      facebookLabel:  "Facebook URL",
+      instagramLabel: "Instagram username",
+      saveSocial:     "Save social links",
     };
   const t = lang === "es" ? tEs : tEn;
 
@@ -177,6 +193,8 @@ function ProfilePageInner() {
         }
         setUser(userData);
         setDisplayName(userData.display_name ?? "");
+        setFacebookUrl(userData.facebook_url ?? "");
+        setInstagramHandle(userData.instagram_handle ?? "");
         setListings(Array.isArray(listingsData) ? listingsData : []);
         setLoading(false);
       })
@@ -201,6 +219,40 @@ function ProfilePageInner() {
     }
     setEditing(false);
     setSaving(false);
+  };
+
+  const handleSaveSocial = async () => {
+    if (!user) return;
+    setSavingSocial(true);
+    setSocialMsg("");
+    const res = await fetch("/api/auth/me", {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        facebook_url: facebookUrl.trim(),
+        instagram_handle: instagramHandle.trim(),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      const u = data.user as User | undefined;
+      if (u) {
+        setUser(u);
+        setFacebookUrl(u.facebook_url ?? "");
+        setInstagramHandle(u.instagram_handle ?? "");
+      }
+      setSocialMsg(lang === "es" ? "✓ Redes guardadas" : "✓ Social links saved");
+    } else {
+      setSocialMsg(
+        typeof data.error === "string"
+          ? data.error
+          : lang === "es"
+            ? "No se pudo guardar. Revisa la URL de Facebook o el usuario de Instagram."
+            : "Could not save. Check the Facebook URL or Instagram username.",
+      );
+    }
+    setSavingSocial(false);
   };
 
   const handleLogout = () => {
@@ -369,6 +421,49 @@ function ProfilePageInner() {
               <div className="text-xs text-[#6B7280] mt-0.5">{s.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* Optional social discovery links */}
+        <div className="bg-white rounded-3xl border border-[#E5E0D8] p-6 mb-5 shadow-sm">
+          <h2 className="font-serif text-lg font-bold text-[#1C1917] mb-1">{t.socialHeading}</h2>
+          <p className="text-xs text-[#6B7280] mb-4 leading-relaxed">{t.socialHint}</p>
+          <div className="space-y-3">
+            <label className="block">
+              <span className="text-xs font-semibold text-[#374151]">{t.facebookLabel}</span>
+              <input
+                value={facebookUrl}
+                onChange={(e) => setFacebookUrl(e.target.value)}
+                placeholder="https://facebook.com/yourpage"
+                className="mt-1 w-full border border-[#E5E0D8] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#1B4332]"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-[#374151]">{t.instagramLabel}</span>
+              <input
+                value={instagramHandle}
+                onChange={(e) => setInstagramHandle(e.target.value)}
+                placeholder="@yourhandle"
+                className="mt-1 w-full border border-[#E5E0D8] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#1B4332]"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void handleSaveSocial()}
+              disabled={savingSocial}
+              className="px-4 py-2 bg-[#1B4332] text-white text-xs font-semibold rounded-xl disabled:opacity-50"
+            >
+              {savingSocial ? "..." : t.saveSocial}
+            </button>
+            {socialMsg && (
+              <p
+                className={`text-xs rounded-xl px-3 py-2 ${
+                  socialMsg.startsWith("✓") ? "bg-[#ECFDF5] text-[#065F46]" : "bg-red-50 text-red-600"
+                }`}
+              >
+                {socialMsg}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Driver license / identity (NJ) */}

@@ -26,6 +26,10 @@ import { formatUsdCents } from "@/lib/money";
 import { UsdCents } from "@/components/UsdAmount";
 import { fetchListingForDetailPage, fetchListingMetaRow } from "@/lib/listing-detail-fetch";
 import { distKmBetween, formatListingDistanceMi } from "@/lib/listing-distance";
+import ShareListingButton from "@/components/ShareListingButton";
+import { SellerSocialLinks } from "@/components/SellerSocialLinks";
+import { providerSocialFromRow } from "@/lib/social-links";
+import { getPublicAppUrl } from "@/lib/app-url";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const supaUrl = getSupabaseUrl();
@@ -132,6 +136,13 @@ export default async function ListingPage({
   if (searchParams?.lng) loginQs.set("lng", searchParams.lng);
   const loginReturnTo = `/listing/${params.id}${loginQs.toString() ? `?${loginQs.toString()}` : ""}#listing-inapp-chat`;
   const fullListingHref = withLang(`/listing/${params.id}`, listingLang);
+  const shareListingUrl = `${getPublicAppUrl()}${fullListingHref}`;
+  const sellerSocial = providerSocialFromRow(
+    embeddedSellerRow(listing.users as Record<string, unknown> | Record<string, unknown>[] | null | undefined) as {
+      facebook_url?: string | null;
+      instagram_handle?: string | null;
+    } | null,
+  );
   const serviceMenu: ServiceMenu | null = isServiceListing
     ? effectiveServiceMenuForListing(
         (listing as { service_menu?: ServiceMenu | null }).service_menu ?? null,
@@ -191,7 +202,10 @@ export default async function ListingPage({
         </div>
         <div className="flex items-start justify-between gap-3 mb-4">
           <h1 className="text-xl font-semibold text-[#1C1917] flex-1 min-w-0">{displayTitle}</h1>
-          <FavoriteButton listingId={params.id} lang={listingLang} />
+          <div className="flex items-center gap-2 shrink-0">
+            <ShareListingButton lang={listingLang} title={displayTitle} shareUrl={shareListingUrl} />
+            <FavoriteButton listingId={params.id} lang={listingLang} />
+          </div>
         </div>
         {isServiceListing && listing.package_session_count >= 2 && listing.package_total_price_mxn > 0 && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -255,8 +269,8 @@ export default async function ListingPage({
         {/* Payment methods section — hidden until commission collection is enabled via Stripe */}
 
         {sellerId && (
-          <Link href={`/seller/${sellerId}`} className="block hover:opacity-90 transition-opacity">
-            <div className="bg-[#F4F0EB] rounded-xl p-4 mb-6 flex items-center gap-3">
+          <Link href={withLang(`/seller/${sellerId}`, listingLang)} className="block hover:opacity-90 transition-opacity">
+            <div className="bg-[#F4F0EB] rounded-xl p-4 mb-3 flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-[#1B4332] flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
                 {seller?.display_name?.[0] ?? "V"}
               </div>
@@ -283,6 +297,11 @@ export default async function ListingPage({
               </div>
             </div>
           </Link>
+        )}
+        {sellerId && (
+          <div className="mb-6">
+            <SellerSocialLinks lang={listingLang} links={sellerSocial} />
+          </div>
         )}
         <div className="flex flex-col gap-3">
           {searchContextNote && isServiceListing && (

@@ -141,6 +141,19 @@ const COPY: Record<"en" | "es", FaqCopy> = {
           },
         ],
       },
+      {
+        heading: "Facebook, Instagram & WhatsApp",
+        items: [
+          {
+            q: "I found a provider on Instagram or Facebook—where do I book?",
+            a: [
+              "Facebook and Instagram are great for discovery and social proof; many NJ providers share their work there.",
+              "When you are ready to hire, open their AISaravanna listing or profile link (share it in a group chat or WhatsApp). Quote, deposit, and payment stay in the app.",
+              "WhatsApp and SMS from AISaravanna are alerts and coordination—they deep-link back to your booking, not a substitute for checkout.",
+            ],
+          },
+        ],
+      },
     ],
     disclaimer:
       "This FAQ is explanatory only and does not replace the Terms of Use or Privacy Policy, nor does it constitute legal advice. Features (verification types, payouts, messaging, reviews) may evolve by region and configuration.",
@@ -260,6 +273,19 @@ const COPY: Record<"en" | "es", FaqCopy> = {
               "Coordine compraventa y prestación de servicios legítimos relacionados con AISaravanna.",
               "Sin spam, acoso ni recolección indebida para marketing ajeno.",
               "El uso indebido puede implicar medidas conforme los Términos.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Facebook, Instagram y WhatsApp",
+        items: [
+          {
+            q: "Encontré un proveedor en Instagram o Facebook—¿dónde reservo?",
+            a: [
+              "Facebook e Instagram sirven para descubrir y ver el trabajo del proveedor; muchos en NJ comparten ahí.",
+              "Cuando quieras contratar, abre el enlace de su anuncio o perfil en AISaravanna (compártelo en un grupo o WhatsApp). Cotización, depósito y pago quedan en la app.",
+              "WhatsApp y SMS de AISaravanna son avisos y coordinación—vuelven a tu reserva, no sustituyen el checkout.",
             ],
           },
         ],
