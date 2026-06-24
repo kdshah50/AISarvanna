@@ -47,6 +47,17 @@ const COPY: Record<
     faq4A: string;
     faq5Q: string;
     faq5A: string;
+    faq6Q: string;
+    faq6A: string;
+    marketTitle: string;
+    marketSub: string;
+    market1Title: string;
+    market1Body: string;
+    market2Title: string;
+    market2Body: string;
+    market3Title: string;
+    market3Body: string;
+    shareListingNote: string;
     finalTitle: string;
     finalSub: string;
     buyerEyebrow: string;
@@ -63,7 +74,7 @@ const COPY: Record<
     heroEyebrow: "Para conductores y taxis en New Jersey",
     heroTitle: "Publica tus tarifas fijas y recibe solicitudes de viaje.",
     heroSub:
-      "Registro gratis en AISaravanna — menú de precios por trayecto, solicitud con dirección de recogida, cotización en el chat y cobro seguro en la app.",
+      "Registro gratis en AISaravanna — menú de precios por trayecto (EWR, JFK, LGA, hospital), cotización en el chat y cobro seguro en la app. Reserva con anticipación — no es Uber al instante.",
     ctaPrimary: "Registrarme como conductor",
     ctaSecondary: "Ver cómo funciona",
     badgeFree: "Registro gratis",
@@ -105,16 +116,33 @@ const COPY: Record<
     faq3A:
       "Abre tu anuncio, elige uno o más trayectos del menú, indica dirección de recogida y horario, y envía la solicitud. Tú revisas y envías la cotización oficial.",
     faq4Q: "¿Cómo recibo el pago?",
-    faq4A: "El pasajero paga en la app. Tu pago se deposita a tu cuenta bancaria mexicana (CLABE) al confirmar el viaje.",
+    faq4A: "El pasajero paga en la app. Tu parte se deposita a tu cuenta bancaria de EE. UU. vía Stripe Connect cuando confirmas el viaje.",
     faq5Q: "¿Mi WhatsApp es público?",
     faq5A: "No. Solo clientes que abren chat en la app pueden contactarte.",
+    faq6Q: "¿Es como Uber o Lyft?",
+    faq6A:
+      "No. AISaravanna no envía un carro al instante. Publicas tu menú, el pasajero reserva desde tu anuncio, tú confirmas la cotización y cobras depósito + saldo en la app.",
+    marketTitle: "Promociona tu anuncio en la comunidad",
+    marketSub:
+      "Los pasajeros reservan desde el enlace de tu anuncio — no necesitan descargar otra app como Uber.",
+    market1Title: "Grupos de WhatsApp",
+    market1Body:
+      "Comparte tu enlace en grupos de vecinos, templos y asociaciones de expatriados en Edison y Middlesex.",
+    market2Title: "Facebook e Instagram",
+    market2Body:
+      "Publica tu menú de aeropuertos (EWR, JFK, LGA) en páginas comunitarias. El pasajero abre tu anuncio y reserva ahí.",
+    market3Title: "Aeropuertos y citas médicas",
+    market3Body:
+      "Destaca trayectos fijos: EWR, JFK, LGA, Edison–New Brunswick y traslados a RWJ / JFK Medical.",
+    shareListingNote:
+      "Conductor: después de aprobarte, copia el enlace de tu anuncio y compártelo en tus grupos. El pasajero elige del menú, paga depósito y tú gestionas el viaje en /seller-bookings.",
     finalTitle: "Empieza hoy. Tarda 5 minutos.",
     finalSub: "Cargamos tu menú con tarifas de referencia para NJ y la región. Solo ajustas precios y listo.",
     buyerEyebrow: "¿Necesitas un taxi?",
     buyerTitle: "Encuentra un conductor cerca de ti.",
-    buyerSub: "Mira taxis aprobados en New Jersey de Allende con menú de tarifas fijas.",
-    buyerCta: "Ver taxis en NJ",
-    footerNote: "AISaravanna — mercado local en New Jersey de Allende",
+    buyerSub: "Mira taxis verificados en Middlesex County, NJ con menú de tarifas fijas (EWR, JFK, LGA, hospital).",
+    buyerCta: "Ver taxis en Middlesex",
+    footerNote: "AISaravanna — mercado local en Middlesex County, New Jersey",
     langToggleEs: "ES",
     langToggleEn: "EN",
   },
@@ -123,7 +151,7 @@ const COPY: Record<
     heroEyebrow: "For drivers and taxis in New Jersey",
     heroTitle: "Publish fixed fares and receive ride requests.",
     heroSub:
-      "Free signup on AISaravanna — per-trip price menu, pickup details on each request, quotes in chat, and secure in-app payments.",
+      "Free signup on AISaravanna — per-trip price menu (EWR, JFK, LGA, hospital runs), quotes in chat, and secure in-app payments. Book ahead — not instant Uber-style dispatch.",
     ctaPrimary: "Sign up as a driver",
     ctaSecondary: "See how it works",
     badgeFree: "Free signup",
@@ -164,16 +192,33 @@ const COPY: Record<
     faq3A:
       "They open your listing, pick one or more menu items, enter pickup address and preferred time, and send the request. You review and send the official quote.",
     faq4Q: "How do I get paid?",
-    faq4A: "The rider pays in the app. Your share is deposited to your Mexican bank account (CLABE) when you confirm the ride.",
+    faq4A: "The rider pays in the app. Your share is deposited to your U.S. bank account via Stripe Connect when you confirm the ride.",
     faq5Q: "Is my WhatsApp public?",
     faq5A: "No. Only customers who open a chat in the app can contact you.",
+    faq6Q: "Is this like Uber or Lyft?",
+    faq6A:
+      "No. AISaravanna does not dispatch a car on demand. You publish your menu, the rider books from your listing link, you confirm the quote, and collect deposit + balance in the app.",
+    marketTitle: "Market your listing in the community",
+    marketSub:
+      "Riders book from your listing link — they do not need to download a separate app like Uber.",
+    market1Title: "WhatsApp groups",
+    market1Body:
+      "Share your link in neighborhood, temple, and expat association groups across Edison and Middlesex County.",
+    market2Title: "Facebook & Instagram",
+    market2Body:
+      "Post your airport menu (EWR, JFK, LGA) on community pages. The rider opens your listing and books there.",
+    market3Title: "Airport & medical runs",
+    market3Body:
+      "Highlight fixed routes: EWR, JFK, LGA, Edison–New Brunswick, and RWJ / JFK Medical hospital trips.",
+    shareListingNote:
+      "Driver: after approval, copy your listing link and share it in your groups. The rider picks from the menu, pays a deposit, and you manage the trip on /seller-bookings.",
     finalTitle: "Start today. Takes 5 minutes.",
     finalSub: "We load your menu with reference fares for NJ and the region. Just adjust prices and you're done.",
     buyerEyebrow: "Need a taxi?",
     buyerTitle: "Find a driver near you.",
-    buyerSub: "Browse approved taxi listings in New Jersey de Allende with fixed-fare menus.",
-    buyerCta: "Browse taxis in NJ",
-    footerNote: "AISaravanna — local marketplace in New Jersey de Allende",
+    buyerSub: "Browse verified taxi listings in Middlesex County, NJ with fixed-fare menus (EWR, JFK, LGA, hospital).",
+    buyerCta: "Browse taxis in Middlesex",
+    footerNote: "AISaravanna — local marketplace in Middlesex County, New Jersey",
     langToggleEs: "ES",
     langToggleEn: "EN",
   },
@@ -188,8 +233,8 @@ export function generateMetadata({
   const t = COPY[lang];
   const title =
     lang === "es"
-      ? "Taxi y transporte en New Jersey de Allende | AISaravanna"
-      : "Taxi and ride service in New Jersey de Allende | AISaravanna";
+      ? "Taxi y transporte en Middlesex County, NJ | AISaravanna"
+      : "Taxi and ride service in Middlesex County, NJ | AISaravanna";
   return {
     title,
     description: t.heroSub,
@@ -209,7 +254,7 @@ export default function TransporteLandingPage({
   const lang = langForUiCopy(langFromParam(searchParams?.lang));
   const t = COPY[lang];
   const menu = taxiRideShareStarterMenu();
-  const peso = new Intl.NumberFormat("es-MX", {
+  const usdFmt = new Intl.NumberFormat(lang === "es" ? "es-US" : "en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
@@ -218,8 +263,8 @@ export default function TransporteLandingPage({
 
   const signupHref = `/unete?service=${TRANSPORT_APP_SERVICE}&lang=${lang}`;
   const browseHref = `/?category=services&q=${encodeURIComponent(
-    lang === "es" ? "taxi transporte" : "taxi ride",
-  )}&lang=${lang}`;
+    "Transporte / Taxi",
+  )}&colonia=middlesex&lang=${lang}`;
 
   return (
     <main className="min-h-screen bg-[#FDF8F1]">
@@ -233,7 +278,7 @@ export default function TransporteLandingPage({
               {lang === "es" ? t.langToggleEs : t.langToggleEn}
             </span>
             <Link
-              href={`/transporte?lang=${otherLang}`}
+              href={`/ride-share?lang=${otherLang}`}
               className="px-3 py-1 rounded-md text-xs font-bold text-[#6B7280] hover:text-[#1B4332]"
             >
               {otherLang === "es" ? t.langToggleEs : t.langToggleEn}
@@ -319,6 +364,29 @@ export default function TransporteLandingPage({
         </section>
 
         <section className="mb-12">
+          <h2 className="font-serif text-2xl font-bold text-[#1B4332] mb-2 text-center">
+            {t.marketTitle}
+          </h2>
+          <p className="text-sm text-[#6B7280] mb-6 text-center max-w-lg mx-auto">{t.marketSub}</p>
+          <div className="grid sm:grid-cols-3 gap-4 mb-5">
+            {[
+              { i: "💬", t: t.market1Title, b: t.market1Body },
+              { i: "📱", t: t.market2Title, b: t.market2Body },
+              { i: "✈️", t: t.market3Title, b: t.market3Body },
+            ].map((c) => (
+              <div key={c.t} className="bg-white rounded-2xl border border-[#E5E0D8] p-5">
+                <div className="text-3xl mb-3">{c.i}</div>
+                <h3 className="font-bold text-sm text-[#1B4332] mb-2">{c.t}</h3>
+                <p className="text-xs text-[#374151] leading-relaxed">{c.b}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-[#6B7280] text-center max-w-xl mx-auto leading-relaxed">
+            {t.shareListingNote}
+          </p>
+        </section>
+
+        <section className="mb-12">
           <div className="bg-amber-50 rounded-2xl border border-amber-200 p-5 sm:p-6">
             <h2 className="font-serif text-2xl font-bold text-[#78350F] mb-2">{t.menuTitle}</h2>
             <p className="text-sm text-[#92400E] leading-relaxed mb-5">{t.menuSub}</p>
@@ -329,7 +397,7 @@ export default function TransporteLandingPage({
                     {(lang === "en" && it.name_en) || it.name_es}
                   </span>
                   <span className="text-[#78350F] font-bold tabular-nums shrink-0">
-                    {peso.format(it.price_mxn_cents / 100)}
+                    {usdFmt.format(it.price_mxn_cents / 100)}
                   </span>
                 </li>
               ))}
@@ -349,6 +417,7 @@ export default function TransporteLandingPage({
               { q: t.faq3Q, a: t.faq3A },
               { q: t.faq4Q, a: t.faq4A },
               { q: t.faq5Q, a: t.faq5A },
+              { q: t.faq6Q, a: t.faq6A },
             ].map((f) => (
               <details
                 key={f.q}
@@ -397,17 +466,11 @@ export default function TransporteLandingPage({
               {t.buyerCta} →
             </Link>
             <div className="mt-4 pt-4 border-t border-[#E5E0D8]">
-              <p className="text-xs text-[#6B7280] mb-2 leading-relaxed">
+              <p className="text-xs text-[#6B7280] leading-relaxed">
                 {lang === "en"
-                  ? "On-demand ride (from colonia to colonia, live fare estimate):"
-                  : "Viaje al momento (de colonia a colonia, tarifa estimada en vivo):"}
+                  ? "Pre-book from a driver's listing link — share that link in your community group, not an app download."
+                  : "Reserva desde el enlace del anuncio del conductor — comparte ese enlace en tu grupo comunitario, no una app aparte."}
               </p>
-              <Link
-                href={lang === "en" ? "/viaje?lang=en" : "/viaje"}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[#78350F] hover:underline"
-              >
-                🚕 {lang === "en" ? "Request a taxi now" : "Pedir taxi ahora"} →
-              </Link>
             </div>
           </div>
         </section>
